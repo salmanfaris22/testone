@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { Builder, C, lin, rng, roundRect, arcPts, DEG, TAU, mixHex } from './kit.js';
 import { terrainH, landSDF, beachiness, SEA_Y } from './terrain-fn.js';
-import { APRON, coast, ROADS, RB_W, RB_E, LAWNS, PARKING, DROP, PARK_FRAME, P1, HATCH, HATCH_FRAME, BROOD, BROOD_FRAME, GEN, FIRE } from './layout.js';
+import { APRON, coast, ROADS, RB_W, RB_E, LAWNS, PARKING, DROP, PARK_FRAME, P1, HATCH, HATCH_FRAME, BROOD, BROOD_FRAME, GEN, FIRE, JETTY } from './layout.js';
 
 function axis(dense0, dense1, step, far) {
   const a = []; for (let v = dense0; v <= dense1 + 1e-6; v += step) a.push(v);
@@ -140,7 +140,7 @@ export function createLand(scene, mats) {
   let n = 0, guard = 0;
   while (n < 1700 && guard++ < 120000) {
     const x = -560 + R() * 860, z = 150 + R() * 36, d = landSDF(x, z);
-    if (d < 0.5 || d > 10.5 || beachiness(x, z) > 0.25) continue;
+    if (d < 0.5 || d > 10.5 || beachiness(x, z) > 0.25 || Math.abs(x - JETTY.u) < JETTY.w / 2 + 1.6) continue;      // keep the jetty clear
     const s = 0.8 + R() * 1.4; e.set(R() * 6, R() * 6, R() * 6);
     m4.compose(v.set(x, terrainH(x, z) + s * 0.3, z), qt.setFromEuler(e), sc.set(s * (0.8 + R() * 0.6), s * (0.6 + R() * 0.4), s * (0.8 + R() * 0.6)));
     rocks.setMatrixAt(n, m4); cc.setHex(mixHex(C.rock, C.rockDark, R())); rocks.setColorAt(n, cc); n++;

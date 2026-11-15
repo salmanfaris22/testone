@@ -59,13 +59,20 @@ export function createDive(world) {
   const netTex = canvasTex(64, 64, (g, w) => { g.clearRect(0, 0, w, w); g.strokeStyle = 'rgba(210,235,245,.95)'; g.lineWidth = 2.4; g.beginPath(); g.moveTo(0, 0); g.lineTo(w, w); g.moveTo(w, 0); g.lineTo(0, w); g.stroke(); });
   const holder = new THREE.Group(); scene.add(holder);
   const fishGroup = new THREE.Group(); scene.add(fishGroup);
+  // the selected group: a soft ring round every fish of the same school, a brighter one round the fish you clicked
+  const HMAX = 260, hPos = new Float32Array(HMAX * 3), hSize = new Float32Array(HMAX), hHot = new Float32Array(HMAX);
+  const hGeo = new THREE.BufferGeometry(); hGeo.setAttribute('position', new THREE.BufferAttribute(hPos, 3)); hGeo.setAttribute('aSize', new THREE.BufferAttribute(hSize, 1)); hGeo.setAttribute('aHot', new THREE.BufferAttribute(hHot, 1));
+  const hMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { uS: { value: 1 }, uT, uA: { value: 0 } },
+    vertexShader: 'attribute float aSize, aHot; uniform float uS, uT; varying float vHot, vA; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; float pulse = 1.0 + 0.08 * sin(uT * 3.0 + position.x * 2.0); gl_PointSize = clamp(aSize * uS * pulse / -mv.z, 6.0, 260.0); vHot = aHot; vA = smoothstep(0.15, 0.9, -mv.z); }',
+    fragmentShader: 'uniform float uA; varying float vHot, vA; void main(){ float d = length(gl_PointCoord - 0.5) * 2.0; float ring = smoothstep(0.7, 0.86, d) * (1.0 - smoothstep(0.9, 1.0, d)); float glow = (1.0 - smoothstep(0.0, 1.0, d)) * 0.12; float a = (ring * (0.55 + 0.45 * vHot) + glow) * uA * vA; if (a < 0.004) discard; vec3 c = mix(vec3(0.62, 0.95, 1.0), vec3(1.0), vHot); gl_FragColor = vec4(c * a, a); }' });
+  const halos = new THREE.Points(hGeo, hMat); halos.frustumCulled = false; halos.renderOrder = 4; scene.add(halos); world.addScaled(hMat.uniforms.uS);
   const S = { active: false, kind: 'cage', r: 19.5, depth: 9, fish: [], sel: null, mix: 0, yaw: 0, gy: 0, pitch: -0.02, gp: -0.02, ang: 0, rc: 4, yc: -3.5, zoom: 1, gz: 1, orb: 0.5, gorb: 0.5, lift: 0.1, glift: 0.1, D: 3, idle: 0, look: new THREE.Vector3(), ready: false, meshes: [] };
 
   function clear() {
     for (const o of [...holder.children]) { holder.remove(o); o.geometry && o.geometry.dispose(); if (o.material && o.material.dispose && !o.material.userData.keep) o.material.dispose(); }
     for (const o of [...fishGroup.children]) { fishGroup.remove(o); o.geometry.dispose(); }
     for (const o of [...shafts.children]) { shafts.remove(o); o.geometry.dispose(); o.material.dispose(); }
-    S.fish = []; S.meshes = []; S.sel = null; S.mix = 0; S.only = null;
+    S.fish = []; S.meshes = []; S.sel = null; S.mix = 0; S.only = null; S.group = null; hMat.uniforms.uA.value = 0; hGeo.setDrawRange(0, 0);
   }
   /** opts: { kind: 'cage' | 'tank' | 'glass', r, depth, sp (id or 'mix'), n, grams } */
   function enter(o) {
@@ -124,6 +131,9 @@ export function createDive(world) {
       f.mesh.setMatrixAt(f.i, _m);
     }
     for (const m of S.meshes) m.instanceMatrix.needsUpdate = true;
+    // halos follow the selected group
+    hMat.uniforms.uA.value = damp(hMat.uniforms.uA.value, S.group ? 1 : 0, 5, dt);
+    if (S.group) { const G = S.group, n = Math.min(HMAX, G.length); for (let i = 0; i < n; i++) { const f = G[i]; hPos[i * 3] = f.pos.x; hPos[i * 3 + 1] = f.pos.y; hPos[i * 3 + 2] = f.pos.z; hSize[i] = f.len * (f === S.sel ? 1.9 : 1.55); hHot[i] = f === S.sel ? 1 : 0; } hGeo.setDrawRange(0, n); hGeo.attributes.position.needsUpdate = true; hGeo.attributes.aSize.needsUpdate = true; hGeo.attributes.aHot.needsUpdate = true; }
   }
   const want = new THREE.Vector3(), wantLook = new THREE.Vector3();
   function placeCamera(dt, snap) {
@@ -163,15 +173,24 @@ export function createDive(world) {
       for (const f of S.fish) { if (S.only && f.sp !== S.only) continue; const t = _v.copy(f.pos).sub(_ray.origin).dot(_ray.direction); if (t < 0.1) continue; const d = _ray.distanceToPoint(f.pos), lim = Math.max(f.len * 0.42, 0.02 * t + 0.06); if (d < lim && t < bd) { bd = t; best = f; } }
       return best;
     },
+    /** selecting one fish selects its whole group: the school of the same species in this cage or tank, one batch of one age */
     select(f) {
-      S.sel = f || null; S.idle = 0;
+      S.sel = f || null; S.idle = 0; S.group = f ? ((S.per || []).find((g) => g.sp === f.sp) || { list: [f] }).list : null;
       if (f) { S.gorb = 0.5; S.glift = 0.1; S.gz = 1; S.zoom = 1; api.frame(); }
       api.onSelect && api.onSelect(S.sel);
     },
     /** follow distance for the selected fish: closer for small fish, but never so close that growth cannot be seen */
     frame() { const f = S.sel; if (!f) return; const Lmax = lengthAt(f.sp, maxAge(f.sp)) / 100; S.D = 0.3 + 1.75 * Math.sqrt(Math.max(f.glen, 0.004) * Lmax) + 0.6 * f.glen; },
-    setAge(yrs) { const f = S.sel; if (!f) return; f.age = clamp(yrs, 0, maxAge(f.sp)); f.glen = Math.max(0.0018, lengthAt(f.sp, f.age) / 100); api.frame(); },
-    info(f = S.sel) { return f ? { sp: f.sp, age: f.age, cm: lengthAt(f.sp, f.age), g: weightAt(f.sp, f.age), max: maxAge(f.sp) } : null; },
+    /** the slider ages the whole group together; each fish keeps its own small difference from the one you clicked */
+    setAge(yrs) {
+      const f = S.sel; if (!f) return; const mx = maxAge(f.sp), a = clamp(yrs, 0, mx), k = a / Math.max(1e-4, f.age0);
+      for (const g of S.group || [f]) { g.age = g === f ? a : clamp(g.age0 * k, 0, mx); g.glen = Math.max(0.0018, lengthAt(g.sp, g.age) / 100); }
+      api.frame();
+    },
+    info(f = S.sel) {
+      if (!f) return null; const G = S.group || [f]; let cm = 0, gr = 0; for (const g of G) { cm += lengthAt(g.sp, g.age); gr += weightAt(g.sp, g.age); }
+      return { sp: f.sp, age: f.age, cm: lengthAt(f.sp, f.age), g: weightAt(f.sp, f.age), max: maxAge(f.sp), n: G.length, avgCm: cm / G.length, avgG: gr / G.length };
+    },
     /** screen position of a fish, and how many pixels one metre takes at its distance */
     screen(f, out) { _v.copy(f.pos).project(camera); if (_v.z > 1) return null; out.x = (_v.x * 0.5 + 0.5) * engine.w; out.y = (-_v.y * 0.5 + 0.5) * engine.h; out.ppm = (engine.h / (2 * Math.tan((camera.fov * Math.PI) / 360))) / camera.position.distanceTo(f.pos); return out; },
     /** one fish of each species near the camera, for name tags */

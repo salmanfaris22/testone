@@ -41,6 +41,8 @@ export const SMALL = [
   { x0: 138, x1: 147, z0: 6, z1: 15, h: 5 },                                       // substation kiosk
 ];
 export const FIRE = { x: 223.5, z: 108, w: 24, d: 19.5, r: 4.5, h: 6.75 };
+/** the way in: the name wall just inside the gatehouse, and where the Emirati host stands to greet you (the intro starts here) */
+export const GATE = { sign: [-295.5, -61.4], host: [-300.2, -64.0], hostRy: -1.78 };
 
 /* ───── roads (centre lines) ───── */
 export const RB_W = { x: -240, z: -75, r: 16.5 }, RB_E = { x: 195, z: 136.875, r: 15 };
@@ -59,11 +61,18 @@ export const DROP = { x: -210, z: -144, r: 12.5 };
 export const LAWNS = [[-226, -120, -198, -84, 9], [-236, -214, -200, -168, 10], [-169.5, -117, -135, -87, 4.5], [-228.75, -63.75, -183.75, 24.375, 6], [-262.5, 39, -246, 147, 3], [156, 40.5, 192, 147, 4.5]];
 export const PARKING = [[-131, -119], [-90, -90], [-76, -81.5], [-130, -81.5]];
 
-/* ───── sea cages: two rows of covered nursery cages near the beach, twelve grow-out cages beyond ───── */
+/* ───── sea cages: off the south shore, in front of Phase 1 ─────
+   (they used to sit off the north-east beach, which borders the military side; the client asked for them here)
+   Two rows of covered nursery cages close in, twelve grow-out cages further out, a jetty with a gangway down to a floating walkway. */
+/** point `u` metres along the south shore (that is, x) and `f` metres out to sea */
+export const south = (u, f) => [u, LANDLINE.south + f];
+/** the jetty runs straight out from the shore at x = u; deck top `y`; the gangway drops to the walkway between the nursery rows */
+export const JETTY = { u: -138, f0: -8, f1: 40, w: 4.2, y: 0.62, foot: 53, way: 66 };
 export const CAGES = {
-  small: { r: 12.75, list: [0, 1, 2, 3].flatMap((u) => [-1, 1].map((f) => coast(135 + u * 30, 66 + f * 16.5))) },
-  big: { r: 19.5, list: [0, 1, 2].flatMap((u) => [0, 1, 2, 3].map((f) => coast(105 + f * 57, 180 + u * 57))) },
-  boat: coast(190, 237),
+  small: { r: 12.75, list: [0, 1, 2, 3].flatMap((u) => [-1, 1].map((f) => south(-114 + u * 30, JETTY.way + f * 16.5))) },
+  big: { r: 19.5, list: [0, 1, 2].flatMap((u) => [0, 1, 2, 3].map((f) => south(-150 + f * 57, 152 + u * 57))) },
 };
-export const OVERVIEW = { x: -6, y: 0, z: -28, az: -0.98, pol: 0.98, dist: 880 };
-export const CAM_BOX = [-520, 430, -560, 330];
+/** LFC Hamour, the live fish carrier, lies alongside the west face of the jetty, bow out to sea (its local +x is the bow) */
+export const LFC_BERTH = { x: JETTY.u - JETTY.w / 2 - 1.6 - 7, z: LANDLINE.south + 32, ry: -Math.PI / 2 };
+export const OVERVIEW = { x: -20, y: 0, z: 90, az: -0.85, pol: 0.98, dist: 900 };
+export const CAM_BOX = [-520, 430, -560, 520];

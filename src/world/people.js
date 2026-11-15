@@ -7,8 +7,9 @@ import { Builder, rng, TAU, C } from './kit.js';
 import { avatars, CAST } from './avatars.js';
 
 export const WEAR = {
-  coat: 0x9fd0ee, gown: 0x9fd0ee, lab: 0xf6f8f9, overall: 0x2f6f9c, hivis: 0xf08a24, kandura: 0xfbfbf9,
-  visitor: [0xe8862e, 0x35a7a3, 0xf2efe9, 0x4a6fa5, 0xd65d5d, 0x8fbf7f, 0xf0c53c], office: [0xe9ecef, 0x9fb3c1, 0x33526b, 0xf2efe9],
+  coat: 0x9fd0ee, gown: 0x9fd0ee, lab: 0xf6f8f9, overall: 0x2f6f9c, hivis: 0xf08a24, kandura: 0xfbfbf9, emirati: 0xfbfbf9, host: 0xfbfbf9, abaya: 0x17171a,
+  // most visitors are Emirati: white kandura and ghutra, black abaya and shayla
+  visitor: [0xfbfbf9, 0x17171a, 0xe8862e, 0xfbfbf9, 0x35a7a3, 0x17171a, 0x4a6fa5, 0xfbfbf9, 0xd65d5d, 0x17171a], office: [0xe9ecef, 0x9fb3c1, 0x33526b, 0xf2efe9],
 };
 const HAIR = [0x2a2420, 0x3b2c22, 0x1c1a19, 0x5a4636, 0x15130f];
 export function wearFor(kind, R) { const v = WEAR[kind]; return Array.isArray(v) ? v[Math.floor(R() * v.length)] : v ?? 0xffffff; }
@@ -31,7 +32,7 @@ function parts() {
 const _m = new THREE.Matrix4(), _b = new THREE.Matrix4(), _t = new THREE.Matrix4(), _r = new THREE.Matrix4(), _c = new THREE.Color();
 const _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
 const _inv = new THREE.Matrix4(), _cl = new THREE.Vector3(), GONE = new THREE.Matrix4().makeScale(0, 0, 0);
-const SEATED = { sit: 1, desk: 1 }, STAFF = { coat: 1, lab: 1, gown: 1, overall: 1, hivis: 1 };
+const SEATED = { sit: 1, desk: 1 }, STAFF = { coat: 1, lab: 1, gown: 1, overall: 1, hivis: 1 }, VISIT = { visitor: 1, kandura: 1, emirati: 1, abaya: 1, host: 1 };
 const compose = (out, x, y, z, rx, ry, rz) => out.compose(_p.set(x, y, z), _q.setFromEuler(_e.set(rx, ry, rz, 'YXZ')), _s.set(1, 1, 1));
 const turn = (a, b, k) => { let d = (b - a) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return a + d * k; };
 
@@ -52,12 +53,12 @@ export function createPeople(mats, list, { y = 0.07, seed = 1, cast = true } = {
   hands.castShadow = false; cap.castShadow = false;
   const st = list.map((o, i) => {
     const kind = o.kind || 'visitor', hex = o.hex ?? wearFor(kind, R);
-    const gown = hex === WEAR.gown, robe = hex === WEAR.kandura;
+    const gown = hex === WEAR.gown, robe = hex === WEAR.kandura, abaya = hex === WEAR.abaya;
     torso.setColorAt(i, _c.setHex(hex)); arms.setColorAt(i * 2, _c); arms.setColorAt(i * 2 + 1, _c);
-    legs.setColorAt(i * 2, _c.setHex(o.legs ?? (robe ? 0xf4f4f0 : gown ? 0xb5d9ee : kind === 'office' || kind === 'visitor' ? [0x27333d, 0x3b4654, 0x6b6257, 0x1f2a36][Math.floor(R() * 4)] : 0x27333d))); legs.setColorAt(i * 2 + 1, _c);
-    cap.setColorAt(i, _c.setHex(o.cap ?? (gown ? 0x7fbce4 : kind === 'hivis' ? 0xf6f6f2 : kind === 'overall' ? 0x2a5c7d : robe ? 0xfbfbf9 : HAIR[Math.floor(R() * HAIR.length)])));
-    const s = { o, kind, x: o.x, z: o.z, h: o.ry || 0, gh: o.ry || 0, y: o.y ?? y, sc: o.s || 1, ph: R() * TAU, k: R(), mode: o.mode || (kind === 'visitor' || kind === 'kandura' ? 'idle' : 'work'), stride: 0, wait: 0, moving: false, av: null };
-    const child = s.sc < 0.86, pool = CAST[o.cast || (child ? 'child' : gown || kind === 'coat' ? 'gown' : kind)] || CAST.visitor;
+    legs.setColorAt(i * 2, _c.setHex(o.legs ?? (robe ? 0xf4f4f0 : abaya ? 0x141416 : gown ? 0xb5d9ee : kind === 'office' || kind === 'visitor' ? [0x27333d, 0x3b4654, 0x6b6257, 0x1f2a36][Math.floor(R() * 4)] : 0x27333d))); legs.setColorAt(i * 2 + 1, _c);
+    cap.setColorAt(i, _c.setHex(o.cap ?? (gown ? 0x7fbce4 : kind === 'hivis' ? 0xf6f6f2 : kind === 'overall' ? 0x2a5c7d : robe ? 0xfbfbf9 : abaya ? 0x141416 : HAIR[Math.floor(R() * HAIR.length)])));
+    const s = { o, kind, x: o.x, z: o.z, h: o.ry || 0, gh: o.ry || 0, y: o.y ?? y, sc: o.s || 1, ph: R() * TAU, k: R(), mode: o.mode || (VISIT[kind] ? 'idle' : 'work'), stride: 0, wait: 0, moving: false, av: null };
+    const child = s.sc < 0.86, pool = CAST[o.cast || (child ? 'child' : gown || kind === 'coat' ? 'gown' : robe ? 'emirati' : abaya ? 'abaya' : kind)] || CAST.visitor;
     s.type = pool[Math.floor(R() * pool.length)]; s.asc = child ? 0.9 + R() * 0.12 : 0.97 + R() * 0.06;
     if (o.path && o.path.length > 1) {
       const pts = o.path, segs = []; let total = 0; const m = o.loop ? pts.length : pts.length - 1;

@@ -65,7 +65,7 @@ const top = $('#topbar'), navLinks = [...document.querySelectorAll('.nav a')];
 const secs = ['masterplan', 'species', 'cycle', 'contact'].map((id) => document.getElementById(id));   // (the company section sits between cycle and contact)
 
 /* ───── the model ───── */
-let world = null, app = null, story = null, species = null;
+let world = null, app = null, story = null, species = null, intro = null;
 const ldPct = $('#ld-pct'), ldMsg = $('#ld-msg');
 let shown = 0, target = 0.04;
 const ldTick = setInterval(() => { shown += (target - shown) * 0.2; ldPct.textContent = Math.round(shown * 100); }, 50);
@@ -92,20 +92,41 @@ async function boot() {
     // entering from far down the page (the cycle list, the footer): the engine sleeps there, so wake it first
     const enter = app.enter; app.enter = (id) => { world.engine.setActive(true); story.setActive(false); species.setActive(false); veil.style.opacity = 0; enter(id); };
     species = createSpecies(world, { onGoto: (id) => app.enter(id), onAsk: (name) => { for (const c of form.querySelectorAll('[name=sp]')) c.checked = c.value === name; form.topic.value = 'Fry order'; syncForm(); scrollTo($('#contact').getBoundingClientRect().top + scrollY); } });
-    // open a little high and wide, then settle into the hero view as the loader lifts
-    if (reduced) { world.rig.jump(HERO); world.rig.lambda = 4.2; }
+    // the opening film: from the gate, the site is built phase by phase (skipped for reduced motion, #explore and ?nointro)
+    const q = new URLSearchParams(location.search), wantIntro = !reduced && location.hash !== '#explore' && !q.has('nointro') && scrollY < 40;
+    if (wantIntro) { const { createIntro } = await import('./world/intro.js'); intro = createIntro(world, { hero: HERO }); window.__intro = intro; }
+    // otherwise open a little high and wide, then settle into the hero view as the loader lifts
+    else if (reduced) { world.rig.jump(HERO); world.rig.lambda = 4.2; }
     else { world.rig.jump({ ...HERO, dist: HERO.dist * 1.32, pol: HERO.pol - 0.17, az: HERO.az - 0.14 }); world.rig.lambda = 1.5; setTimeout(() => { if (!app.S.exploring) world.rig.lambda = 4.2; }, 3200); }
     target = 0.92; ldMsg.textContent = 'Warming up';
     await world.engine.renderer.compileAsync(world.scene, world.camera).catch(() => {});
+    if (intro) { intro.prepare(); body.classList.add('intro'); lock(true); story.setActive(false); }
     world.engine.start();
     await new Promise((r) => setTimeout(r, 350));
     target = 1; setTimeout(done, 260);
-    setTimeout(() => world.prebuild && world.prebuild().then(countItems), 1800);
     lastY = -1; window.__app = app;
+    if (intro) setTimeout(() => runIntro(lock, countItems), 420);
+    else setTimeout(() => world.prebuild && world.prebuild().then(countItems), 1800);
     if (location.hash === '#explore') setTimeout(() => app.enter(), 600);
   } catch (err) {
     console.error(err); body.classList.add('no-gl'); fallbackSteps(); done();
   }
+}
+/** plays the opening film with its captions; a scroll, a key or the button skips to the end */
+function runIntro(lock, countItems) {
+  const el = $('#intro'), cap = el.querySelector('.intro-cap'), chips = [...el.querySelectorAll('.intro-phases li')];
+  el.hidden = false; let capT = null;
+  intro.onCaption = (small, big) => { cap.classList.add('is-out'); clearTimeout(capT); if (!small) return; capT = setTimeout(() => { cap.querySelector('small').textContent = small; cap.querySelector('b').textContent = big; cap.classList.remove('is-out'); }, 430); };
+  intro.onPhase = (k) => chips.forEach((c, i) => { c.classList.toggle('is-on', i === k - 1); c.classList.toggle('is-done', i < k - 1); });
+  const skip = () => intro.finish(true), onKey = (e) => { if (['Space', 'ArrowDown', 'PageDown', 'Escape', 'Enter', 'End'].includes(e.code)) { e.preventDefault(); skip(); } };
+  el.querySelector('.intro-skip').addEventListener('click', skip, { once: true });
+  addEventListener('wheel', skip, { passive: true }); addEventListener('touchmove', skip, { passive: true }); addEventListener('keydown', onKey);
+  intro.play().then(() => {
+    removeEventListener('wheel', skip); removeEventListener('touchmove', skip); removeEventListener('keydown', onKey);
+    cap.classList.add('is-out'); chips.forEach((c) => { c.classList.remove('is-on'); c.classList.add('is-done'); }); setTimeout(() => { el.hidden = true; }, 700);
+    body.classList.remove('intro'); if (!app.S.exploring) { lock(false); story.setActive(true); } lastY = -1;
+    setTimeout(() => world.prebuild && world.prebuild().then(countItems), 1200);
+  });
 }
 function fallbackSteps() {
   $('#tour-steps').innerHTML = AREAS.map((a) => `<article class="step"><div class="step-card"><div class="step-top"><span class="step-n">${a.n}</span><span class="step-tag">${esc(a.tag)}</span></div><h3>${esc(a.name)}</h3><p class="step-desc">${esc(a.desc)}</p></div></article>`).join('');
@@ -129,7 +150,7 @@ function frame(now) {
     top.classList.toggle('is-solid', speciesEnd > 0 && !inContact && !underwater && y > vh * 0.45);
     top.classList.toggle('is-dark', inContact || underwater);
     let here = -1; secs.forEach((s, i) => { if (s && y >= s.offsetTop - vh * 0.4) here = i; }); navLinks.forEach((a, i) => a.classList.toggle('is-here', i === here));
-    if (world && !(app && app.S.exploring)) {
+    if (world && !(app && app.S.exploring) && !(intro && intro.playing)) {
       world.engine.setActive(y < speciesEnd - 4);
       const d = (y + vh - speciesTop) / vh;                         // how far the species section has come in
       veil.style.opacity = d <= 0.12 ? 0 : d < 0.5 ? smooth((d - 0.12) / 0.38) : d < 0.92 ? 1 - smooth((d - 0.5) / 0.42) : 0;
@@ -138,7 +159,8 @@ function frame(now) {
       railEl.style.opacity = story.tau > -0.2 && y < speciesTop - vh ? 1 : 0;
     }
   }
-  if (world && story && !(app && app.S.exploring)) {
+  if (intro && intro.playing) { const w = innerWidth > 900, k = smooth(clamp((intro.time - 12.6) / 2.4, 0, 1)); world.rig.setShift(w ? -innerWidth * 0.16 * k : 0, w ? 0 : -innerHeight * 0.1 * k); if (app) app.labels.showPins(false); }
+  else if (world && story && !(app && app.S.exploring)) {
     if (!species.active) story.update(y, dt);
     const wide = innerWidth > 900, k = 1 - smooth(clamp((story.tau + 1) / 0.7, 0, 1));
     world.rig.setShift(wide ? -innerWidth * 0.16 * k : 0, wide ? 0 : -innerHeight * 0.1 * k);

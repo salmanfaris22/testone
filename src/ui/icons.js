@@ -55,7 +55,7 @@ const RULES = [
   [/Virology/, 'virus'], [/Molecular|Genomics/, 'dna'], [/Bacteriology/, 'dish'], [/Chemistry/, 'beaker'], [/Parasitology|Microscop/, 'scope'], [/Water.quality/i, 'drop'], [/Plankton/, 'plankton'], [/Sample reception/, 'box'],
   [/control room|SCADA/i, 'monitor'], [/Laboratory|laboratory|quality bench|culture lab/, 'flask'],
   [/Meeting/, 'people'], [/Production office/, 'chart'], [/Science office/, 'flask'], [/Management/, 'clip'], [/office/i, 'desk'], [/corridor/i, 'path'],
-  [/barge|boat/i, 'boat'], [/camera/i, 'camera'], [/cage/i, 'net'], [/Jetty|walkway/i, 'rail'],
+  [/barge|boat|LFC|carrier/i, 'boat'], [/camera/i, 'camera'], [/cage/i, 'net'], [/Jetty|walkway/i, 'rail'],
   [/raceway/i, 'raceway'], [/feeder|silos/i, 'hopper'], [/Rotifer|Artemia|Copepod/i, 'bug'], [/Photobioreactor|Green-water|algae/i, 'leaf'], [/Egg|incubator/i, 'egg'],
   [/Grading|counter|Packing/i, 'scale'], [/Biosecure/, 'door'], [/Health-check/, 'cross'], [/kitchen/i, 'fork'],
   [/filter/i, 'filter'], [/UV/, 'sun'], [/skimmer|Oxygen|Ozone|Degassing/i, 'bubbles'], [/heat/i, 'thermo'], [/blower/i, 'fan'], [/supply main/i, 'valve'], [/pump/i, 'pump'],

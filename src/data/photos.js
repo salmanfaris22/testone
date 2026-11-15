@@ -21,6 +21,7 @@ export const ITEM_PHOTO = {
   'research/LAB-07': AREA_PHOTO.research,
   'visitor/EX-1': { src: P('hamour-adult.webp'), cap: 'An adult Hamour, the orange-spotted grouper', r: '4 / 3' },
   'visitor/EX-3': { src: P('hamra-juvenile.webp'), cap: 'A young Hamra, the Malabar red snapper', r: '852 / 524' },
+  'seacages/LFC': { src: P('lfc-hamour.webp'), cap: 'LFC Hamour, the first live fish carrier in the GCC', r: '720 / 540', credit: 'Jalboot Marine Network' },
 };
 export const SPECIES_PHOTO = {
   hamour: { src: P('hamour-juvenile.webp'), cap: 'A young Hamour from the hatchery', r: '852 / 560' },

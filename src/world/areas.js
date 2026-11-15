@@ -75,7 +75,8 @@ export function createAreas(world) {
         if (a.walk) { const [wx, wz] = a.toLocal(a.walk.x, a.walk.z); for (const it of zones) { if (it.door) continue; const q = it.box, x = Math.min(q[3], Math.max(q[0], wx)), z = Math.min(q[5], Math.max(q[2], wz)); if (x !== wx || z !== wz) put(it, [x, z]); } } }
       // people at work: about half the desks are taken, and a few chairs at the tables
       { const R = rng(a.id.length * 53 + b.seats.length), office = a.id === 'research' || a.id === 'visitor';
-        for (const q of b.seats) { const desk = q.kind === 'desk'; if (R() > (desk ? 0.52 : 0.2)) continue; const k = office ? 'office' : R() < 0.6 ? 'lab' : 'office'; ctx.people.push({ x: q.x, z: q.z, ry: q.ry, y: q.y + 0.02, hex: wearFor(k, R), kind: k, mode: desk ? 'desk' : 'sit' }); } }
+        const fill = a.id === 'visitor' ? 0.45 : 1;          // the visitor centre is kept calm
+        for (const q of b.seats) { const desk = q.kind === 'desk'; if (R() > (desk ? 0.52 : 0.2) * fill) continue; const k = office ? 'office' : R() < 0.6 ? 'lab' : 'office'; ctx.people.push({ x: q.x, z: q.z, ry: q.ry, y: q.y + 0.02, hex: wearFor(k, R), kind: k, mode: desk ? 'desk' : 'sit' }); } }
       if (ctx.people.length) { const pp = createPeople(mats, ctx.people, { y: 0.12, seed: a.id.length * 7 + ctx.people.length }); g.add(pp.group); a.updaters.push(pp.update); a.people = pp; }
       for (const o of ctx.extra) g.add(o);
       if (b.scr.length) g.add(buildScreens(b.scr));

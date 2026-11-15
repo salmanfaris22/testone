@@ -1,4 +1,5 @@
-// Production side of the centre: areas 03 to 09.
+// Production side of the centre: the Phase 1 hatchery and the Phase 2 halls, plant room and generators.
+import { areaById } from '../data/areas.js';
 import * as THREE from 'three';
 import { Builder, C, shade, rng, TAU, DEG, canvasTex } from './kit.js';
 import { hall, wallRun, aoSkirts, CUT } from './shell.js';
@@ -47,6 +48,8 @@ const partition = (b, x0, z0, x1, z1, doors = [], hex = C.clay) => wallRun(b, nu
 const SPN = { hamour: 'Hamour', hamra: 'Hamra, red snapper', shaari: 'Shaari' };
 
 /** a big area number painted on the roof, readable from the overview */
+/** the area numbers painted on the roofs follow the tour order in data/areas.js */
+const NO = Object.fromEntries(Object.entries(areaById).map(([k, a]) => [k, a.n]));
 function roofNo(group, roof, text, x, y, z, size = 15) {
   const tex = canvasTex(256, 160, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#0b2b3c'; g.font = '600 150px "IBM Plex Sans Condensed", "Arial Narrow", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2, h / 2 + 8); }, { repeat: false });
   const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.3, depthWrite: false }); mat.userData.baseOpacity = 0.3;
@@ -67,7 +70,7 @@ export function buildHalls(world) {
     fishTruck(lo, 36, 31.5, Math.PI / 2); lo.use('concrete').quad(0xc4c2bb, 10, 6, 36, 0.05, 28);
     ao.push(worldRect(HATCH_FRAME, r));
     areas.add({ walls: lo.walls,
-      id: 'nursery', frame: HATCH_FRAME, low: lo.build(mats), high: roofNo(hi.build(roof), roof, '03', 3.8, HATCH.h + 0.46, -2.25, 17), roofMats: roof, lift: 9, pin: [3.8, HATCH.h + 7, -2.25],
+      id: 'nursery', frame: HATCH_FRAME, low: lo.build(mats), high: roofNo(hi.build(roof), roof, NO.nursery, 3.8, HATCH.h + 0.46, -2.25, 17), roofMats: roof, lift: 9, pin: [3.8, HATCH.h + 7, -2.25],
       ...stops([r], HATCH_FRAME, { az: -0.62, walk: P(27, 1.5, -1, 1.3, 1.44, 16) }),
       makeInterior(b, ctx) {
         const R = rng(31), sp = ['hamour', 'hamra', 'shaari', 'hamour', 'hamra', 'shaari'];
@@ -154,7 +157,7 @@ export function buildHalls(world) {
     hall(lo, hi, { ...ax, seed: 14, floor: C.floor, skip: { n: true }, doors: { s: [{ at: 17.8, w: 1.6, h: 2.4 }], e: [{ at: 10, w: 1.4, h: 2.4, shut: false }] }, windows: { s: { n: 4, y: 2.3, h: 1.7, w: 4.4 }, w: { n: 2, y: 2.3, h: 1.7, w: 4.4 } }, strip: false });
     ao.push(worldRect(HATCH_FRAME, r), worldRect(HATCH_FRAME, ax));
     areas.add({ walls: lo.walls,
-      id: 'hatchery', frame: HATCH_FRAME, low: lo.build(mats), high: roofNo(hi.build(roof), roof, '04', 77.9, HATCH.h + 0.46, -2.25, 17), roofMats: roof, lift: 9, pin: [77.9, HATCH.h + 7, -2.25],
+      id: 'hatchery', frame: HATCH_FRAME, low: lo.build(mats), high: roofNo(hi.build(roof), roof, NO.hatchery, 77.9, HATCH.h + 0.46, -2.25, 17), roofMats: roof, lift: 9, pin: [77.9, HATCH.h + 7, -2.25],
       ...stops([r, ax], HATCH_FRAME, { az: -0.5, walk: P(71, 1.5, -3, -1.35, 1.44, 16) }),
       makeInterior(b, ctx) {
         const R = rng(41), rowSp = ['shaari', 'hamour', 'hamour', 'hamra', 'shaari'], stage = (d) => (d < 4 ? 'Green water and rotifers' : d < 14 ? 'Rotifers, enriched' : d < 22 ? 'Artemia' : 'Artemia and first dry feed');
@@ -239,7 +242,7 @@ export function buildHalls(world) {
     ao.push(worldRect(HATCH_FRAME, r), worldRect(HATCH_FRAME, ax));
     const ALGAE = [['Nannochloropsis', C.algae1, 'Green-water for the larval tanks'], ['Isochrysis', C.algae3, 'Rich in DHA, for enrichment'], ['Tetraselmis', C.algae4, 'Rotifer feed'], ['Chaetoceros', C.algae6, 'Diatom, for copepods'], ['Pavlova', C.algae2, 'Enrichment for Artemia'], ['Diatom culture', C.algae5, 'Copepod feed'], ['Stock cultures', C.algae7, 'Clean starter lines']];
     areas.add({ walls: lo.walls,
-      id: 'livefeed', frame: HATCH_FRAME, low: lo.build(mats), high: roofNo(hi.build(roof), roof, '05', 121.9, HATCH.h + 0.46, -2.25, 12), roofMats: roof, lift: 9, pin: [121.9, HATCH.h + 7, -2.25],
+      id: 'livefeed', frame: HATCH_FRAME, low: lo.build(mats), high: roofNo(hi.build(roof), roof, NO.livefeed, 121.9, HATCH.h + 0.46, -2.25, 12), roofMats: roof, lift: 9, pin: [121.9, HATCH.h + 7, -2.25],
       ...stops([r, ax], HATCH_FRAME, { az: -0.4, walk: P(122, 1.5, -10.55, -Math.PI / 2, 1.45, 11) }),
       makeInterior(b, ctx) {
         const R = rng(51);
@@ -304,7 +307,7 @@ export function buildHalls(world) {
     ao.push(worldRect(BROOD_FRAME, r), worldRect(BROOD_FRAME, q), worldRect(BROOD_FRAME, ps));
     const TANKS = [...BROODSTOCK_TANKS, { sp: 'hamour', name: 'Hamour, first hatchery-born generation', sci: 'Epinephelus coioides' }, { sp: 'hamra', name: 'Hamra, red snapper', sci: 'Lutjanus malabaricus' }, { sp: 'shaari', name: 'Shaari, second line', sci: 'Lethrinus nebulosus' }, { sp: 'seabream', name: 'Seabream, second line', sci: 'Sparidentex hasta' }];
     areas.add({ walls: lo.walls,
-      id: 'broodstock', frame: BROOD_FRAME, low: lo.build(mats), high: roofNo(hi.build(roof), roof, '06', 26.3, BROOD.h + 0.46, -77.3, 18), roofMats: roof, lift: 9, pin: [26.3, BROOD.h + 7, -77.3],
+      id: 'broodstock', frame: BROOD_FRAME, low: lo.build(mats), high: roofNo(hi.build(roof), roof, NO.broodstock, 26.3, BROOD.h + 0.46, -77.3, 18), roofMats: roof, lift: 9, pin: [26.3, BROOD.h + 7, -77.3],
       ...stops([r, q, ps], BROOD_FRAME, { az: -0.55, k: 0.82, walk: P(18, 3.3, -90, Math.PI / 2, 1.43, 13) }),
       makeInterior(b, ctx) {
         const R = rng(61);
@@ -385,7 +388,7 @@ export function buildHalls(world) {
     const lox = E.vTank(lo, 79.5, -100, { r: 1.5, h: 7 }); lo.use('satin'); for (let k = 0; k < 5; k++) lo.box(C.alu, 0.12, 2.4, 1.6, 78.2 + k * 0.55, 0.06, -94.6); lo.pipe(C.pipeO2, 0.06, [[79.5, 0.5, -98.4], [79.5, 0.5, -95], [79.5, 2.8, -95], [84.2, 2.8, -95]], 6);
     lo.use('matte'); for (const [x, z] of [[76.6, -103], [82.6, -103], [76.6, -93], [82.6, -93]]) lo.cyl(C.yellow, 0.07, 1.1, x, 0.05, z, 6);
     ao.push(worldRect(PLANT_FRAME, r));
-    const high7 = roofNo(hi.build(roof), roof, '07', 104.15, PLANT.h + 0.46, -99.9, 11); roofNos[roofNos.length - 1].userData.fry = PLANT_FRAME.ry;
+    const high7 = roofNo(hi.build(roof), roof, NO.plantroom, 104.15, PLANT.h + 0.46, -99.9, 11); roofNos[roofNos.length - 1].userData.fry = PLANT_FRAME.ry;
     areas.add({ walls: lo.walls,
       id: 'plantroom', frame: PLANT_FRAME, low: lo.build(mats), high: high7, roofMats: roof, lift: 8, pin: [104.15, PLANT.h + 7, -99.9],
       ...stops([r], PLANT_FRAME, { az: -0.45, walk: P(101, 1.5, -107.2, -Math.PI / 2, 1.42, 11) }),
@@ -465,7 +468,7 @@ export function buildHalls(world) {
     ao.push(r, kiosk);
     const st = stops([r, { ...kiosk }], null, { az: -0.4, k: 1.5, walk: P(127.5, 1.4, 10.1, 2.47, 1.42, 8.6) }); st.rooms = [{ ...r }];
     areas.add({ walls: lo.walls,
-      id: 'genroom', low: lo.build(mats), high: roofNo(hi.build(roof), roof, '08', 128.4, GEN.h + 0.46, 10.3, 7.5), roofMats: roof, lift: 7, pin: [128.4, GEN.h + 7, 10.3], ...st,
+      id: 'genroom', low: lo.build(mats), high: roofNo(hi.build(roof), roof, NO.genroom, 128.4, GEN.h + 0.46, 10.3, 7.5), roofMats: roof, lift: 7, pin: [128.4, GEN.h + 7, 10.3], ...st,
       makeInterior(b, ctx) {
         const R = rng(81);
         for (let k = 0; k < 3; k++) { const box = E.genset(b, 126.2, 5 + k * 5.1); ctx.item({ code: `G${k + 1}`, group: 'Generators', name: `Standby generator G${k + 1}`, kind: 'Diesel, automatic start', box, label: k === 0,
@@ -523,7 +526,7 @@ export function buildHalls(world) {
     }
     const all = [A, B, Cc, D, Ee, Ff]; ao.push(...all);
     areas.add({ walls: lo.walls,
-      id: 'phase1', low: lo.build(mats), high: roofNo(roofNo(hi.build(roof), roof, '09', -148, A.h + 0.46, 83.4, 22), roof, '09 ', 12, Cc.h + 0.46, 70.3, 15), roofMats: roof, lift: 8, pin: [-62, A.h + 9, 88],
+      id: 'phase1', low: lo.build(mats), high: roofNo(roofNo(hi.build(roof), roof, NO.phase1, -148, A.h + 0.46, 83.4, 22), roof, NO.phase1 + ' ', 12, Cc.h + 0.46, 70.3, 15), roofMats: roof, lift: 8, pin: [-62, A.h + 9, 88],
       ...stops(all, null, { az: -0.5, k: 0.62, walk: P(-159.4, 1.5, 74, 0.0, 1.43, 16) }),
       makeInterior(b, ctx) {
         const R = rng(91), spn = ['hamour', 'hamra', 'shaari'];

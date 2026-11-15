@@ -48,7 +48,9 @@ export function createApp(world, hooks) {
     if (k === 'night' || k === 'sound' || k === 'tour') b.setAttribute('aria-pressed', 'false');
     b.addEventListener('click', () => act(k)); ctrl.appendChild(b); pills[k] = b;
   });
-  AREAS.forEach((a) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.id = a.id; b.innerHTML = `<b>${a.n}</b><span>${a.short}</span>`; b.setAttribute('aria-label', `${a.n} ${a.name}`); b.title = a.name; b.addEventListener('click', () => { stopTour(); goArea(a.id); }); dock.appendChild(b); });
+  AREAS.forEach((a, i) => {
+    if (i === 0 || AREAS[i - 1].phase !== a.phase) { const t = document.createElement('i'); t.className = 'dock-ph'; t.textContent = `P${a.phase}`; t.title = `Phase ${a.phase}`; dock.appendChild(t); }
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.id = a.id; b.innerHTML = `<b>${a.n}</b><span>${a.short}</span>`; b.setAttribute('aria-label', `${a.n} ${a.name}, Phase ${a.phase}`); b.title = `${a.name} (Phase ${a.phase})`; b.addEventListener('click', () => { stopTour(); goArea(a.id); }); dock.appendChild(b); });
   labels.buildPins(AREAS.map((a) => ({ ...a, pin: areas.byId[a.id].pin })), (id) => { if (!S.exploring) hooks.enter(id); else { stopTour(); goArea(id); } }, (id) => labels.markPin(id));
   appEl.addEventListener('click', (e) => { if (e.target.closest('button')) audio.click(); }, true);
 

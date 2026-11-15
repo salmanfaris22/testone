@@ -21,7 +21,7 @@ const STAGE_AREA = { broodstock: 'broodstock', hatchery: 'hatchery', nursery: 'n
 const U_POW = 2.4;                                    // the slider gives the first weeks of life room to breathe
 const STAGES = [['egg', 'Egg'], ['larva', 'Larva'], ['fry', 'Fry'], ['fingerling', 'Fingerling'], ['juvenile', 'Growing on'], ['market', 'Market size'], ['brood', 'Breeding age']];
 
-const figure = (p) => (p ? `<figure class="p-photo${p.tall ? ' is-tall' : ''}"><img src="${esc(p.src)}" alt="${esc(p.cap)}" loading="lazy" decoding="async" style="aspect-ratio:${p.r || '16 / 10'}"><figcaption>${esc(p.cap)}. Photo: Gulf Aquaculture</figcaption></figure>` : '');
+const figure = (p) => (p ? `<figure class="p-photo${p.tall ? ' is-tall' : ''}"><img src="${esc(p.src)}" alt="${esc(p.cap)}" loading="lazy" decoding="async" style="aspect-ratio:${p.r || '16 / 10'}"><figcaption>${esc(p.cap)}. Photo: ${esc(p.credit || 'Gulf Aquaculture')}</figcaption></figure>` : '');
 const views = (view, sea) => `<div class="p-views" role="group" aria-label="How to look at this area">${[['walk', sea ? 'Dive in' : 'Walk in', sea ? ICON.dive : ICON.walk], ['top', 'From above', ICON.top], ['plan', 'Plan', ICON.plan]].map(([k, l, ic]) => `<button type="button" data-act="view" data-arg="${k}" aria-pressed="${view === k}">${ic}<span>${l}</span></button>`).join('')}</div>`;
 
 export function createPanel(el, { onAct, thumb = () => '' }) {
@@ -54,7 +54,7 @@ export function createPanel(el, { onAct, thumb = () => '' }) {
           ? `<button type="button" data-act="item" data-arg="${esc(it.id)}" title="${esc(it.name)}"><b>${esc(it.code)}</b></button>`
           : `<button type="button" data-act="item" data-arg="${esc(it.id)}">${itemIcon(it)}<span><b>${esc(tileName(it))}</b><em>${esc(it.code || '')}</em></span></button>`)).join('')}</div></section>`;
       }).join('');
-      el.innerHTML = head(`<span>SKMRC</span><span>Area ${d.n} of 10</span>`, d.n, d.line) + `<div class="p-body">
+      el.innerHTML = head(`<span>Phase ${d.phase}</span><span>Area ${d.n} of 10</span>`, d.n, d.line) + `<div class="p-body">
         <p class="p-tag">${esc(d.tag)}</p><h2>${esc(d.name)}</h2>
         ${views(view, a.id === 'seacages')}
         <div class="p-sub is-top"><h3>What is here</h3><span>${items.length} things to open</span></div>
@@ -113,13 +113,15 @@ export function createPanel(el, { onAct, thumb = () => '' }) {
       const W = 320, H = 96, pts = []; for (let i = 0; i <= 60; i++) { const a = max * Math.pow(i / 60, 1.6); pts.push(`${i ? 'L' : 'M'}${((a / max) * W).toFixed(1)} ${(H - 6 - (lengthAt(info.sp, a) / g.Linf) * (H - 14)).toFixed(1)}`); }
       el.innerHTML = head(`<button data-act="fishback" type="button">${ICON.back}<span>Back to the school</span></button><span>${esc(it ? it.name : '')}</span>`, s.local, s.common, true) + `<div class="p-body">
         <h2>${esc(s.local)}</h2><p class="sp-names">${esc(s.common)}${s.sci ? `, <i>${esc(s.sci)}</i>` : ''}</p>
+        ${info.n > 1 ? `<p class="fishgroup"><b>${info.n} ${esc(s.local)}</b> selected together: the whole group in this ${it && it.swim && it.swim.net ? 'cage' : it && it.swim && it.swim.glass ? 'aquarium' : 'tank'} is one batch of one age. Move the slider and they all grow.</p>` : ''}
         <div class="age">
           <div class="age-top"><span>Age</span><b data-f="age"></b></div>
-          <input type="range" min="0" max="1000" step="1" value="0" data-act="age" aria-label="Age of this fish, from egg to breeding age">
+          <input type="range" min="0" max="1000" step="1" value="0" data-act="age" aria-label="Age of this group of fish, from egg to breeding age">
           <div class="age-ends"><span>Egg</span><span>${max} years</span></div>
           <ol class="age-stages">${STAGES.map(([k, l]) => `<li data-st="${k}">${l}</li>`).join('')}</ol>
         </div>
         <div class="p-stats"><div><b data-f="len"></b><span>Length</span></div><div><b data-f="wt"></b><span>Weight</span></div><div><b data-f="stage"></b><span>Life stage</span></div></div>
+        ${info.n > 1 ? `<div class="p-stats p-stats-group"><div><b>${info.n}</b><span>Fish in the group</span></div><div><b data-f="avglen"></b><span>Average length</span></div><div><b data-f="avgwt"></b><span>Average weight</span></div></div>` : ''}
         <div class="tagcard"><dl><dt>Lives in</dt><dd data-f="where"></dd><dt>At this age</dt><dd class="is-plain" data-f="text"></dd></dl></div>
         <div class="p-links"><button type="button" data-act="fisharea" data-f="go"></button></div>
         <figure class="growth"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Length against age"><path d="${pts.join('')}" fill="none" stroke="#0e6e7e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line data-f="gx" y1="0" y2="${H}" stroke="#e8862e" stroke-width="1.5"/><circle data-f="gd" r="4.5" fill="#e8862e" stroke="#fff" stroke-width="1.5"/></svg><figcaption>Length against age. Typical growth for farmed fish in warm water, not this hatchery's own records.</figcaption></figure>
@@ -136,6 +138,7 @@ export function createPanel(el, { onAct, thumb = () => '' }) {
       if (!current || current.type !== 'fish') return;
       const q = (k) => el.querySelector(`[data-f="${k}"]`), st = stageAt(info.sp, info.age), g = GROWTH[info.sp] || GROWTH.naisrah, max = maxAge(info.sp), W = 320, H = 96;
       q('age').textContent = fmtAge(info.age); q('len').textContent = fmtLen(lengthAt(info.sp, info.age)); q('wt').textContent = fmtWeight(weightAt(info.sp, info.age)); q('stage').textContent = st.name;
+      if (q('avglen') && info.avgCm !== undefined) { q('avglen').textContent = fmtLen(info.avgCm); q('avgwt').textContent = fmtWeight(info.avgG); }
       q('where').textContent = st.where; q('text').textContent = st.text; const go = q('go'); go.textContent = `Go to ${areaById[st.area].short}`; go.dataset.arg = st.area;
       const x = (info.age / max) * W, y = H - 6 - (lengthAt(info.sp, info.age) / g.Linf) * (H - 14); q('gx').setAttribute('x1', x); q('gx').setAttribute('x2', x); q('gd').setAttribute('cx', x); q('gd').setAttribute('cy', y);
       for (const li of el.querySelectorAll('[data-st]')) li.classList.toggle('is-on', li.dataset.st === st.key);

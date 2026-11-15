@@ -61,6 +61,15 @@ body.exploring #page, body.exploring .top { opacity: 0; pointer-events: none; vi
 .step-top { display: flex; align-items: baseline; gap: 14px; }
 .step-n { font-family: var(--fc); font-weight: 500; font-size: 54px; line-height: 0.9; letter-spacing: -0.02em; color: var(--signal-d); }
 .step-tag { font-family: var(--fc); font-weight: 500; font-size: 15px; color: var(--shoal); }
+.step-tags { display: grid; gap: 3px; }
+.step-phase { font-family: var(--fc); font-weight: 600; font-size: 12.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--signal-d); }
+/* the first area of each phase opens a chapter: a big "Phase N" over the model, scrolling past */
+.phase-banner { position: absolute; top: 20vh; left: var(--pad); z-index: 1; color: #fff; pointer-events: none; text-shadow: 0 2px 26px rgba(4, 30, 46, 0.55); max-width: 30rem; }
+.phase-banner::before { content: ''; display: block; width: 46px; height: 4px; border-radius: 2px; background: var(--signal); margin-bottom: 16px; box-shadow: 0 2px 14px rgba(4, 30, 46, 0.3); }
+.phase-banner b { display: block; font-family: var(--fc); font-weight: 500; font-size: clamp(46px, 7.2vw, 108px); line-height: 0.9; letter-spacing: -0.02em; }
+.phase-banner span { display: block; margin-top: 12px; font-size: clamp(17px, 1.7vw, 25px); line-height: 1.25; font-weight: 400; }
+.tour-rail li.rail-ph { font-family: var(--fc); font-weight: 600; font-size: 10.5px; letter-spacing: 0.06em; color: var(--signal-d); text-align: center; padding-top: 5px; }
+.tour-rail li.rail-ph:first-child { padding-top: 0; }
 .step h3 { margin-top: 12px; font-size: 25px; font-weight: 500; letter-spacing: -0.012em; line-height: 1.14; }
 .step-desc { margin-top: 10px; font-size: 15.5px; line-height: 1.52; color: var(--text-2); }
 .step-stats { margin-top: 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
@@ -75,7 +84,7 @@ body.exploring #page, body.exploring .top { opacity: 0; pointer-events: none; vi
 .tour-rail button.is-on { background: var(--ink); color: #fff; }
 .tour-rail button span { position: absolute; right: calc(100% + 12px); white-space: nowrap; background: var(--ink); color: #fff; font-family: var(--f); font-size: 13px; padding: 4px 10px; border-radius: 999px; opacity: 0; transform: translateX(6px); pointer-events: none; transition: opacity 0.2s, transform 0.2s; }
 .tour-rail button:hover span, .tour-rail button:focus-visible span { opacity: 1; transform: none; }
-@media (max-width: 720px) { .tour-rail { display: none; } .step { min-height: 150vh; } .step-card { padding: 16px 18px; border-radius: 18px; } .step-n { font-size: 40px; } .step h3 { font-size: 21px; } .step-desc { font-size: 14.5px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; } .step-stats { display: none; } }
+@media (max-width: 720px) { .phase-banner { top: 14vh; } .phase-banner b { font-size: 44px; } .phase-banner span { font-size: 16px; } .tour-rail { display: none; } .step { min-height: 150vh; } .step-card { padding: 16px 18px; border-radius: 18px; } .step-n { font-size: 40px; } .step h3 { font-size: 21px; } .step-desc { font-size: 14.5px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; } .step-stats { display: none; } }
 
 /* species: an underwater studio */
 .species { position: relative; color: #fff; padding-top: 42vh; }
@@ -218,3 +227,22 @@ body.no-gl .species { background: linear-gradient(180deg, #0e6e7e, #0b2b3c); } b
 .company-time b { font-family: var(--fc); font-weight: 500; font-size: 17px; color: var(--ink); }
 .company-time span { font-size: 15.5px; line-height: 1.5; color: var(--text-2); }
 @media (max-width: 860px) { .company-grid { grid-template-columns: 1fr; } .company-time li { grid-template-columns: 6.6rem 1fr; } }
+
+/* the opening film: captions, the three phases as they are built, and a way out */
+.intro { position: fixed; inset: 0; z-index: 40; pointer-events: none; }
+.intro-cap { position: absolute; left: var(--pad); bottom: clamp(92px, 16vh, 150px); max-width: min(44rem, calc(100% - 2 * var(--pad))); color: #fff; text-shadow: 0 2px 24px rgba(4, 30, 46, 0.65), 0 1px 2px rgba(4, 30, 46, 0.4); transition: opacity 0.55s var(--ease), transform 0.7s var(--ease); }
+.intro-cap.is-out { opacity: 0; transform: translateY(12px); }
+.intro-cap small { display: block; font-family: var(--fc); font-weight: 600; font-size: 14px; letter-spacing: 0.09em; text-transform: uppercase; color: #ffb066; margin-bottom: 10px; }
+.intro-cap b { display: block; font-weight: 300; font-size: clamp(30px, 4.2vw, 62px); line-height: 1.04; letter-spacing: -0.022em; text-wrap: balance; }
+.intro-phases { position: absolute; left: var(--pad); bottom: clamp(30px, 6vh, 58px); display: flex; gap: 8px; }
+.intro-phases li { font-family: var(--fc); font-weight: 600; font-size: 13px; letter-spacing: 0.05em; padding: 7px 13px; border-radius: 999px; color: rgba(255, 255, 255, 0.8); background: rgba(6, 40, 60, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: background-color 0.45s, color 0.45s, transform 0.45s var(--ease); }
+.intro-phases li.is-on { background: var(--signal); color: #1c1205; transform: translateY(-2px); }
+.intro-phases li.is-done { background: rgba(251, 250, 246, 0.9); color: var(--ink); }
+.intro-skip { position: absolute; right: var(--pad); bottom: clamp(30px, 6vh, 58px); pointer-events: auto; }
+.hero-copy, .hero-facts, .scroll-cue, .top { transition: opacity 0.9s var(--ease), transform 0.9s var(--ease); }
+body.intro .hero-copy, body.intro .hero-facts, body.intro .scroll-cue { opacity: 0; transform: translateY(16px); pointer-events: none; }
+body.intro .top { opacity: 0; pointer-events: none; }
+body.intro .hero::before { opacity: 0; }
+.hero::before { transition: opacity 1.2s var(--ease); }
+@media (max-width: 720px) { .intro-cap { bottom: 104px; } .intro-cap b { font-size: 28px; } .intro-phases li { font-size: 12px; padding: 6px 10px; } .intro-skip { bottom: 26px; } .intro-phases { bottom: 30px; } }
+@media (max-width: 420px) { .intro-phases { display: none; } }

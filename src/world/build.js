@@ -5,9 +5,10 @@ import { buildPark } from './park.js';
 import { buildCages } from './cages.js';
 import { buildSite } from './site.js';
 import { createFish } from './fish.js';
+import { AREAS } from '../data/areas.js';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
-export const ORDER = ['visitor', 'research', 'nursery', 'hatchery', 'livefeed', 'broodstock', 'plantroom', 'genroom', 'phase1', 'seacages'];
+export const ORDER = AREAS.map((a) => a.id);       // phase order
 
 export async function buildAll(world, onProgress) {
   world.items = new Map();

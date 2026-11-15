@@ -27,6 +27,9 @@ body.night .pill.pill-hero { background: var(--signal); color: #1c1205; }
 /* dock of the ten areas */
 .dock { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; border-radius: 999px; background: rgba(251, 250, 246, 0.9); box-shadow: 0 14px 34px -16px rgba(4, 30, 46, 0.6), 0 0 0 1px rgba(11, 43, 60, 0.06); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); max-width: calc(100% - 28px); overflow-x: auto; scrollbar-width: none; transition: transform 0.4s var(--ease), opacity 0.3s; }
 .dock::-webkit-scrollbar { display: none; }
+.dock-ph { display: grid; place-items: center; flex: none; font-style: normal; font-family: var(--fc); font-weight: 600; font-size: 11px; letter-spacing: 0.05em; color: var(--signal-d); padding: 0 1px 0 9px; border-left: 1px solid var(--line); margin-left: 2px; }
+.dock-ph:first-child { border-left: 0; margin-left: 0; padding-left: 6px; }
+body.night .dock-ph { color: var(--signal); border-color: var(--line-ink); }
 .dock button { display: inline-flex; align-items: center; gap: 0; height: 36px; padding: 0 4px; border-radius: 999px; font-size: 14px; font-weight: 500; color: var(--text-2); white-space: nowrap; transition: background-color 0.2s, color 0.2s, padding 0.3s var(--ease); flex: none; }
 .dock button b { font-family: var(--fc); font-weight: 500; display: grid; place-items: center; min-width: 28px; height: 28px; border-radius: 999px; font-size: 13.5px; }
 .dock button span { max-width: 0; overflow: hidden; opacity: 0; transition: max-width 0.35s var(--ease), opacity 0.25s, margin 0.3s; }
@@ -355,3 +358,8 @@ body.diving .dive-bar:not([hidden]) { display: flex; }
 .door:hover b { background: #1c1205; color: #fff; }
 body.diving .door, body.filming .door, body.droning .door { display: none !important; }
 @media (max-width: 760px) { .door span { font-size: 12.5px; padding: 4px 9px 5px 5px; gap: 6px; } .door b { font-size: 11px; padding: 2px 5px; } }
+
+/* under water: the selected group */
+.fishgroup { margin: 10px 0 2px; padding: 10px 12px; border-radius: 12px; background: rgba(53, 196, 192, 0.12); border: 1px solid rgba(53, 196, 192, 0.35); font-size: 13.5px; line-height: 1.45; color: var(--text-2); }
+.fishgroup b { color: var(--ink); font-weight: 600; }
+.p-stats-group { margin-top: 8px; }

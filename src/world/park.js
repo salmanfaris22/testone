@@ -215,9 +215,9 @@ export function buildPark(world) {
     rooms: [{ circle: true, x: 0, z: 0, r: RH - 0.9, h: 8.6, inner: 4.5 }, { circle: true, x: 0, z: 0, r: RO - 0.8, h: 6.6 }, { x0: WING.x0, x1: WING.split, z0: WING.z0, z1: WING.zc, h: WING.h }, { x0: WING.x0, x1: 29.1, z0: WING.zc, z1: -18.6, h: 5.2 }, { x0: 26, x1: 47.6, z0: WING.zc, z1: -5, h: 5.5 }],
     makeInterior(b0, ctx) {
       const b = b0; b.push(px, 0, pz); const R = rng(101);
-      const who = (x, z, k, s) => { const kk = k === 'coat' ? 'lab' : k; ctx.person(px + x, pz + z, R() * TAU, wearFor(kk, R), undefined, { kind: kk, s, mode: kk === 'visitor' || kk === 'kandura' ? (R() < 0.4 ? 'talk' : 'idle') : kk === 'office' ? 'talk' : 'work' }); };
-      // visitors strolling the ring corridor round the hall
-      for (let k = 0; k < 4; k++) ctx.person(0, 0, 0, wearFor(k === 3 ? 'kandura' : 'visitor', R), undefined, { kind: k === 3 ? 'kandura' : 'visitor', path: arcPts(12.9, 0, (k % 2 ? -1 : 1) * TAU, px, pz, 10 * DEG), loop: true, speed: 0.8 + k * 0.08, off: k / 4, s: k === 1 ? 0.74 : 1 });
+      const who = (x, z, k, s, o = {}) => { const kk = k === 'coat' ? 'lab' : k; ctx.person(px + x, pz + z, o.ry ?? R() * TAU, wearFor(kk, R), undefined, { kind: kk, s, mode: /visitor|kandura|emirati|abaya/.test(kk) ? (R() < 0.4 ? 'talk' : 'idle') : kk === 'office' ? 'talk' : 'work', ...o }); };
+      // an Emirati couple strolling the ring corridor round the hall (the visitor centre is kept calm: fewer people than before)
+      for (let k = 0; k < 2; k++) ctx.person(0, 0, 0, wearFor(k ? 'abaya' : 'emirati', R), undefined, { kind: k ? 'abaya' : 'emirati', path: arcPts(12.9, 0, TAU, px, pz, 10 * DEG), loop: true, speed: 0.82, off: k * 0.02 });
       /* exhibition hall and the living aquarium */
       b.use('satin').cyl(C.ink, 3.9, 0.9, 0, F, 0, 48); b.use('metal').torus(C.alu, 3.42, 0.13, 0, F + 0.92, 0, 6, 56); b.torus(C.alu, 3.42, 0.16, 0, 7.2, 0, 6, 56);
       b.use('glass').cyl(C.glass, 3.36, 6.3, 0, F + 0.9, 0, 56, 3.36, true);
@@ -243,7 +243,7 @@ export function buildPark(world) {
       ctx.item({ code: 'WD', group: 'Exhibition hall', name: 'Welcome desk', kind: 'Tours and school visits', box: Sb(7.4, 8.8, 306, 334, 1.4), label: true,
         desc: 'Where guided tours begin. School groups, university partners and official visitors are met here before they go round the hall or on to the hatchery.',
         specs: [['Guided', 'Tours'], ['Schools', 'Welcome'], ['By booking', 'Hatchery visits']] });
-      who(-2.6, 5.2, 'visitor', 0.72); who(-1.5, 5.6, 'visitor', 0.7); who(-0.4, 5.9, 'visitor', 0.74); who(0.9, 5.6, 'visitor', 0.7); who(2.1, 5.3, 'visitor', 0.72); who(-0.6, 7.2, 'coat'); who(5.6, -3.4, 'visitor'); who(6.4, -2.6, 'visitor'); who(-6.5, -2, 'visitor'); who(6.6, -5.4, 'office');
+      who(-1.6, 5.4, 'visitor', 0.72); who(-0.3, 5.9, 'visitor', 0.74); who(1.0, 5.5, 'visitor', 0.7); who(-0.6, 7.2, 'coat'); who(5.8, -3.2, 'emirati'); who(6.5, -2.4, 'abaya');
       /* amphitheatre */
       for (let k = 0; k < 5; k++) { const r0 = 17.2 + k * 1.6; b.use('matte').sector(k % 2 ? C.carpet : shade(C.carpet, 0.92), r0, RO - 0.3, 12 * DEG, 88 * DEG, F, F + 0.26 * (k + 1));
         for (let d = 15; d <= 85; d += 2.5 - k * 0.2) { const [x, z] = pol(r0 + 0.75, d); b.box(0xf2efe9, 0.5, 0.42, 0.5, x, F + 0.26 * (k + 1), z, -(d * DEG)); } }
@@ -252,7 +252,7 @@ export function buildPark(world) {
       ctx.item({ code: 'AMP', group: 'Amphitheatre', name: 'Amphitheatre', kind: 'Talks, films and school sessions', box: Sb(RR, RO, 10, 89, 4.4), label: true, prio: 1,
         desc: 'Curved tiers follow the glazed outer wall and look in towards a full-height projection screen. It seats a school year group for a talk or a film before the tour.',
         specs: [['5', 'Tiers'], ['≈ 150', 'Seats'], ['Projection', 'Full wall']] });
-      [[20, 40], [21.6, 52], [23.2, 30], [18.4, 64], [20, 70], [23.2, 58], [21.6, 22]].forEach(([r, d]) => { const [x, z] = pol(r + 0.75, d); ctx.people.push({ x: px + x, z: pz + z, ry: -(d * DEG) - Math.PI / 2, hex: WEAR.visitor[Math.floor(R() * 7)], s: 0.74, kind: 'visitor', mode: 'sit', y: F + 0.26 * Math.round((r - 17.2) / 1.6 + 1) }); });
+      [[20, 40], [21.6, 52], [18.4, 64], [23.2, 30]].forEach(([r, d]) => { const [x, z] = pol(r + 0.75, d); ctx.people.push({ x: px + x, z: pz + z, ry: -(d * DEG) - Math.PI / 2, hex: WEAR.visitor[Math.floor(R() * 7)], s: 0.74, kind: 'visitor', mode: 'sit', y: F + 0.26 * Math.round((r - 17.2) / 1.6 + 1) }); });
       /* reception lobby */
       { const [x, z] = pol(19.5, 131); b.use('satin').prism(C.wood, [[-2.4, -0.7], [2.4, -0.7], [2.1, 0.7], [-2.1, 0.7]].map(([lx, lz]) => { const a = -(131 * DEG) + Math.PI / 2, c = Math.cos(a), s = Math.sin(a); return [x + lx * c + lz * s, z - lx * s + lz * c]; }), F, F + 0.85);
         b.use('satin').prism(C.white, [[-2.7, -0.9], [2.7, -0.9], [2.4, 0.9], [-2.4, 0.9]].map(([lx, lz]) => { const a = -(131 * DEG) + Math.PI / 2, c = Math.cos(a), s = Math.sin(a); return [x + lx * c + lz * s, z - lx * s + lz * c]; }), F + 0.85, F + 1.1);
@@ -262,7 +262,8 @@ export function buildPark(world) {
         ctx.item({ code: 'REC', group: 'Arrival', name: 'Reception', kind: 'Main entrance', box: Sb(RR, RO, 100, 145, 3.4), label: true, prio: 1, view: P(...((q) => [px + q[0], 1.5, pz + q[1]])(pol(18.6, 127)), Math.atan2(Math.cos(118 * DEG), Math.sin(118 * DEG)), 1.42, 6.2),
           desc: 'Visitors come in under the canopy, through the glazed lobby, to a white desk on a timber base. The name of the building is set in gold letters on the wall behind, in Arabic and English.',
           specs: [['South-west', 'Entrance'], ['Canopy', 'Covered arrival'], ['Step-free', 'Access']] });
-        who(...pol(18.6, 133), 'office'); who(...pol(21.4, 122), 'visitor'); who(...pol(22.4, 124), 'kandura'); who(...pol(20.6, 112), 'visitor'); }
+        // the Emirati host welcomes visitors at the desk
+        who(...pol(18.6, 133), 'office'); who(...pol(21.2, 124), 'emirati', 1, { cast: 'host', mode: 'present', ry: -(124 * DEG) + Math.PI / 2 }); who(...pol(23.0, 121.5), 'abaya', 1, { mode: 'idle', ry: -(121.5 * DEG) - Math.PI / 2 }); }
       b.use('matte'); for (let k = 0; k < 9; k++) { const [x, z] = pol(16.4 + k * 0.9, 94.5); b.box(C.clayCool, 2.2, 0.16 * (k + 1), 0.9, x, F, z, -(94.5 * DEG)); }
       /* glass-walled academic rooms on the west side */
       [[146, 161, 'Academic room 1'], [161, 177, 'Academic room 2'], [177, 202, 'Academic room 3'], [202, 232, 'Workshop room']].forEach(([a0, a1, name], k) => {
@@ -291,7 +292,7 @@ export function buildPark(world) {
       E.shelving(b, 17.3, -44, { ry: Math.PI / 2, len: 5 }); E.shelving(b, 17.3, -37, { ry: Math.PI / 2, len: 4 });
       E.meetingTable(b, 24, -44.2, { len: 4.6 }); E.meetingTable(b, 24, -37.2, { len: 4.6, top: C.white });
       ctx.item({ code: 'SEM', group: 'Science discovery', name: 'Seminar rooms', kind: 'Academic spaces', box: Wb(19.1, WING.z0, 29.1, WING.zr), desc: 'Two rooms for lectures, training courses and research meetings, between the Discovery Corners and the laboratories.', specs: [['2', 'Rooms'], ['12', 'Seats each']] });
-      for (const [x, z, k] of [[-12, -40, 'visitor'], [-9.4, -37.6, 'visitor'], [-5, -43, 'visitor'], [-14, -35.5, 'coat'], [5.2, -41, 'visitor'], [8.6, -37.8, 'visitor'], [6.5, -35, 'coat'], [-2, -30.6, 'office'], [22, -30.4, 'coat']]) who(x, z, k, k === 'visitor' ? 0.74 : 1);
+      for (const [x, z, k] of [[-12, -40, 'visitor'], [-9.4, -37.6, 'visitor'], [-14, -35.5, 'coat'], [5.2, -41, 'visitor'], [-2, -30.6, 'office']]) who(x, z, k, k === 'visitor' ? 0.74 : 1);
       /* staff canteen (round tables and coloured chairs, as on site) */
       const cols = [C.orange, C.white, 0x8aa6b5, 0x4a5a66];
       for (const [r, d0, d1, st] of [[36.6, -52, -18, 7.2], [43.8, -40, -19, 5.4]]) for (let d = d0; d <= d1; d += st) { const p = [pol(r - 1.7, d), pol(r + 1.7, d + st * 0.5)]; for (const [x, z] of p) { if (z < WING.zc + 1.6 || SPN.nx * x + SPN.nz * z > SPN.c - 1.6) continue; E.roundTable(b, x, z, { r: 0.55, seats: 4, seat: cols[Math.floor(R() * 4)], alt: cols[Math.floor(R() * 4)] }); } }
@@ -299,7 +300,7 @@ export function buildPark(world) {
       ctx.item({ code: 'CAN', group: 'Staff canteen', name: 'Staff canteen', kind: 'Looking onto the palm courtyard', box: [px + 27, 0, pz + WING.zc, px + 47.5, 2.2, pz - 6], label: true, prio: 1,
         desc: 'A bright dining room that fans out from the rotunda. Its outer wall is glass from floor to ceiling and faces the palm courtyard, so the whole team eats in daylight.',
         specs: [['≈ 90', 'Seats'], ['Fully furnished', 'Kitchen and servery'], ['Courtyard', 'View']] });
-      for (const [r, d, k] of [[36, -30, 'overall'], [37.2, -44, 'coat'], [43.6, -27, 'office'], [42.6, -36, 'coat'], [31.6, -30, 'office']]) who(...pol(r, d), k);
+      for (const [r, d, k] of [[36, -30, 'overall'], [43.6, -27, 'office'], [31.6, -30, 'emirati']]) who(...pol(r, d), k);
       ctx.item({ code: 'CY', group: 'Staff canteen', name: 'Palm courtyard', kind: 'Open to the sky', box: Wb(40, -28.2, 88.9, -11.4, 9), prio: -1,
         desc: 'A planted court between the laboratories and the offices, with date palms in the middle and benches along the glazed corridor. Every corridor in the building looks onto it.',
         specs: [['3', 'Date palms'], ['12', 'Shade trees'], ['≈ 700 m²', 'Area']] });

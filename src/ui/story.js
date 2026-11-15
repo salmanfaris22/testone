@@ -1,23 +1,24 @@
 // The scroll tour: scrolling flies the camera from area to area and lifts each roof in turn.
-import { AREAS } from '../data/areas.js';
+import { AREAS, PHASES } from '../data/areas.js';
 import { P } from '../world/rig.js';
 import { clamp, lerp, smooth, TAU } from '../world/kit.js';
 
-export const HERO = P(-40, 0, -40, -1.25, 1.14, 620);
-const DIVE = P(150, -2.2, -330, -0.6, 1.34, 80);
+// the hero sees the whole site with the fish farm and LFC Hamour in front of it; the tour ends low over the grow-out cages
+export const HERO = P(-20, 0, 105, -0.8, 1.1, 720);
+const DIVE = P(-64, -2.2, 500, 2.95, 1.34, 80);
 const LEAD = 0.52;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 export function createStory(world, { onExplore, scrollTo }) {
   const { rig, areas } = world;
   const stepsEl = document.getElementById('tour-steps'), railEl = document.getElementById('tour-rail');
-  stepsEl.innerHTML = AREAS.map((a, i) => `<article class="step" data-area="${a.id}" id="area-${a.id}"><div class="step-card">
-    <div class="step-top"><span class="step-n">${a.n}</span><span class="step-tag">${esc(a.tag)}</span></div>
+  stepsEl.innerHTML = AREAS.map((a, i) => { const ph = PHASES[a.phase - 1], first = i === 0 || AREAS[i - 1].phase !== a.phase; return `<article class="step${first ? ' step-first' : ''}" data-area="${a.id}" data-phase="${a.phase}" id="area-${a.id}">${first ? `<div class="phase-banner" aria-hidden="true"><b>${esc(ph.name)}</b><span>${esc(ph.title)}</span></div>` : ''}<div class="step-card">
+    <div class="step-top"><span class="step-n">${a.n}</span><span class="step-tags"><span class="step-phase">${esc(ph.name)} · ${esc(ph.title)}</span><span class="step-tag">${esc(a.tag)}</span></span></div>
     <h3>${esc(a.name)}</h3><p class="step-desc">${esc(a.desc)}</p>
     <div class="step-stats">${a.stats.map(([v, l]) => `<div><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('')}</div>
     <div class="step-actions"><button class="btn btn-ink" type="button" data-open="${a.id}">Open this area in 3D</button><span class="step-count">${i + 1} of 10</span></div>
-  </div></article>`).join('');
-  railEl.innerHTML = `<ol>${AREAS.map((a) => `<li><button type="button" data-rail="${a.id}" aria-label="${a.n} ${esc(a.name)}">${a.n}<span>${esc(a.short)}</span></button></li>`).join('')}</ol>`;
+  </div></article>`; }).join('');
+  railEl.innerHTML = `<ol>${AREAS.map((a, i) => `${i === 0 || AREAS[i - 1].phase !== a.phase ? `<li class="rail-ph" aria-hidden="true">P${a.phase}</li>` : ''}<li><button type="button" data-rail="${a.id}" aria-label="${a.n} ${esc(a.name)}, Phase ${a.phase}">${a.n}<span>${esc(a.short)} · Phase ${a.phase}</span></button></li>`).join('')}</ol>`;
   stepsEl.addEventListener('click', (e) => { const b = e.target.closest('[data-open]'); if (b) onExplore(b.dataset.open); });
   railEl.addEventListener('click', (e) => { const b = e.target.closest('[data-rail]'); if (b) scrollTo(document.getElementById('area-' + b.dataset.rail), 0.34); });
   const steps = [...stepsEl.children], rail = [...railEl.querySelectorAll('button')], N = AREAS.length;

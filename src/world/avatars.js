@@ -5,11 +5,23 @@ import * as THREE from 'three';
 
 const BASE = `${import.meta.env.BASE_URL}people/`;
 const FEMALE = new Set(['lab_f', 'coat_f', 'hivis_f', 'office_f', 'visitor_f', 'abaya', 'child_f']);
+/** figures made from another one's files: the library's Gulf figure wears a red shemagh, an Emirati wears a white ghutra */
+const ALIAS = { kandura_ae: { file: 'kandura', ghutra: true } };
 /** what someone wears → the figures that may play them */
 export const CAST = {
   gown: ['gown_m', 'scrub_m', 'gown_m', 'lab_f'], lab: ['coat_f', 'coat_m', 'lab_f'], overall: ['overall_m'], hivis: ['hivis_m', 'hivis_f', 'hivis_m'],
-  office: ['office_m', 'office_f'], kandura: ['kandura'], visitor: ['visitor_m', 'visitor_f', 'abaya', 'visitor_f', 'visitor_m', 'kandura'], child: ['child_m', 'child_f'], guard: ['guard'],
+  office: ['office_m', 'office_f'], kandura: ['kandura_ae'], emirati: ['kandura_ae'], abaya: ['abaya'], host: ['kandura_ae'],
+  visitor: ['visitor_m', 'visitor_f'], child: ['child_m', 'child_f'], guard: ['guard'],
 };
+/** the shemagh in the kandura atlas (lower right) turned into a plain white ghutra; the folds keep their shading */
+function whiten(img) {
+  const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
+  const g = cv.getContext('2d'); g.drawImage(img, 0, 0);
+  const x0 = Math.floor((1030 / 1536) * img.width), y0 = Math.floor((546 / 1024) * img.height), w = img.width - x0, h = img.height - y0;
+  const d = g.getImageData(x0, y0, w, h), p = d.data;
+  for (let i = 0; i < p.length; i += 4) { if (p[i + 3] < 8) continue; const m = Math.max(p[i], p[i + 1], p[i + 2]) * 0.97 + 4; p[i] = Math.min(255, m * 0.985); p[i + 1] = Math.min(255, m * 0.99); p[i + 2] = Math.min(255, m); }
+  g.putImageData(d, x0, y0); return cv;
+}
 /** what they are doing → clips to choose from (without the m_ / f_ prefix) */
 const DO = {
   walk: ['walk_neutral'], stroll: ['walk_stroll_01'], work: ['work_mid', 'work_table', 'documents_check', 'work_mid'], idle: ['idle_neutral_01', 'idle_look_around_01', 'cell_phone_textmessage', 'idle_neutral_01'],
@@ -40,14 +52,16 @@ export const avatars = {
   async _load(id) {
     try {
       if (!this.anims) this.anims = this._anims || (this._anims = fetch(`${BASE}anims.bin`).then((r) => r.arrayBuffer()).then((b) => { const a = unpack(b); a.by = {}; a.head.clips.forEach((c) => { a.by[c.name] = c; }); return a; }));
-      const [A, buf] = await Promise.all([this.anims, fetch(`${BASE}${id}.bin`).then((r) => r.arrayBuffer())]); this.anims = A;
+      const al = ALIAS[id] || {}, file = al.file || id;
+      const [A, buf] = await Promise.all([this.anims, fetch(`${BASE}${file}.bin`).then((r) => r.arrayBuffer())]); this.anims = A;
       const d = unpack(buf), h = d.head, n = h.verts, pos = new Float32Array(n * 3), nor = new Int8Array(n * 3);
       for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) { pos[i * 3 + k] = h.min[k] + (d.pos[i * 3 + k] / 65535) * (h.max[k] - h.min[k]); nor[i * 3 + k] = d.nor[i * 4 + k]; }
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3, true)); geo.setAttribute('uv', new THREE.BufferAttribute(d.uv.slice(), 2, true));
       geo.setAttribute('skinIndex', new THREE.BufferAttribute(new Uint16Array(d.si), 4)); geo.setAttribute('skinWeight', new THREE.BufferAttribute(d.sw.slice(), 4, true)); geo.setIndex(new THREE.BufferAttribute(d.idx.slice(), 1));
       geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0.9, 0), 1.3);
-      const map = await new THREE.TextureLoader().loadAsync(`${BASE}${id}.webp`); map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4;
+      const map = al.ghutra ? new THREE.CanvasTexture(whiten(await new THREE.ImageLoader().loadAsync(`${BASE}${file}.webp`))) : await new THREE.TextureLoader().loadAsync(`${BASE}${file}.webp`);
+      map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4;
       const mat = new THREE.MeshStandardMaterial({ map, roughness: 0.86, metalness: 0, alphaTest: 0.5, side: THREE.DoubleSide, envMapIntensity: 0.55 });
       // rest pose in model space → inverse bind matrices, shared by everyone of this kind
       const bones = h.bones, world = [], inv = [], m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);

@@ -29,7 +29,7 @@ export function stageAt(sp, yrs) {
   if (yrs < 1.2 * DAY) return { key: 'egg', name: 'Egg', area: 'hatchery', where: 'Incubators, Larval Rearing Hall', text: 'A floating egg under a millimetre across. It hatches in about a day.' };
   if (yrs < 25 * DAY) return { key: 'larva', name: 'Larva', area: 'hatchery', where: 'Larval Rearing Hall', text: 'Feeds on live rotifers, then Artemia, in green water. The most delicate weeks of its life.' };
   if (yrs < 90 * DAY) return { key: 'fry', name: 'Fry', area: 'nursery', where: 'Weaning and Nursery', text: 'Learns to take dry feed, is graded by size and grows strong enough to travel.' };
-  if (w < g.market * 0.12) return { key: 'fingerling', name: 'Fingerling', area: 'seacages', where: 'Nursery cages', text: 'Its first weeks at sea, under a bird net, in a fine-mesh cage near the beach.' };
+  if (w < g.market * 0.12) return { key: 'fingerling', name: 'Fingerling', area: 'seacages', where: 'Grow-out cages', text: 'Its first weeks at sea, in a fine-mesh net hung inside a grow-out cage.' };
   if (w < g.market) return { key: 'juvenile', name: 'Growing on', area: 'seacages', where: 'Grow-out cages', text: 'Putting on weight in open Gulf water, fed several times a day.' };
   if (yrs < g.mature) return { key: 'market', name: 'Market size', area: 'seacages', where: 'Grow-out cages', text: 'Ready for harvest. A few of the best are kept back as future breeders.' };
   return { key: 'brood', name: 'Breeding age', area: 'broodstock', where: 'Broodstock Building', text: 'Old enough to spawn. Breeders are kept for years and known one by one.' };

@@ -72,9 +72,9 @@ export const AREAS = [
   {
     id: 'seacages', n: '10', phase: 3, name: 'Sea Cage Grow-Out', short: 'Sea Cages', tag: 'Open sea',
     line: 'Back to the Gulf.',
-    desc: 'Fingerlings leave the nursery for round floating cages off the south shore, in front of the Phase 1 hatchery. They spend their first weeks in eight covered nursery cages, then move out to twelve open cages to grow to market size in natural Gulf water. LFC Hamour, the first live fish carrier in the GCC, berths at the jetty. Dive in to swim with the fish.',
-    bullets: ['Native species in their own water', 'Eight nursery cages under bird nets, twelve grow-out cages', 'Reached by jetty, gangway and floating walkway, fed from the barge', 'LFC Hamour moves live fry with oxygen and temperature kept steady'],
-    stats: [['20', 'Cages'], ['Open sea', 'Water'], ['LFC Hamour', 'Live fish carrier']],
+    desc: 'Fingerlings leave the nursery for round floating cages off the south shore, in front of the Phase 1 hatchery. They grow to market size in twelve open cages in natural Gulf water, starting in a fine-mesh net and moving to a wider one as they grow. LFC Hamour, the first live fish carrier in the GCC, berths at the jetty. Dive in to swim with the fish.',
+    bullets: ['Native species in their own water', 'Twelve grow-out cages in three rows', 'A jetty and gangway down to a floating landing stage, fed from the barge', 'LFC Hamour moves live fry with oxygen and temperature kept steady'],
+    stats: [['12', 'Cages'], ['Open sea', 'Water'], ['LFC Hamour', 'Live fish carrier']],
   },
 ];
 export const areaById = Object.fromEntries(AREAS.map((a) => [a.id, a]));

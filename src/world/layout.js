@@ -63,13 +63,13 @@ export const PARKING = [[-131, -119], [-90, -90], [-76, -81.5], [-130, -81.5]];
 
 /* ───── sea cages: off the south shore, in front of Phase 1 ─────
    (they used to sit off the north-east beach, which borders the military side; the client asked for them here)
-   Two rows of covered nursery cages close in, twelve grow-out cages further out, a jetty with a gangway down to a floating walkway. */
+   Twelve grow-out cages in three rows, and a jetty with a hinged gangway down to a floating landing stage for the boats.
+   (The eight covered nursery cages that stood between the jetty and the big cages were taken out at the client's request.) */
 /** point `u` metres along the south shore (that is, x) and `f` metres out to sea */
 export const south = (u, f) => [u, LANDLINE.south + f];
-/** the jetty runs straight out from the shore at x = u; deck top `y`; the gangway drops to the walkway between the nursery rows */
+/** the jetty runs straight out from the shore at x = u; deck top `y`; the gangway drops to a floating landing stage that runs on to `way` */
 export const JETTY = { u: -138, f0: -8, f1: 40, w: 4.2, y: 0.62, foot: 53, way: 66 };
 export const CAGES = {
-  small: { r: 12.75, list: [0, 1, 2, 3].flatMap((u) => [-1, 1].map((f) => south(-114 + u * 30, JETTY.way + f * 16.5))) },
   big: { r: 19.5, list: [0, 1, 2].flatMap((u) => [0, 1, 2, 3].map((f) => south(-150 + f * 57, 152 + u * 57))) },
 };
 /** LFC Hamour, the live fish carrier, lies alongside the west face of the jetty, bow out to sea (its local +x is the bow) */

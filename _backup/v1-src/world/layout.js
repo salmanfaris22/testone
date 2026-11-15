@@ -1,0 +1,11 @@
+// Where everything stands (metres, x east, z south, ground y = 0).
+export const PARK = { x: -200, z: -40 };                       // rotunda centre of the Marine Innovation Park
+export const HATCH = { x0: -30, x1: 158, z0: -20, z1: 24, nurseryX1: 46, larvalX1: 110, h: 9.5 };
+export const BROOD = { x0: -10, x1: 62, z0: -112, z1: -68, h: 9 };
+export const INTAKE = { x0: 0, x1: 30, z0: -130, z1: -112, h: 6 };
+export const PLANT = { x0: 84, x1: 124, z0: -108, z1: -84, h: 7.5 };
+export const GEN = { x0: 136, x1: 170, z0: -106, z1: -86, h: 6.5 };
+export const P1 = { a: { x0: -26, x1: 56, z0: 72, z1: 108 }, b: { x0: 68, x1: 158, z0: 72, z1: 108 }, office: { x0: -26, x1: 14, z0: 120, z1: 140 }, plant: { x0: 30, x1: 62, z0: 120, z1: 140 }, gen: { x0: 132, x1: 152, z0: 122, z1: 138 }, h: 8 };
+export const CAGES = { cx: 40, cz: -300, cols: 4, rows: 3, gap: 36, r: 12.5 };
+export const ROADS = { ave: -70, north: -152, east: 197, south: 170, crossA: -46, crossB: 47, w: 7 };
+export const OVERVIEW = { x: -22, y: 0, z: -30, az: -0.74, pol: 0.94, dist: 640 };

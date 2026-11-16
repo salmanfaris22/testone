@@ -16,6 +16,22 @@ export const APRON = { west: -267, south: 156, east: 255, back: 22.5 };
 /** Marine Innovation Park: rotunda centre, long axis turned 35.5° to run along the shore */
 export const PARK = { x: 0, z: 0 };
 export const PARK_FRAME = { x: -161.25, z: -163.125, ry: -Math.atan2(0.714, 1) };
+/** the oval hall of the Innovation Park, as in the client's render (park frame, metres): glass front `fa x fb`, shell roof
+ *  `ra x rb`, podium edge `pa x pb`, all round one centre; t is the ellipse parameter (0 = +x, 90° = the front), the glass
+ *  runs from t0 (against the office wing) round the front to t1 (against the link to the lab wing), the doors face `door`° */
+export const OVAL = { cz: 1.5, fa: 35, fb: 29.5, ra: 37.9, rb: 32.2, pa: 47.5, pb: 42, top: 9.4, yp: 0.6, t0: (-7 * Math.PI) / 180, t1: (238.8 * Math.PI) / 180, door: 123 };
+export const ovalPt = (a, b, t, w = 1) => [a * w * Math.cos(t), OVAL.cz + b * w * Math.sin(t)];
+export const facade = (t) => ovalPt(OVAL.fa, OVAL.fb, t);
+export const podium = (t) => ovalPt(OVAL.pa, OVAL.pb, t);
+/** the ellipse parameter of the point of outline `f` that lies in the polar direction `deg` from the rotunda centre */
+export function ovalT(f, deg) {
+  let best = 0, bd = Infinity;
+  for (let k = 0; k <= 2880; k++) { const t = (k / 2880) * 2 * Math.PI, p = f(t), d = Math.abs(((((Math.atan2(p[1], p[0]) * 180) / Math.PI - deg) % 360) + 540) % 360 - 180); if (d < bd) { bd = d; best = t; } }
+  return best;
+}
+/** outward normal and metres per radian of an outline at t */
+export const ovalN = (f, t) => { const a = f(t - 1e-3), c = f(t + 1e-3), dx = c[0] - a[0], dz = c[1] - a[1], l = Math.hypot(dx, dz) || 1; return [dz / l, -dx / l]; };
+export const ovalRate = (f, t) => { const a = f(t - 1e-3), c = f(t + 1e-3); return Math.hypot(c[0] - a[0], c[1] - a[1]) / 2e-3; };
 /** the three halls of the Phase 2 hatchery share one frame (their interiors were laid out in it) */
 export const HATCH_FRAME = { x: -132.25, z: -23.25, ry: 0 };
 export const HATCH = { x0: -38.375, x1: 134.125, z0: -28.5, z1: 24, nurseryX1: 46, larvalX1: 109.75, annexX0: 74.125, annexZ1: 45.75, h: 11, annexH: 7.5 };
@@ -55,9 +71,10 @@ export const ROADS = {
   avenue: [[RB_W.x, 31.875], [142.5, 31.875], [151.875, 41.25], [151.875, 151.125]],
   south: [[-270, 151.125], [183.75, 151.125], [RB_E.x - 3, 151.4]],
   cross: [[-178.125, -68.25], [-178.125, 30]],
-  drive: [[RB_W.x, RB_W.z - RB_W.r], [-243, -106], [-236, -124], [-222, -139]],
+  drive: [[RB_W.x, RB_W.z - RB_W.r], [-243, -106], [-236.4, -128.6]],
 };
-export const DROP = { x: -210, z: -144, r: 12.5 };
+/** the drop-off loop on the entrance axis of the Innovation Park, far enough out for the podium, its steps and a plaza */
+export const DROP = { x: -226.4, z: -137.5, r: 12.5 };
 export const LAWNS = [[-226, -120, -198, -84, 9], [-236, -214, -200, -168, 10], [-169.5, -117, -135, -87, 4.5], [-228.75, -63.75, -183.75, 24.375, 6], [-262.5, 39, -246, 147, 3], [156, 40.5, 192, 147, 4.5]];
 export const PARKING = [[-131, -119], [-90, -90], [-76, -81.5], [-130, -81.5]];
 

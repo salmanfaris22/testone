@@ -1,98 +1,284 @@
 // The opening: the camera starts at the gate, where the Emirati host welcomes you, then rises over a blueprint of the site.
-// The footprints draw themselves, the buildings rise phase by phase (1, 2, 3), the cages come up out of the sea,
-// LFC Hamour sails in, the planting grows and the site comes to life, and the camera settles into the hero view.
+// The site is then built the way it would really be built: services are drawn in (sea water from the intake, power from the
+// generators), the roads are paved from the gate inward, the paving flows out to the apron, plazas, lawns and parking and the
+// street lights go up behind it. Only then do the buildings go up, phase by phase (1, 2, 3): each starts as its slab and rises
+// from the ground with a glowing cut line, a tower crane working beside each phase. The cages come up out of the sea,
+// LFC Hamour sails in, the planting grows, the site comes to life and the camera settles into the hero view.
 import * as THREE from 'three';
 import { P } from './rig.js';
 import { clamp, easeIO, easeOut, smooth } from './kit.js';
 import { AREAS, PHASES } from '../data/areas.js';
-import { LFC_BERTH, GATE } from './layout.js';
+import * as L from './layout.js';
+import { revealMap, groundMat, riseMat, riseDepth, makeCrane, RV_GLSL } from './intro-build.js';
 
 const backOut = (t) => { const s = 1.25; t -= 1; return t * t * ((s + 1) * t + s) + 1; };
 const win = (t, a, d) => clamp((t - a) / d, 0, 1);
 const TINY = 1e-4;
 
 /** timeline, in seconds */
-const T = { gate: 0, rise: 2.7, draw0: 3.0, draw1: 6.6, p1: 5.4, p2: 7.4, p3: 9.9, sea: 10.4, boat: 11.5, life: 12.4, settle: 14.0, end: 15.6 };
+const T = {
+  gate: 0, rise: 2.9,                    // the gate shot (a slow push-in), then the camera lifts away
+  bp: 3.0, draw0: 3.3, draw1: 5.9,       // the blueprint sheet and its linework: road centre lines first, then the footprints
+  util0: 4.6, util1: 7.0,                // services drawn on the plan: sea water from the intake, power from the generators
+  infra: 5.4,                            // paving starts at the gate (time 0 of the reveal map)
+  p1: 9.4, p2: 11.1, p3: 13.0,           // the buildings, phase by phase
+  sea: 14.3, boat: 14.9, life: 15.8, settle: 17.4, end: 19.1,
+};
+const SLAB = 0.42, SLAB_T = 0.32, HOLD = 0.22;   // each building: its slab first, a breath, then the walls rise
 
 export function createIntro(world, { hero }) {
-  const { scene, areas, rig, engine } = world;
+  const { scene, areas, rig, engine, env } = world;
   const A = areas.byId, named = (n) => scene.children.find((o) => o.name === n);
+  const GX = L.GATE.sign[0] - 30.5;                    // the barrier line: west of it is the public road, there from the start
   // first shot: from the road outside the gatehouse, looking in under the canopy at the host by the name wall
-  const gate = P(GATE.host[0], 1.7, GATE.host[1], -1.66, 1.548, 40);
+  const hx = L.GATE.host[0], hz = L.GATE.host[1];
+  const gate = P(L.GATE.sign[0] - 24, 2.4, (L.RB_W ? L.RB_W.z : hz) + 5, -1.64, 1.5, 64);   // down the road outside, over the gatehouse canopy
   const ph = { 1: [], 2: [], 3: [] };
-  for (const a of AREAS) if (a.id !== 'seacages') ph[a.phase].push(A[a.id].root);
+  for (const d of AREAS) if (d.id !== 'seacages' && A[d.id]) ph[d.phase].push(A[d.id]);
+  const builds = [...ph[1], ...ph[2], ...ph[3]];
   const sea = A.seacages.root, lfc = world.cages && world.cages.lfc;
-  const later = ['site', 'plants', 'lights', 'people', 'traffic', 'gulls', 'led-boards', 'flags-drop'].map(named).filter(Boolean);
+  const cages = (world.cages && world.cages.cages) || [];
 
-  /* ───── the blueprint: a sheet of drawing paper laid over the site with a grid, and every footprint drawn on it ───── */
+  /* ───── where and when the ground gets built ───── */
+  const map = revealMap(world, { gateX: GX });
+  const G = { map: { value: map.tex }, box: { value: map.uBox }, p: { value: -1 }, rise: { value: 3.2 } };
+  const hard = world.land.hardscape, swaps = [];             // [mesh, original, copy] while the film plays
+  const helpers = new THREE.Group(); helpers.name = 'intro-helpers'; helpers.visible = false;
+  const helper = (mesh, mat) => helpers.add(mesh.isInstancedMesh ? new THREE.InstancedMesh(mesh.geometry, mat, 1) : new THREE.Mesh(mesh.geometry, mat));
+  const groundSwaps = [];
+  { const cache = new Map(); hard.traverse((m) => { if (!m.isMesh || Array.isArray(m.material) || !(m.material.isMeshStandardMaterial || m.material.isMeshBasicMaterial)) return; let c = cache.get(m.material); if (!c) { c = groundMat(m.material, G); cache.set(m.material, c); helper(m, c); } groundSwaps.push([m, m.material, c]); }); }
+
+  /* ───── each area: material copies that build it from the ground up ───── */
+  const box3 = new THREE.Box3();
+  const wbox = (a) => { let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (const b of a.hit || []) for (const [x, z] of [[b[0], b[2]], [b[3], b[2]], [b[3], b[5]], [b[0], b[5]]]) { const w = a.toWorld(x, z); x0 = Math.min(x0, w[0]); x1 = Math.max(x1, w[0]); z0 = Math.min(z0, w[1]); z1 = Math.max(z1, w[1]); } return { x0, x1, z0, z1, x: (x0 + x1) / 2, z: (z0 + z1) / 2 }; };
+  const cons = [];
+  for (const k of [1, 2, 3]) ph[k].forEach((a, i) => {
+    const gap = ph[k].length > 3 ? 0.27 : 0.42, t0 = T['p' + k] + i * gap;
+    box3.setFromObject(a.root); const top = Math.max(2, box3.max.y + 0.3), rise = clamp(0.95 + top * 0.035, 1.1, 1.7);
+    const R = { h: { value: -1 }, g: { value: 1 } }, depth = riseDepth(R), cache = new Map(), ms = [], hide = [];
+    a.root.traverse((m) => {
+      if (!(m.isMesh || m.isPoints || m.isLine)) return;
+      const ok = m.isMesh && !m.isSkinnedMesh && !Array.isArray(m.material) && (m.material.isMeshStandardMaterial || m.material.isMeshBasicMaterial);
+      if (!ok) { hide.push([m, m.visible]); return; }
+      let c = cache.get(m.material); if (!c) { c = riseMat(m.material, R); cache.set(m.material, c); helper(m, c); }
+      ms.push([m, m.material, c, m.customDepthMaterial]);
+    });
+    cons.push({ a, k, t0, top, rise, done: t0 + SLAB_T + HOLD + rise + 0.05, R, depth, ms, hide, state: -1, box: wbox(a) });
+  });
+  const phaseDone = { 1: 0, 2: 0, 3: 0 }; for (const c of cons) phaseDone[c.k] = Math.max(phaseDone[c.k], c.done);
+  scene.add(helpers);                                        // compiled with the rest by compileAsync, removed in prepare()
+
+  /* ───── tower cranes, one per phase, on clear ground near the middle of the phase ───── */
+  const roadsW = Object.values(world.land.roads || {});
+  const segD = (x, z, a, b) => { const dx = b[0] - a[0], dz = b[1] - a[1], l = dx * dx + dz * dz || 1, u = clamp(((x - a[0]) * dx + (z - a[1]) * dz) / l, 0, 1); return Math.hypot(x - a[0] - dx * u, z - a[1] - dz * u); };
+  const clearAt = (x, z) => {
+    for (const a of builds) for (const b of a.hit || []) { const [lx, lz] = a.toLocal(x, z); if (Math.hypot(Math.max(b[0] - lx, 0, lx - b[3]), Math.max(b[2] - lz, 0, lz - b[5])) < 5.5) return false; }
+    for (const p of roadsW) for (let i = 0; i < p.length - 1; i++) if (segD(x, z, p[i], p[i + 1]) < 10.5) return false;
+    return true;
+  };
+  const spot = (x, z) => { if (clearAt(x, z)) return [x, z]; for (let r = 4; r <= 110; r += 4) { const n = Math.ceil((Math.PI * 2 * r) / 4); for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r; if (clearAt(px, pz)) return [px, pz]; } } return [x, z]; };
+  const craneG = new THREE.Group(); craneG.name = 'intro-cranes'; craneG.visible = false;
+  const cranes = [1, 2, 3].map((k) => {
+    const list = cons.filter((c) => c.k === k); if (!list.length) return null;
+    let cx = 0, cz = 0; for (const c of list) { cx += c.box.x; cz += c.box.z; } cx /= list.length; cz /= list.length;
+    const [x, z] = spot(cx, cz), tall = Math.max(...list.map((c) => c.top)), span = Math.max(...list.map((c) => Math.max(c.box.x1 - c.box.x0, c.box.z1 - c.box.z0)));
+    const cr = makeCrane(world.mats, { H: Math.round(tall + 28), jib: clamp(span * 0.45, 36, 54), cjib: 14 });
+    cr.root.position.set(x, -400, z); craneG.add(cr.root);
+    return { ...cr, k, x, z, base: Math.atan2(-(cz - z), cx - x), t0: T['p' + k] - 0.45, t1: phaseDone[k] + 0.15 };
+  }).filter(Boolean);
+  scene.add(craneG);
+
+  /* ───── the blueprint: a sheet of drawing paper laid over the site with a grid, and every line drawn on it ───── */
   const BP = { x: -40, z: 70, r0: 300, r1: 430 };
-  const U = { uOp: { value: 0 }, uDraw: { value: 0 }, uT: { value: 0 } };
+  const U = { uOp: { value: 0 }, uLop: { value: 0 }, uUop: { value: 0 }, uDraw: { value: 0 }, uUtil: { value: 0 }, uT: { value: 0 }, uRvMap: G.map, uRvBox: G.box, uRvP: G.p };
   const paper = new THREE.Mesh(new THREE.PlaneGeometry(BP.r1 * 2.2, BP.r1 * 2.2).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({
     uniforms: U, transparent: true, depthWrite: false,
     vertexShader: 'varying vec2 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xz; gl_Position = projectionMatrix * viewMatrix * w; }',
-    fragmentShader: `uniform float uOp, uT; varying vec2 vW;
+    fragmentShader: `uniform float uOp, uT; ${RV_GLSL.decl} varying vec2 vW;
       float grid(vec2 p, float s, float w){ vec2 g = abs(fract(p / s - 0.5) - 0.5) * s; vec2 fw = fwidth(p) * w; vec2 l = 1.0 - smoothstep(vec2(0.0), fw, g); return max(l.x, l.y); }
       void main(){
+        vec3 vRvW = vec3(vW.x, 0.0, vW.y);
+        ${RV_GLSL.at}
+        float built = smoothstep(0.0, 1.3, rvAge) * step(-5.0, rvAt);
         float d = distance(vW, vec2(${BP.x.toFixed(1)}, ${BP.z.toFixed(1)}));
         float edge = 1.0 - smoothstep(${BP.r0.toFixed(1)}, ${BP.r1.toFixed(1)}, d);
         float g = grid(vW, 10.0, 1.0) * 0.32 + grid(vW, 50.0, 1.6) * 0.55;
         vec3 col = mix(vec3(0.07, 0.30, 0.55), vec3(0.86, 0.95, 1.0), g);
-        gl_FragColor = vec4(col, uOp * edge * (0.78 + 0.22 * g));
+        gl_FragColor = vec4(col, uOp * edge * (0.78 + 0.22 * g) * (1.0 - 0.88 * built));
         #include <colorspace_fragment>
       }` }));
   paper.position.set(BP.x, 0.52, BP.z); paper.renderOrder = 5; paper.frustumCulled = false;
 
-  // footprints: thin ribbons along every building outline and round every cage, revealed in drawing order
-  const pos = [], tt = [], idx = [];
-  const ribbon = (pts, t0, t1, closed = true, w = 0.9, y = 0.62) => {
-    const P2 = closed ? pts.concat([pts[0]]) : pts; let len = 0; const L = [0];
-    for (let i = 1; i < P2.length; i++) { len += Math.hypot(P2[i][0] - P2[i - 1][0], P2[i][1] - P2[i - 1][1]); L.push(len); }
+  // linework: ribbons revealed in drawing order. kind 0 footprint, 1 road centre line, 2 sea water main, 3 power cable
+  const pos = [], tt = [], kk = [], ss = [], idx = [];
+  const ribbon = (pts, t0, t1, { closed = true, w = 0.9, y = 0.62, kind = 0, tAt = null } = {}) => {
+    const P2 = closed ? pts.concat([pts[0]]) : pts; let len = 0; const Ls = [0];
+    for (let i = 1; i < P2.length; i++) { len += Math.hypot(P2[i][0] - P2[i - 1][0], P2[i][1] - P2[i - 1][1]); Ls.push(len); }
+    if (len < 0.5) return;
     for (let i = 0; i < P2.length - 1; i++) {
       const a = P2[i], c = P2[i + 1], dx = c[0] - a[0], dz = c[1] - a[1], l = Math.hypot(dx, dz) || 1, nx = (-dz / l) * w * 0.5, nz = (dx / l) * w * 0.5, b0 = pos.length / 3;
-      const ta = t0 + (t1 - t0) * (L[i] / len), tc = t0 + (t1 - t0) * (L[i + 1] / len);
-      pos.push(a[0] - nx, y, a[1] - nz, a[0] + nx, y, a[1] + nz, c[0] + nx, y, c[1] + nz, c[0] - nx, y, c[1] - nz); tt.push(ta, ta, tc, tc);
+      const ta = tAt ? tAt(a) : t0 + (t1 - t0) * (Ls[i] / len), tc = tAt ? tAt(c) : t0 + (t1 - t0) * (Ls[i + 1] / len);
+      pos.push(a[0] - nx, y, a[1] - nz, a[0] + nx, y, a[1] + nz, c[0] + nx, y, c[1] + nz, c[0] - nx, y, c[1] - nz); tt.push(ta, ta, tc, tc); kk.push(kind, kind, kind, kind); ss.push(Ls[i], Ls[i], Ls[i + 1], Ls[i + 1]);
       idx.push(b0, b0 + 1, b0 + 2, b0, b0 + 2, b0 + 3);
     }
   };
+  // road centre lines, drawn outward from the gate in the order they will be paved
+  for (const [name, pts] of Object.entries(world.land.roads || {})) { const inside = pts.filter((p) => p[0] > GX - 4); if (inside.length > 1) ribbon(inside, 0, 0.3, { closed: name === 'rbW' || name === 'rbE', w: 1.1, y: 0.6, kind: 1, tAt: (p) => 0.02 + 0.28 * clamp(map.sample(p[0], p[1]) / map.roadDur, 0, 1) }); }
+  // footprints, phase by phase, then the cages
   const rect = (a, b) => { const [x0, , z0, x1, , z1] = b; return [[x0, z0], [x1, z0], [x1, z1], [x0, z1]].map(([x, z]) => a.toWorld(x, z)); };
   const lists = { 1: [], 2: [], 3: [] };
-  for (const d of AREAS) { const a = A[d.id]; if (d.id === 'seacages') continue; for (const b of a.hit || []) lists[d.phase].push(rect(a, b)); }
-  const span = { 1: [0, 0.3], 2: [0.3, 0.66], 3: [0.66, 0.86] };
+  for (const d of AREAS) { const a = A[d.id]; if (!a || d.id === 'seacages') continue; for (const b of a.hit || []) lists[d.phase].push(rect(a, b)); }
+  const span = { 1: [0.3, 0.5], 2: [0.5, 0.72], 3: [0.72, 0.86] };
   for (const k of [1, 2, 3]) { const l = lists[k], [s0, s1] = span[k]; l.forEach((pts, i) => { const a = s0 + ((s1 - s0) * i) / l.length, b = s0 + ((s1 - s0) * (i + 1.6)) / l.length; ribbon(pts, a, Math.min(s1, b)); }); }
-  const cages = (world.cages && world.cages.cages) || [];
-  cages.forEach((c, i) => { const pts = []; for (let k = 0; k < 40; k++) { const a = (k / 40) * Math.PI * 2; pts.push([c.x + Math.cos(a) * c.r, c.z + Math.sin(a) * c.r]); } const a = 0.86 + (0.13 * i) / cages.length; ribbon(pts, a, a + 0.05, true, 1.0, 0.62); });
-  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); lg.setAttribute('aT', new THREE.Float32BufferAttribute(tt, 1)); lg.setIndex(idx);
+  cages.forEach((c, i) => { const pts = []; for (let k = 0; k < 40; k++) { const a = (k / 40) * Math.PI * 2; pts.push([c.x + Math.cos(a) * c.r, c.z + Math.sin(a) * c.r]); } const a = 0.86 + (0.13 * i) / Math.max(1, cages.length); ribbon(pts, a, a + 0.05, { y: 0.62 }); });
+  // services: the sea water main from the offshore intake to every production building, power from the generator room to them all
+  const centre = (id) => { const a = A[id]; if (!a || !a.hit || !a.hit.length) return null; const b = wbox(a); return [b.x, b.z]; };
+  const L2 = (a, b, xFirst = true) => (xFirst ? [a, [b[0], a[1]], b] : [a, [a[0], b[1]], b]);
+  {
+    const pump = L.PUMP ? [(L.PUMP.x0 + L.PUMP.x1) / 2, (L.PUMP.z0 + L.PUMP.z1) / 2] : null;
+    const intake = L.INTAKE && L.BROOD_FRAME ? [L.BROOD_FRAME.x + (L.INTAKE.x0 + L.INTAKE.x1) / 2, L.BROOD_FRAME.z + (L.INTAKE.z0 + L.INTAKE.z1) / 2] : centre('broodstock');
+    if (pump && L.coast) { const off = L.coast(162, 27), beach = L.coast(162, -6); ribbon([off, beach, pump], 0, 0.14, { closed: false, w: 1.7, y: 0.66, kind: 2 }); ribbon(L2(pump, intake, false), 0.14, 0.24, { closed: false, w: 1.7, y: 0.66, kind: 2 }); }
+    const prod = ['broodstock', 'plantroom', 'nursery', 'hatchery', 'livefeed', 'phase1'].map(centre).filter(Boolean);
+    prod.forEach((c, i) => ribbon(L2(intake, c, i % 2 === 0), 0.24 + i * 0.05, 0.42 + i * 0.05, { closed: false, w: 1.5, y: 0.665, kind: 2 }));
+    const gen = centre('genroom');
+    if (gen) ['plantroom', 'broodstock', 'livefeed', 'hatchery', 'nursery', 'phase1', 'research', 'visitor'].map(centre).filter(Boolean)
+      .forEach((c, i) => ribbon(L2(gen, c, i % 2 === 1), 0.36 + i * 0.06, 0.6 + i * 0.05, { closed: false, w: 1.3, y: 0.67, kind: 3 }));
+  }
+  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); lg.setAttribute('aT', new THREE.Float32BufferAttribute(tt, 1)); lg.setAttribute('aK', new THREE.Float32BufferAttribute(kk, 1)); lg.setAttribute('aS', new THREE.Float32BufferAttribute(ss, 1)); lg.setIndex(idx);
   const lines = new THREE.Mesh(lg, new THREE.ShaderMaterial({
     uniforms: U, transparent: true, depthWrite: false, side: THREE.DoubleSide,
-    vertexShader: 'attribute float aT; varying float vT; void main(){ vT = aT; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `uniform float uOp, uDraw; varying float vT; void main(){ if (vT > uDraw) discard; float head = smoothstep(uDraw - 0.012, uDraw, vT); vec3 c = mix(vec3(1.0), vec3(1.0, 0.72, 0.35), head); gl_FragColor = vec4(c, uOp);
-      #include <colorspace_fragment>
-    }` }));
+    vertexShader: 'attribute float aT, aK, aS; varying float vT, vK, vS; varying vec2 vW; void main(){ vT = aT; vK = aK; vS = aS; vW = position.xz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform float uLop, uUop, uDraw, uUtil, uT; ${RV_GLSL.decl} varying float vT, vK, vS; varying vec2 vW;
+      void main(){
+        bool util = vK > 1.5; float draw = util ? uUtil : uDraw;
+        if (vT > draw) discard;
+        vec3 vRvW = vec3(vW.x, 0.0, vW.y);
+        ${RV_GLSL.at}
+        float paved = smoothstep(0.15, 0.9, rvAge) * step(-5.0, rvAt);
+        float head = smoothstep(draw - 0.012, draw, vT);
+        vec3 c; float a;
+        if (vK < 0.5) { c = mix(vec3(1.0), vec3(1.0, 0.72, 0.35), head); a = uLop; }
+        else if (vK < 1.5) { c = mix(vec3(0.93, 0.97, 1.0), vec3(1.0, 0.72, 0.35), head); a = uLop * step(0.4, fract(vS / 7.0)) * (1.0 - paved); }
+        else { float flow = smoothstep(0.72, 1.0, fract(vS / 15.0 - uT * 1.7)); c = (vK < 2.5 ? vec3(0.30, 0.80, 1.0) : vec3(1.0, 0.70, 0.24)) * (0.78 + 0.5 * flow); c = mix(c, vec3(1.0), head * 0.6); a = uUop * (1.0 - 0.8 * paved); }
+        gl_FragColor = vec4(c, a);
+        #include <colorspace_fragment>
+      }` }));
   lines.renderOrder = 6; lines.frustumCulled = false;
   const sheet = new THREE.Group(); sheet.name = 'blueprint'; sheet.add(paper, lines); scene.add(sheet);      // visible (but clear) until prepare(), so it is compiled with the rest
 
+  /* ───── street lights go up behind the paving front; trees grow in a wave from the gate ───── */
+  const grows = [];
+  const addGrow = (im, startOf, dur, yOnly) => {
+    if (!im || !im.isInstancedMesh) return;
+    if (!im.boundingSphere) im.computeBoundingSphere();       // from the full-size instances, so nothing is culled while they grow
+    const o = im.instanceMatrix.array.slice(), n = im.count, st = new Float32Array(n);
+    for (let i = 0; i < n; i++) st[i] = startOf(o[i * 16 + 12], o[i * 16 + 14]);
+    grows.push({ im, o, n, st, dur, yOnly, last: new Float32Array(n).fill(-1) });
+  };
+  const lightsG = named('lights'), plantsG = named('plants');
+  if (lightsG) addGrow(lightsG.children.find((c) => c.isInstancedMesh && c.visible), (x, z) => (x < GX ? -10 : T.infra + map.sample(x, z) + 0.12), 0.5, true);
+  if (plantsG) for (const im of plantsG.children) addGrow(im, (x, z) => (x < GX ? -10 : T.life + 0.95 * clamp(map.sample(x, z) / Math.max(1, map.end), 0, 1)), 1.1, false);
+  const applyGrow = (g, time) => {
+    const a = g.im.instanceMatrix.array, o = g.o; let dirty = false;
+    for (let i = 0; i < g.n; i++) {
+      const k = win(time, g.st[i], g.dur), s = k >= 1 ? 1 : Math.max(TINY, backOut(k));
+      if (s === g.last[i]) continue; g.last[i] = s; dirty = true;
+      const b = i * 16, sx = g.yOnly ? 1 : s;
+      for (let c = 0; c < 4; c++) { a[b + c] = o[b + c] * sx; a[b + 4 + c] = o[b + 4 + c] * s; a[b + 8 + c] = o[b + 8 + c] * sx; }
+    }
+    if (dirty) g.im.instanceMatrix.needsUpdate = true;
+  };
+
+  /* ───── soft contact shadows round the buildings fade in once the buildings they belong to are up ───── */
+  const aos = scene.children.filter((o) => o.name === 'ao' && o.material).map((o) => {
+    box3.setFromObject(o); let at = 0;
+    for (const c of cons) if (c.box.x1 > box3.min.x && c.box.x0 < box3.max.x && c.box.z1 > box3.min.z && c.box.z0 < box3.max.z) at = Math.max(at, c.done);
+    return { o, at: at || T.p3 + 1.5, op: o.material.opacity };
+  });
+
+  /* ───── what comes to life at the end; anything new in the scene that we do not know joins it ───── */
+  const KNOWN = new Set(['terrain', 'hardscape', 'rocks', 'ao', 'plants', 'lights', 'gate', 'host', 'flags-gate', 'blueprint', 'intro-helpers', 'intro-cranes', ...AREAS.map((d) => d.id)]);
+  const grown = ['site', ...scene.children.filter((o) => o.name && o.visible && !KNOWN.has(o.name) && !['people', 'traffic', 'gulls', 'led-boards', 'flags-drop', 'site'].includes(o.name) && (o.isGroup || o.isMesh) && !o.isLight).map((o) => o.name)];
+  const later = [...new Set(grown)].map(named).filter(Boolean);
+  const popped = ['people', 'traffic', 'gulls', 'led-boards', 'flags-drop'].map(named).filter(Boolean);
+
+  /* ───── light: a warmer, low-contrast sun for the gate shot, back to the normal day as the camera rises ───── */
+  const GOLD = new THREE.Color(0xffc68a), HAZE = new THREE.Color(0xf4dfc4); let warmOn = false;
+  const warm = (k) => {
+    if (k <= 0.001) { if (warmOn) { env.apply(); warmOn = false; } return; }
+    env.apply(); warmOn = true;
+    env.sun.color.lerp(GOLD, 0.5 * k); env.sun.intensity *= 1 + 0.1 * k; env.hemi.intensity *= 1 - 0.18 * k;
+    if (env.horizon) env.horizon.lerp(HAZE, 0.4 * k);
+  };
+
   /* ───── state ───── */
-  let t = 0, playing = false, resolve = null, stop = null, polMax = 1.4;
+  let t = 0, playing = false, resolve = null, stop = null, polMax = 1.4, warmObj = [];
   const keep = new Map(); const remember = (o) => { if (!keep.has(o)) keep.set(o, { s: o.scale.clone(), p: o.position.clone(), v: o.visible }); return keep.get(o); };
-  const allRise = [...ph[1], ...ph[2], ...ph[3]];
-  const capT = [[T.gate, 'Umm Al Quwain, United Arab Emirates', 'Marhaba. Welcome to the Sheikh Khalifa Marine Research Centre'], [T.rise + 0.6, 'From the first sketch', 'A marine hatchery, built in three phases'],
+  const capT = [[T.gate, 'Umm Al Quwain, United Arab Emirates', 'Marhaba. Welcome to the Sheikh Khalifa Marine Research Centre'], [T.rise + 0.5, 'From the first sketch', 'A marine hatchery, built in three phases'],
+    [T.infra, 'First, the infrastructure', 'Roads, sea water and power'],
     [T.p1, `${PHASES[0].name}`, PHASES[0].title], [T.p2, `${PHASES[1].name}`, PHASES[1].title], [T.p3, `${PHASES[2].name}`, PHASES[2].title], [T.life, 'Today', 'One centre, from egg to sea']];
   let capI = -1;
-  const api = { playing: false, onCaption: null, onPhase: null, get time() { return t; } };
+  // the page eases the hero framing in from time 12.6 (written for the first film), so time is reported against the settle point
+  const api = { playing: false, onCaption: null, onPhase: null, get time() { return t - (T.settle - 14.0); }, T };
+
+  const swapIn = (list) => { for (const s of list) s[0].material = s[2]; };
+  const swapOut = (list) => { for (const s of list) s[0].material = s[1]; };
+  function buildState(c, time) {
+    const st = time < c.t0 ? 0 : time < c.done ? 1 : 2;
+    if (st !== c.state) {
+      if (st === 0) { c.a.root.visible = false; swapOut(c.ms); }
+      else if (st === 1) { c.a.root.visible = remember(c.a.root).v; swapIn(c.ms); for (const s of c.ms) if (s[0].castShadow) s[0].customDepthMaterial = c.depth; for (const [m] of c.hide) m.visible = false; }
+      else finishBuild(c);
+      c.state = st;
+    }
+    if (st === 1) {
+      const u = time - c.t0;
+      c.R.h.value = u < SLAB_T ? SLAB * easeOut(u / SLAB_T) : u < SLAB_T + HOLD ? SLAB : SLAB + (c.top - SLAB) * easeIO(clamp((u - SLAB_T - HOLD) / c.rise, 0, 1));
+      c.R.g.value = 1 - smooth(win(time, c.done - 0.25, 0.25));
+    }
+  }
+  function finishBuild(c) {
+    swapOut(c.ms); for (const s of c.ms) s[0].customDepthMaterial = s[3];
+    for (const [m, v] of c.hide) m.visible = v; c.a.root.visible = remember(c.a.root).v; c.R.h.value = 1e5;
+  }
   function setState(time) {
     t = time;
-    // the blueprint
-    const op = smooth(win(t, T.rise - 0.4, 1.2)) * (1 - smooth(win(t, T.life - 0.6, 1.6)));
-    U.uOp.value = op; U.uDraw.value = 1.08 * easeIO(win(t, T.draw0, T.draw1 - T.draw0)) + 0.0001; sheet.visible = op > 0.002;
-    // buildings rise, one after another inside each phase
-    const rise = (list, t0, gap, dur) => list.forEach((o, i) => { const k = win(t, t0 + i * gap, dur), s = k <= 0 ? TINY : Math.max(TINY, backOut(k)); o.scale.y = s * remember(o).s.y; o.visible = k > 0 || remember(o).v; });
-    rise(ph[1], T.p1, 0.25, 1.5); rise(ph[2], T.p2, 0.32, 1.45); rise(ph[3], T.p3, 0.3, 1.5);
+    warm(1 - smooth(win(t, T.rise - 0.3, 1.7)));
+    // the blueprint: paper, linework, services
+    const inn = smooth(win(t, T.bp, 1.1));
+    U.uOp.value = inn * (1 - smooth(win(t, T.p1 - 0.4, 1.4)));
+    U.uLop.value = inn * (1 - smooth(win(t, T.p3 + 1.0, 1.6)));
+    U.uUop.value = smooth(win(t, T.util0 - 0.2, 0.6)) * (1 - smooth(win(t, T.p2, 1.4)));
+    U.uDraw.value = 1.08 * easeIO(win(t, T.draw0, T.draw1 - T.draw0)) + 0.0001;
+    U.uUtil.value = 1.04 * easeIO(win(t, T.util0, T.util1 - T.util0)) + 0.0001;
+    U.uT.value = t;
+    sheet.visible = Math.max(U.uOp.value, U.uLop.value, U.uUop.value) > 0.002;
+    // infrastructure: the reveal map runs on film time after T.infra
+    G.p.value = t < T.infra ? -1 : t - T.infra;
+    // the buildings, phase by phase
+    for (const c of cons) buildState(c, t);
+    for (const a of aos) a.o.material.opacity = a.op * smooth(win(t, a.at - 0.2, 0.9));
+    // cranes rise out of the ground at the start of their phase, work, and go when the phase is up
+    let anyCrane = false;
+    for (const c of cranes) {
+      const up = easeOut(win(t, c.t0, 0.75)), down = easeIO(win(t, c.t1, 0.7)), k = up * (1 - down);
+      c.root.visible = k > 0.002; anyCrane = anyCrane || c.root.visible;
+      c.root.position.y = -(c.H + 14) * (1 - k);
+      c.top.rotation.y = c.base + 0.5 * Math.sin((t - c.t0) * 0.8);
+      c.hook.position.x = c.jib * (0.42 + 0.22 * Math.sin((t - c.t0) * 1.3 + 1));
+    }
+    craneG.visible = anyCrane;
     // the cages come up out of the sea
-    { const k = easeOut(win(t, T.sea, 1.8)), r = remember(sea); sea.position.y = r.p.y - 16 * (1 - k); world.sea.uniforms.uCageN.value = k > 0.5 ? cages.length : 0; }
+    { const k = easeOut(win(t, T.sea, 1.8)), r = remember(sea); sea.position.y = r.p.y - 16 * (1 - k); sea.visible = k > 0 || r.v; world.sea.uniforms.uCageN.value = k > 0.5 ? cages.length : 0; }
     // LFC Hamour sails in from the open sea to the jetty
-    if (lfc) { const k = win(t, T.boat, 3.2), e = easeOut(k); lfc.visible = k > 0; lfc.position.x = LFC_BERTH.x; lfc.position.z = LFC_BERTH.z + 190 * (1 - e); }
-    // the planting grows, lights and screens go up, people and traffic come out
-    later.forEach((o, i) => { const r = remember(o), k = win(t, T.life + i * 0.12, 1.3); if (o.name === 'plants' || o.name === 'lights' || o.name === 'site') { o.scale.y = Math.max(TINY, backOut(k)) * r.s.y; o.visible = r.v; } else { o.visible = k > 0.2 && r.v; } });
+    if (lfc) { const k = win(t, T.boat, 3.2), e = easeOut(k); lfc.visible = k > 0; lfc.position.x = L.LFC_BERTH.x; lfc.position.z = L.LFC_BERTH.z + 190 * (1 - e); }
+    // street lights and trees
+    for (const g of grows) applyGrow(g, t);
+    // the rest grows, lights and screens go up, people and traffic come out
+    later.forEach((o, i) => { const r = remember(o), k = win(t, T.life + i * 0.12, 1.3); o.scale.y = Math.max(TINY, backOut(k)) * r.s.y; o.visible = k > 0 && r.v; });   // hidden until it grows: flattened it still shows as a disc
+    popped.forEach((o, i) => { const r = remember(o); o.visible = win(t, T.life + 0.2 + i * 0.12, 1) > 0.2 && r.v; });
+    // the warm-up objects only had to be drawn once, to compile the shadow pass of the rising buildings under the loader
+    if (warmObj.length && t > 0.6) { for (const w of warmObj) { scene.remove(w); w.geometry.dispose(); } warmObj = []; }
     // captions
     let ci = -1; capT.forEach((c, i) => { if (t >= c[0]) ci = i; });
     if (ci !== capI) { capI = ci; if (ci >= 0 && api.onCaption) api.onCaption(capT[ci][1], capT[ci][2], ci); }
@@ -100,26 +286,53 @@ export function createIntro(world, { hero }) {
     engine.shadowDirty = true;
   }
   function restore() {
+    for (const c of cons) { if (c.state !== 2) finishBuild(c); c.state = 2; }
+    swapOut(groundSwaps);
+    for (const g of grows) { g.im.instanceMatrix.array.set(g.o); g.im.instanceMatrix.needsUpdate = true; }
+    for (const a of aos) a.o.material.opacity = a.op;
     for (const [o, r] of keep) { o.scale.copy(r.s); o.position.copy(r.p); o.visible = r.v; }
-    world.sea.uniforms.uCageN.value = cages.length; if (lfc) { lfc.visible = true; lfc.position.x = LFC_BERTH.x; lfc.position.z = LFC_BERTH.z; }
-    sheet.visible = false; engine.shadowDirty = true;
+    world.sea.uniforms.uCageN.value = cages.length; if (lfc) { lfc.visible = true; lfc.position.x = L.LFC_BERTH.x; lfc.position.z = L.LFC_BERTH.z; }
+    for (const w of warmObj) scene.remove(w); warmObj = [];
+    warm(0); if (warmOn) env.apply();
+    sheet.visible = false; craneG.visible = false; engine.shadowDirty = true;
   }
   /** hide what is to be built; call before the loader lifts */
-  api.prepare = () => { for (const o of [...allRise, sea, ...later]) remember(o); if (lfc) remember(lfc); setState(0); polMax = rig.limits.polMax; rig.limits.polMax = 1.56; rig.jump(gate); };
+  api.prepare = () => {
+    scene.remove(helpers);
+    for (const c of cons) remember(c.a.root);
+    for (const o of [sea, ...later, ...popped]) remember(o); if (lfc) remember(lfc);
+    swapIn(groundSwaps);
+    // draw one tiny copy of each kind of rising surface in the first frames, so its shadow pass is compiled while the loader is still up
+    const seen = new Set();
+    for (const c of cons) for (const s of c.ms) { const key = !!s[2].map; if (seen.has(key) || !s[0].castShadow) continue; seen.add(key);
+      const w = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), s[2]); w.position.set(hx, 0.5, hz); w.castShadow = true; w.frustumCulled = false; w.customDepthMaterial = c.depth; scene.add(w); warmObj.push(w); }
+    setState(0); polMax = rig.limits.polMax; rig.limits.polMax = 1.56; rig.jump(gate);
+  };
   api.play = () => new Promise((res) => {
     resolve = res; playing = api.playing = true; t = 0; capI = -1;          // captions fire again now that someone is listening
     const keys = [
-      { p: gate }, { p: P(GATE.host[0], 1.6, GATE.host[1], GATE.hostRy, 1.44, 16), t: T.rise },
-      { p: P(-235, 0, -42, -1.6, 1.08, 190), t: 2.6 }, { p: P(-80, 0, 40, -1.3, 0.93, 520), t: 2.9 }, { p: P(-70, 0, 120, -1.12, 0.95, 640), t: 3.2 },
-      { p: hero, t: T.end - T.rise - 2.6 - 2.9 - 3.2 },
+      { p: gate },
+      { p: P(-306, 2.0, -66, -1.62, 1.47, 48), t: 1.4 },                     // in along the road, past the last palms and over the canopy
+      { p: P(hx + 1.5, 1.75, hz + 1.2, -1.08, 1.5, 27), t: T.rise - 1.4 },   // then round to the host, who steps clear of the name on the wall
+      { p: P(-262, 0, -60, -1.42, 1.02, 230), t: 2.5 },                      // lift away over the gate as the blueprint draws
+      { p: P(-150, 0, -30, -1.28, 0.9, 430), t: 2.4 },                       // follow the paving in from the gate
+      { p: P(-60, 0, 20, -1.12, 0.84, 560), t: 2.2 },                        // the whole site as the services and paving finish
+      { p: P(-40, 0, 50, -0.95, 0.88, 520), t: 2.4 },                        // phases 1 and 2 go up
+      { p: P(-110, 0, -40, -0.88, 0.9, 520), t: 2.2 },                       // phase 3 at the west end
+      { p: P(-50, 0, 110, -0.95, 1.0, 650), t: 2.0 },                        // out to sea: the cages and LFC Hamour
     ];
+    const used = keys.reduce((s, k) => s + (k.t || 0), 0);
+    keys.push({ p: hero, t: Math.max(1.2, T.end - used) });
     rig.user = false; rig.limits.polMax = 1.56; rig.playPath(keys);
     stop = engine.onFrame((dt) => { if (!playing) return; setState(t + dt); if (t >= T.end) api.finish(false); });
   });
   /** jump to the end (skip button, a scroll, a key) or wrap up when the film is over */
   api.finish = (skipped = true) => {
     if (!playing) return; playing = api.playing = false; if (stop) stop();
-    restore(); scene.remove(sheet); lg.dispose(); paper.geometry.dispose(); rig.limits.polMax = polMax;
+    restore(); scene.remove(sheet); scene.remove(craneG); lg.dispose(); paper.geometry.dispose(); paper.material.dispose(); lines.material.dispose();
+    for (const c of cranes) c.root.traverse((m) => { if (m.isMesh) m.geometry.dispose(); });
+    for (const s of groundSwaps) s[2].dispose(); for (const c of cons) { for (const s of c.ms) s[2].dispose(); c.depth.dispose(); }
+    map.tex.dispose(); rig.limits.polMax = polMax;
     if (skipped) { rig.stopPath(); rig.flyTo(hero, { dur: 1.1, hop: 0 }); }
     if (api.onCaption) api.onCaption(null);
     const r = resolve; resolve = null; r && r(skipped);

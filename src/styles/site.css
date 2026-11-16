@@ -246,3 +246,30 @@ body.intro .hero::before { opacity: 0; }
 .hero::before { transition: opacity 1.2s var(--ease); }
 @media (max-width: 720px) { .intro-cap { bottom: 104px; } .intro-cap b { font-size: 28px; } .intro-phases li { font-size: 12px; padding: 6px 10px; } .intro-skip { bottom: 26px; } .intro-phases { bottom: 30px; } }
 @media (max-width: 420px) { .intro-phases { display: none; } }
+
+/* ───── the company's film: a dark band with a big play button; the player opens over the page ───── */
+.movie { background: var(--ink); color: var(--on-ink); padding: clamp(56px, 9vh, 104px) 0; }
+.movie-band { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: clamp(28px, 5vw, 72px); align-items: center; }
+.movie-eye { font-family: var(--fc); font-weight: 500; font-size: 15px; color: var(--signal); }
+.movie-copy h2 { margin-top: 8px; font-size: clamp(30px, 4.2vw, 52px); font-weight: 400; letter-spacing: -0.02em; line-height: 1.05; }
+.movie-copy > p:not(.movie-eye):not(.movie-credit) { margin-top: 18px; font-size: 17.5px; line-height: 1.6; color: var(--on-ink-2); max-width: 32rem; }
+.movie-cta { margin-top: 26px; }
+.movie-credit { margin-top: 14px; font-size: 13px; color: var(--on-ink-2); }
+.movie-play { position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; padding: 0; border-radius: var(--r-l); overflow: hidden; cursor: pointer; background: #08202d; box-shadow: 0 40px 70px -34px rgba(0, 0, 0, 0.7); }
+.movie-play img { display: block; width: 100%; height: 100%; object-fit: cover; filter: brightness(0.8) saturate(0.95); transform: scale(1.02); transition: transform 0.7s var(--ease), filter 0.7s var(--ease); }
+.movie-play:hover img, .movie-play:focus-visible img { transform: scale(1.07); filter: brightness(0.9) saturate(1.05); }
+.movie-btn { position: absolute; left: 50%; top: 50%; width: 92px; height: 92px; margin: -46px 0 0 -46px; border-radius: 50%; background: rgba(251, 250, 246, 0.95); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35); transition: transform 0.35s var(--ease); }
+.movie-btn::before { content: ''; position: absolute; inset: -12px; border-radius: 50%; border: 2px solid rgba(251, 250, 246, 0.6); animation: movie-ring 2.4s var(--ease) infinite; }
+.movie-btn::after { content: ''; position: absolute; left: 50%; top: 50%; margin: -15px 0 0 -9px; border-style: solid; border-width: 15px 0 15px 26px; border-color: transparent transparent transparent var(--ink); }
+.movie-play:hover .movie-btn { transform: scale(1.08); }
+.movie-txt { position: absolute; left: 20px; bottom: 16px; font-family: var(--fc); font-weight: 500; font-size: 16px; color: #fff; text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5); }
+@keyframes movie-ring { 0% { transform: scale(0.9); opacity: 0.9; } 100% { transform: scale(1.35); opacity: 0; } }
+.movie-modal { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 16px; background: rgba(3, 14, 21, 0.92); }
+.movie-modal[hidden] { display: none; }
+.movie-frame { width: min(1120px, 100%); aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; background: #000; box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55); }
+.movie-frame iframe { display: block; width: 100%; height: 100%; border: 0; }
+.movie-x { position: absolute; top: 14px; right: 16px; width: 46px; height: 46px; border-radius: 50%; border: 0; background: rgba(255, 255, 255, 0.14); color: #fff; font-size: 28px; line-height: 1; cursor: pointer; }
+.movie-x:hover { background: rgba(255, 255, 255, 0.24); }
+@media (max-width: 860px) { .movie-band { grid-template-columns: 1fr; } .movie-play { order: -1; } .movie-btn { width: 70px; height: 70px; margin: -35px 0 0 -35px; } .movie-btn::after { margin: -12px 0 0 -7px; border-width: 12px 0 12px 20px; } }
+@media (prefers-reduced-motion: reduce) { .movie-btn::before { animation: none; } }
+

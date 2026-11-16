@@ -10,13 +10,13 @@ function axis(dense0, dense1, step, far) {
   s = step; v = dense0; const b = []; while (v > -far) { s *= 1.28; v -= s; b.push(v); }
   return b.reverse().concat(a);
 }
-/** round the corners of a polyline with radius r */
+/** round the corners of a polyline: `r` is the tangent length, one number or one per corner */
 export function fillet(pts, r, seg = 8) {
   const out = [pts[0]];
   for (let i = 1; i < pts.length - 1; i++) {
     const p = pts[i], a = pts[i - 1], b = pts[i + 1];
     let ax = a[0] - p[0], az = a[1] - p[1], bx = b[0] - p[0], bz = b[1] - p[1];
-    const la = Math.hypot(ax, az), lb = Math.hypot(bx, bz), m = Math.min(r, la / 2, lb / 2);
+    const la = Math.hypot(ax, az), lb = Math.hypot(bx, bz), m = Math.min(Array.isArray(r) ? r[i - 1] : r, la / 2, lb / 2);
     ax /= la; az /= la; bx /= lb; bz /= lb;
     if (Math.abs(ax * bx + az * bz) > 0.995) { out.push(p); continue; }
     const s = [p[0] + ax * m, p[1] + az * m], e = [p[0] + bx * m, p[1] + bz * m];
@@ -24,6 +24,16 @@ export function fillet(pts, r, seg = 8) {
   }
   out.push(pts[pts.length - 1]);
   return out;
+}
+/** shortest distance from (x, z) to a polyline */
+export function polyDist(p, x, z) {
+  let m = Infinity;
+  for (let i = 0; i < p.length - 1; i++) {
+    const a = p[i], c = p[i + 1], dx = c[0] - a[0], dz = c[1] - a[1], l2 = dx * dx + dz * dz || 1;
+    const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)), ex = a[0] + dx * t - x, ez = a[1] + dz * t - z;
+    m = Math.min(m, ex * ex + ez * ez);
+  }
+  return Math.sqrt(m);
 }
 /** resample a polyline at an even step */
 export function resample(pts, step) {
@@ -78,22 +88,74 @@ export function createLand(scene, mats) {
   const apron = [[APRON.west, APRON.south], [APRON.east - 14, APRON.south], [APRON.east, APRON.south - 14], [APRON.east, e0[1]], e1, [APRON.west, e1[1]]];
   b.use('concrete').poly(0xd9d6cd, fillet([...apron, apron[0], apron[1]], 16).slice(4, -4), 0.02);
   // the red line along the beach side of the apron
-  b.use('matte').wall(0xc8392f, e1[0] + 3, e1[1] + 2.2, e0[0] - 2, e0[1] - 1.5, 1.1, 0.02, 0.3);
+  // the red boundary wall along the beach side of the apron, bold as in the client's render, with a pale coping
+  b.use('matte').wall(0xc4352c, e1[0] + 3, e1[1] + 2.2, e0[0] - 2, e0[1] - 1.5, 1.6, 0.02, 1.15); b.wall(0xe9d9cf, e1[0] + 3, e1[1] + 2.2, e0[0] - 2, e0[1] - 1.5, 1.75, 1.15, 1.25);
 
   const W = ROADS.w, roads = {};
-  const road = (name, pts, { w = W, round = 0, closed = false, dash = true, walk = ROADS.walk } = {}) => {
-    const p = resample(round ? fillet(pts, round) : pts, 3);
-    if (walk) { b.use('paving').ribbon(C.brick, p, w + walk * 2, 0.045, closed); b.use('matte').ribbon(0xd8d2c6, p, w + 0.7, 0.06, closed); }
-    b.use('asphalt').ribbon(C.asphalt, p, w, 0.075, closed);
-    if (dash) { b.use('matte'); for (let i = 1; i < p.length - 1; i += 2) { const a = p[i], c = p[i + 1]; b.quad(0xf4f1ea, 3.0, 0.22, (a[0] + c[0]) / 2, 0.092, (a[1] + c[1]) / 2, -Math.atan2(c[1] - a[1], c[0] - a[0])); } }
-    // edge lines
-    if (w > 7) for (const s of [-1, 1]) b.use('matte').ribbon(0xe9e6de, p.map((pt, i) => { const a = p[Math.max(0, i - 1)], c = p[Math.min(p.length - 1, i + 1)], l = Math.hypot(c[0] - a[0], c[1] - a[1]) || 1; return [pt[0] - ((c[1] - a[1]) / l) * s * (w / 2 - 0.5), pt[1] + ((c[0] - a[0]) / l) * s * (w / 2 - 0.5)]; }), 0.16, 0.09, closed);
-    roads[name] = p; return p;
+  // Every centre line is laid out first, so each road knows where the others meet it: lane markings stop short of
+  // every junction and roundabout, edge lines break across a side road's mouth, and a give-way line marks each road
+  // that ends on another. The north road runs on into the shore road in one smooth bend (it used to meet it in a notch).
+  const defs = [
+    ['entry', ROADS.entry],
+    ['ring', [...ROADS.north, ...ROADS.shore.slice(1)], { round: [15, 15, 19, 21, 21, 21] }],
+    ['westSouth', [...ROADS.west, ...ROADS.south.slice(1)], { round: [16, 12] }],          // the west road turns into the south road (no stub out into the sand)
+    ['avenue', ROADS.avenue, { round: 15 }],
+    ['cross', ROADS.cross, { w: 9 }], ['drive', ROADS.drive, { w: 9, round: 14, dash: false }],
+  ];
+  const all = defs.map(([name, pts, o = {}]) => ({ name, w: o.w || W, dash: o.dash !== false, walk: o.walk ?? ROADS.walk, p: resample(o.round ? fillet(pts, o.round) : pts, 3) }));
+  const circles = [RB_W, RB_E].map((rb) => ({ x: rb.x, z: rb.z, r: rb.r + W / 2, walk: rb.r + W / 2 + 2.4 })).concat([{ x: DROP.x, z: DROP.z, r: DROP.r, walk: DROP.r + 3 }]);
+  /** is (x, z) on the carriageway of a road other than `self`, or on a roundabout, give or take `pad` metres? */
+  const onOther = (self, x, z, pad, padRing = pad) => {
+    for (const r of all) if (r !== self && polyDist(r.p, x, z) < r.w / 2 + pad) return true;
+    for (const c of circles) if (Math.hypot(x - c.x, z - c.z) < c.r + padRing) return true;
+    return false;
   };
-  road('entry', ROADS.entry); road('west', ROADS.west);
-  road('north', ROADS.north, { round: 15 }); road('shore', ROADS.shore, { round: 21 });
-  road('avenue', ROADS.avenue, { round: 15 }); road('south', ROADS.south, { round: 12 });
-  road('cross', ROADS.cross, { w: 9 }); road('drive', ROADS.drive, { w: 9, round: 14, dash: false });
+  const RC = 6;                                                                      // kerb radius at the corners of a T-junction
+  const offset = (p, d) => p.map((pt, i) => { const a = p[Math.max(0, i - 1)], c = p[Math.min(p.length - 1, i + 1)], l = Math.hypot(c[0] - a[0], c[1] - a[1]) || 1; return [pt[0] - ((c[1] - a[1]) / l) * d, pt[1] + ((c[0] - a[0]) / l) * d]; });
+  for (const r of all) {
+    const { p, w, walk } = r;
+    if (walk) { b.use('paving').ribbon(C.brick, p, w + walk * 2, 0.045); b.use('matte').ribbon(0xd8d2c6, p, w + 0.7, 0.06); }
+    b.use('asphalt').ribbon(C.asphalt, p, w, 0.075);
+    const free = p.map(([x, z]) => !onOther(r, x, z, 1.4));
+    if (r.dash) { b.use('matte'); for (let i = 1; i < p.length - 1; i += 2) { if (!free[i] || !free[i + 1]) continue; const a = p[i], c = p[i + 1]; b.quad(0xf4f1ea, 3.0, 0.22, (a[0] + c[0]) / 2, 0.092, (a[1] + c[1]) / 2, -Math.atan2(c[1] - a[1], c[0] - a[0])); } }
+    // edge lines, in runs between the junctions
+    if (w > 7) for (const s of [-1, 1]) { let run = []; const flush = () => { if (run.length > 1) b.use('matte').ribbon(0xe9e6de, run, 0.16, 0.09); run = []; };
+      for (const q of offset(p, s * (w / 2 - 0.5))) { if (onOther(r, q[0], q[1], RC + 0.7, 0.7)) flush(); else run.push(q); } flush(); }
+    // give-way line across the lane coming in, where this road ends on another one (traffic keeps right)
+    for (const end of [0, p.length - 1]) {
+      if (free[end]) continue;
+      const dir = end ? -1 : 1; let k = end; while (k > 0 && k < p.length - 1 && !free[k]) k += dir;
+      if (k <= 0 || k >= p.length - 1) continue;
+      const a = p[k], c = p[k - dir], dx = c[0] - a[0], dz = c[1] - a[1], l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l, ry = -Math.atan2(dz, dx);
+      for (let o = 0.6; o < w / 2 - 0.6; o += 0.9) b.use('matte').quad(0xf4f1ea, 0.34, 0.6, a[0] + nx * o, 0.093, a[1] + nz * o, ry);
+    }
+    roads[r.name] = p;
+  }
+  // rounded corners where a road ends on another one: asphalt fillet, kerb and walk round the arc, and the edge line follows it
+  const meet = (p1, d1, p2, d2) => { const den = d1[0] * d2[1] - d1[1] * d2[0]; if (Math.abs(den) < 1e-6) return null; const a = ((p2[0] - p1[0]) * d2[1] - (p2[1] - p1[1]) * d2[0]) / den; return [p1[0] + d1[0] * a, p1[1] + d1[1] * a]; };
+  const arcRun = (c, r, a0, a1, n = 12) => { let da = a1 - a0; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI; const out = []; for (let i = 0; i <= n; i++) { const a = a0 + (da * i) / n; out.push([c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r]); } return out; };
+  for (const S of all) for (const end of [0, S.p.length - 1]) {
+    const E = S.p[end], T = all.find((r) => r !== S && polyDist(r.p, E[0], E[1]) < r.w / 2);
+    if (!T) continue;
+    const q = S.p[end ? end - 1 : 1], dl = Math.hypot(E[0] - q[0], E[1] - q[1]) || 1, d = [(E[0] - q[0]) / dl, (E[1] - q[1]) / dl], ps = [-d[1], d[0]];
+    // the through road's direction and the normal pointing back up the side road
+    let bi = 0, bd = Infinity; for (let i = 0; i < T.p.length - 1; i++) { const m = polyDist([T.p[i], T.p[i + 1]], E[0], E[1]); if (m < bd) { bd = m; bi = i; } }
+    const a = T.p[bi], c = T.p[bi + 1], tl = Math.hypot(c[0] - a[0], c[1] - a[1]) || 1, t = [(c[0] - a[0]) / tl, (c[1] - a[1]) / tl];
+    let n = [-t[1], t[0]]; if (n[0] * -d[0] + n[1] * -d[1] < 0) n = [-n[0], -n[1]];
+    const tt = Math.max(0, Math.min(1, ((E[0] - a[0]) * t[0] + (E[1] - a[1]) * t[1]) / tl)), ET = [a[0] + (c[0] - a[0]) * tt, a[1] + (c[1] - a[1]) * tt];
+    for (const sd of [-1, 1]) {
+      const o = [ps[0] * sd, ps[1] * sd], eS = [E[0] + o[0] * S.w / 2, E[1] + o[1] * S.w / 2], eT = [ET[0] + n[0] * T.w / 2, ET[1] + n[1] * T.w / 2];
+      const K = meet(eS, d, eT, t), C0 = meet([eS[0] + o[0] * RC, eS[1] + o[1] * RC], d, [eT[0] + n[0] * RC, eT[1] + n[1] * RC], t);
+      if (!K || !C0) continue;
+      const T1 = [C0[0] - o[0] * RC, C0[1] - o[1] * RC], T2 = [C0[0] - n[0] * RC, C0[1] - n[1] * RC], a1 = Math.atan2(T1[1] - C0[1], T1[0] - C0[0]), a2 = Math.atan2(T2[1] - C0[1], T2[0] - C0[0]);
+      b.use('asphalt').poly(C.asphalt, [K, ...arcRun(C0, RC, a1, a2)], 0.0752);
+      if (S.walk) { b.use('paving').ribbon(C.brick, arcRun(C0, RC - 0.35 - S.walk / 2, a1, a2), S.walk, 0.0455); b.use('matte').ribbon(0xd8d2c6, arcRun(C0, RC - 0.175, a1, a2), 0.35, 0.0605); }
+      if (S.w > 7) b.use('matte').ribbon(0xe9e6de, arcRun(C0, RC + 0.5, a1, a2), 0.16, 0.0905);
+    }
+  }
+  // the rest of the model still knows the north, shore, west and south roads by name: split the joined roads at their bends
+  const split = (key, a, c, at) => { const p = roads[key]; let k = 0, best = 1e9; p.forEach(([x, z], i) => { const d = Math.hypot(x - at[0], z - at[1]); if (d < best) { best = d; k = i; } }); roads[a] = p.slice(0, k + 1); roads[c] = p.slice(k); delete roads[key]; };
+  split('ring', 'north', 'shore', ROADS.shore[0]); split('westSouth', 'west', 'south', ROADS.west[ROADS.west.length - 1]);
   for (const rb of [RB_W, RB_E]) {
     b.use('paving').disc(C.brick, rb.r + W / 2 + 2.4, rb.x, 0.047, rb.z, 64); b.use('matte').disc(0xd8d2c6, rb.r + W / 2 + 0.35, rb.x, 0.062, rb.z, 64);
     b.use('asphalt').ring(C.asphalt, rb.r + W / 2, rb.r - W / 2, rb.x, 0.077, rb.z, 72);
@@ -113,9 +175,7 @@ export function createLand(scene, mats) {
   // forecourt of the Innovation Park (in its own turned frame) and the round plaza under the shell roof
   const pf = (x, z) => fromFrame(PARK_FRAME, x, z);
   b.use('paving').poly(0xe7e1d4, roundRect(-22, -53, 112, 13.5, 5).map(([x, z]) => pf(x, z)), 0.05);
-  b.use('paving').prism(C.floorStone, arcPts(35.6, 0, TAU, PARK_FRAME.x, PARK_FRAME.z, 5 * DEG), 0, 0.075, { sides: false });
-  b.use('paving').ring(C.brick, 36.6, 35.4, PARK_FRAME.x, 0.08, PARK_FRAME.z, 72);
-  b.use('paving').ribbon(0xe7e1d4, [pf(-15.6, 24), [DROP.x + DROP.r * 0.93, DROP.z - DROP.r * 0.36]], 7.5, 0.082);
+  // (the podium, its steps and the plaza round the oval hall are part of the hall itself: oval.js)
 
   // service pads round the production buildings
   const pad = (x0, z0, x1, z1, m = 5, hex = 0xcfccc4) => b.use('concrete').poly(hex, roundRect(x0 - m, z0 - m, x1 + m, z1 + m, 2.5), 0.035);
@@ -126,8 +186,24 @@ export function createLand(scene, mats) {
   for (const r of Object.values(P1)) pad(r.x0, r.z0, r.x1, r.z1, 3.5);
   pad(FIRE.x - FIRE.w / 2, FIRE.z - FIRE.d / 2, FIRE.x + FIRE.w / 2, FIRE.z + FIRE.d / 2, 1, 0xc4c2bb);
 
-  // lawns
-  for (const [x0, z0, x1, z1, r] of LAWNS) { b.use('matte').prism(C.grass, roundRect(x0, z0, x1, z1, r), 0, 0.3); b.use('matte').prism(C.grassDark, roundRect(x0 + 5, z0 + 5, x1 - 5, z1 - 5, Math.max(1.5, r - 3)), 0.3, 0.38, { sides: false }); }
+  // lawns: the plan numbers let a few of them run over a road, its kerb and walk, or a roundabout. Each lawn is pulled
+  // back until it clears every road by 0.6 m (sides move in, corners stay round) and is cut round the roundabouts.
+  const clear = (x, z) => { let m = Infinity; for (const r of all) m = Math.min(m, polyDist(r.p, x, z) - (r.w / 2 + (r.walk || 0.35) + 0.6)); return m; };
+  const outline = (x0, z0, x1, z1, r) => { const p = roundRect(x0, z0, x1, z1, Math.min(r, (x1 - x0) / 2 - 0.2, (z1 - z0) / 2 - 0.2)); return resample(p.concat([p[0]]), 1.2).slice(0, -1); };
+  const cut = (pts, pad) => { for (const c of circles) { const R = c.walk + pad; pts = pts.map(([x, z]) => { const d = Math.hypot(x - c.x, z - c.z); return d < R ? [c.x + ((x - c.x) / d) * R, c.z + ((z - c.z) / d) * R] : [x, z]; }); } return pts; };
+  const lawns = LAWNS.map(([x0, z0, x1, z1, r]) => {
+    for (let it = 0; it < 30; it++) {
+      const rr = Math.min(r, (x1 - x0) / 2 - 0.2, (z1 - z0) / 2 - 0.2), w = { x0: 0, x1: 0, z0: 0, z1: 0 };
+      for (const [x, z] of outline(x0, z0, x1, z1, r)) { const c = clear(x, z); if (c >= 0) continue;
+        if (x < x0 + rr + 0.01) w.x0 = Math.min(w.x0, c); if (x > x1 - rr - 0.01) w.x1 = Math.min(w.x1, c);
+        if (z < z0 + rr + 0.01) w.z0 = Math.min(w.z0, c); if (z > z1 - rr - 0.01) w.z1 = Math.min(w.z1, c); }
+      if (!(w.x0 || w.x1 || w.z0 || w.z1)) break;
+      if (w.x0) x0 += 0.1 - w.x0; if (w.x1) x1 -= 0.1 - w.x1; if (w.z0) z0 += 0.1 - w.z0; if (w.z1) z1 -= 0.1 - w.z1;
+    }
+    const poly = cut(outline(x0, z0, x1, z1, r), 0.6), inner = cut(outline(x0 + 5, z0 + 5, x1 - 5, z1 - 5, Math.max(1.5, r - 3)), 5);
+    b.use('matte').prism(C.grass, poly, 0, 0.3); b.use('matte').prism(C.grassDark, inner, 0.3, 0.38, { sides: false });
+    return { x0, z0, x1, z1, poly };
+  });
   // planted strip along the avenue, between the road and Phase 1
   for (let x = -214; x < 140; x += 19.5) b.use('matte').prism(C.grass, roundRect(x - 5.5, 39.6, x + 5.5, 43.8, 1.6), 0, 0.3);
 
@@ -147,7 +223,7 @@ export function createLand(scene, mats) {
   }
   rocks.count = n; rocks.castShadow = true; rocks.receiveShadow = true; rocks.instanceMatrix.needsUpdate = true; if (rocks.instanceColor) rocks.instanceColor.needsUpdate = true;
   rocks.name = 'rocks'; scene.add(rocks);
-  return { terrain, hardscape: g, rocks, roads, apronEdge: [e1, e0] };
+  return { terrain, hardscape: g, rocks, roads, lawns, apronEdge: [e1, e0] };
 }
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const mix3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];

@@ -169,6 +169,18 @@ function frame(now) {
 if (!world) requestAnimationFrame(frame);
 boot().then(() => { measure(); if (world) { world.updaters.push((dt, t) => species.update(dt, t)); } });
 
+/* ───── the company's film: a YouTube player over the page (privacy-enhanced domain, only loaded when asked for) ───── */
+{
+  const modal = $('#movie-modal'), frame = modal && modal.querySelector('.movie-frame'); let back = null;
+  const close = () => { if (!modal || modal.hidden) return; modal.hidden = true; frame.innerHTML = ''; if (lenis) lenis.start(); if (back) back.focus(); };
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-movie]');
+    if (b && modal) { back = b; frame.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(b.dataset.movie)}?autoplay=1&rel=0&playsinline=1" title="Gulf Aquaculture film" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`; modal.hidden = false; if (lenis) lenis.stop(); modal.querySelector('.movie-x').focus(); return; }
+    if (modal && !modal.hidden && (e.target === modal || e.target.closest('.movie-x'))) close();
+  });
+  addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+}
+
 /* ───── buttons outside the model ───── */
 document.addEventListener('click', (e) => {
   const ex = e.target.closest('[data-explore]'); if (ex && app) { app.enter(); return; }

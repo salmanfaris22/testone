@@ -1,11 +1,12 @@
 # SKMRC interactive 3D masterplan
 
 Website for the Sheikh Khalifa Marine Research Centre (Gulf Aquaculture, Umm Al Quwain).
-The whole centre is a real-time 3D model: ten areas you can walk into, 279 things to click, real people at work in every room, an underwater view where every fish can be followed and aged, and a 3D viewer for six native species.
+The whole centre is a real-time 3D model: ten areas you can walk into, about 270 things to click, real people at work in every room, an underwater view where every fish can be followed and aged, and a 3D viewer for six native species.
 
 Reference the client asked us to match and beat: `https://kriswa.ae/demos/gulfaquaculture/` (its `3d/` page).
 Version 2 (14 November 2026) follows that reference's site plan. Version 1 is kept in `_backup/`.
 Version 3 (14 November 2026, later the same day) adds real rigged people, a camera that respects walls, walking with keys or an on-screen stick, dashboards on every screen, printed exhibition panels, a title tag on the selected thing, name plates over every door, an icon list in each area card, far more detailed generator sets and switchgear, and a proper phone layout.
+Version 5 (15 November 2026, later the same day) rebuilds area 08 to the client's render of the building (a white pebble-shaped shell roof over a curved glass front with the centre's name over the doors, on a raised podium with crescent lawns, steps, a ramp and a glass balustrade, a two-storey wing behind and a bold red wall along the beach), takes out the eight covered nursery cages and the walkway between them, cleans up every road junction (lane lines stop at junctions, rounded kerbs, lawns kept off the roads, no notch at the pump house, no stub into the sand), makes the opening film build the infrastructure first (services, roads, paving, lights) and only then the buildings, lets the hero camera drift slowly like a drone film, and adds the company's own film to the landing page.
 Version 4 (15 November 2026, branch `v4-phases-intro-boat`) opens with a film that starts at the gate, where an Emirati host welcomes you, and builds the site from a blueprint phase by phase. The ten areas are grouped and numbered by phase (1, 2, 3). The fish farm moved from the north-east beach (next to the military side) to the south shore in front of Phase 1, with a jetty whose gangway now meets the floating walkway properly. LFC Hamour, the live fish carrier, lies alongside the jetty. Every area has a big LED screen, the UAE flags fly, there are fewer cars and no trees on the beach side, the orange selection brackets are gone, and clicking a fish under water selects its whole group.
 
 ## Run it
@@ -24,9 +25,12 @@ Handy links while working: `/#explore` opens straight into the 3D model, `/?noin
 
 | Part | What it does |
 |---|---|
-| Opening film | Starts on the road outside the gatehouse: the Emirati host stands at the name wall (Arabic and English) with three UAE flags. The camera rises, a blueprint of the site draws itself (grid and every footprint), the buildings rise Phase 1, then 2, then 3, the cages come up out of the sea, LFC Hamour sails in to the jetty, the planting grows and the camera settles on the hero. About 15 seconds. Skip button, any scroll or key skips it. Not played for reduced motion, `#explore` or `?nointro` |
+| Opening film | Starts on the road outside the gatehouse and pushes in to the Emirati host at the name wall (Arabic and English) with three UAE flags. The camera rises over a blueprint: road centre lines, then every footprint, draw themselves. Then the site is built the way it really would be: sea water mains and power lines glow on the plan, the roads are paved from the gate inward, the paving flows out to the apron, plazas, lawns and parking, the street lights go up and the red beach wall rises. Only then do the buildings go up, Phase 1, 2, 3: each starts as a glowing slab and rises from the ground with a glowing cut line, a tower crane working beside each phase. The cages surface, LFC Hamour sails in, the trees grow and the camera settles on the hero. About 19 seconds. Skip button, any scroll or key skips it. Not played for reduced motion, `#explore` or `?nointro` |
 | Phases | Phase 1 the original hatchery (area 01), Phase 2 the new hatchery with its plant room and generators (02 to 07), Phase 3 the Marine Innovation Park and the sea (08 to 10). Each tour card names its phase, the first card of each phase opens with a big "Phase N" over the model, the side rail and the dock are grouped P1, P2, P3, the panel header says the phase |
-| Hero and scroll tour | The live model behind the headline, now with the fish farm and LFC Hamour in front; scrolling flies area to area and lifts each roof |
+| Hero and scroll tour | The live model behind the headline, with the fish farm and LFC Hamour in front. While the page sits at the top, the camera drifts slowly round the site like a drone film; scrolling flies area to area and lifts each roof |
+| The company's film | A dark band, "See the centre at work", between the figures and the company story: a big play button on the client's photo of the building. It opens Gulf Aquaculture's own YouTube film ("An introduction to Gulf Aquaculture", 7 min, the one on gulfaquaculture.com) in a player over the page, from the privacy-enhanced YouTube domain, loaded only when someone presses play. Esc, the cross or a click outside closes it |
+| Area 08, the oval hall | Built to the client's render (and the client's photo of the real building): a white shell roof shaped like a pebble, a soft dome with a thick rolled rim that rises and falls round the edge, over a curved glass front with a grid of mullions and two transoms. The centre's name in Arabic (with a small English line) runs on a curved white panel over the doors. The hall stands on a raised podium: crescent lawns in dark-edged planters either side of the entrance court, a glass balustrade round the edge, a broad flight of steps on the axis of the doors, a ramp along the wall beside them, palms on the plaza round it, and three UAE flags. The lab wing behind has an upper floor with a row of small square windows, as in the render. The drop-off loop moved out to make room |
+| Roads | Lane lines and edge lines stop short of every junction and roundabout; each road that ends on another has a give-way line and rounded kerbs (asphalt, kerb, walk and edge line follow the curve); lawns are pulled back until they clear every road, kerb, walk and roundabout; the north road runs into the shore road in one smooth bend (no notch by the pump house) and the west road turns into the south road (no stub out into the sand) |
 | Explore mode | Orbit, zoom, click a pin or a building |
 | Walk in | The default way into an area: the camera comes down, goes in at eye level and the roof stays on. Drag to look round, walk with W A S D (or the on-screen stick on a phone), click a tank or the floor to go there. The camera never passes a wall, and partitions rise to the ceiling |
 | Title tag | The selected thing carries its name and three key figures in the model itself. Labels behind a wall are hidden |
@@ -35,7 +39,7 @@ Handy links while working: `/#explore` opens straight into the 3D model, `/?noin
 | Screens | Every monitor, wall display and control desk shows a dashboard (production, accounts, water quality, alarms, orders, PCR, microscope). The eight exhibition panels are printed in English and Arabic with the client's fish photos. Example data |
 | LED screens | A big TV-style screen at every area, on the facade that faces the road or on a pylon: area number and name, phase, a rolling key figure, a live trace, a clock, a ticker with the area's facts. Redrawn a few times a second, only when near enough to read. Example data |
 | LFC Hamour | The live fish carrier of Jalboot Marine Network (the first in the GCC), modelled from its specification sheet and video: red hull with the name on both bows, white superstructure and wheelhouse with the IMO number, mast and turning radar, four well-tank hatches, crane, three propellers. Click it for the specification (from the PDF) and the photo |
-| Fish farm | Off the south shore in front of Phase 1: a concrete jetty rises from the shore walk and crosses the rock armour on piles; a hinged gangway drops to a landing pontoon on guide piles, so it meets the floating walkway at every tide; the walkway runs between the two rows of nursery cages. Bollards and fenders on the west face for LFC Hamour |
+| Fish farm | Off the south shore in front of Phase 1: twelve grow-out cages in three rows (the eight covered nursery cages were taken out). A concrete jetty rises from the shore walk and crosses the rock armour on piles; a hinged gangway drops to a floating landing stage on guide piles, where the work boats tie up. Bollards and fenders on the west face for LFC Hamour |
 | From above / Plan | The roof lifts off for a dollhouse view, or a top-down plan with every room named |
 | Item panel | Description, the client's photo where there is one, tank card, key figures, example readings. The selected thing gets a soft white ring on the floor (no more orange brackets) |
 | Under water | Sea cages, broodstock tanks and the aquarium can be entered below the surface. A bar at the top shows one species at a time |
@@ -57,9 +61,9 @@ Handy links while working: `/#explore` opens straight into the 3D model, `/?noin
 | 05 | 2 | Broodstock Building | 21 | Twelve tanks, intake room, pump station by the shore road |
 | 06 | 2 | Plant Room | 19 | Adds ozone, degassing tower, heat exchangers |
 | 07 | 2 | Generator Room | 9 | Substation kiosk, transformer yard, fire-water tanks |
-| 08 | 3 | Education and Visitor Centre | 22 | The client's floor plan, turned to run along the shore |
+| 08 | 3 | Education and Visitor Centre | 22 | The client's floor plan inside, turned to run along the shore; outside built to the client's render (oval glass hall, shell roof, podium) |
 | 09 | 3 | Research and Administration Wing | 21 | The client's floor plan |
-| 10 | 3 | Sea Cage Grow-Out | 25 | Eight covered nursery cages, twelve grow-out cages, jetty and gangway, LFC Hamour, feed barge |
+| 10 | 3 | Sea Cage Grow-Out | 17 | Twelve grow-out cages, jetty, gangway and landing stage, LFC Hamour, feed barge, work boat, cameras |
 
 Numbers follow the tour order in `src/data/areas.js`; the roofs, pins, dock and cards all read them from there.
 
@@ -69,22 +73,25 @@ Numbers follow the tour order in `src/data/areas.js`; the roofs, pins, dock and 
 |---|---|
 | Brand, contact details, figures, company story | `src/data/site.js` |
 | Phases (names, titles) and which area is in which | `PHASES` and `phase` in `src/data/areas.js` (the order of `AREAS` is the tour order and the numbering) |
-| The opening film (timeline, captions, camera keys) | `src/world/intro.js` (`T` holds the timings) |
+| The opening film (timeline, captions, camera keys) | `src/world/intro.js` (`T` holds the timings); the build map, the paving and rising materials and the tower crane in `src/world/intro-build.js` |
+| Area 08 outside: shell roof, glass front, name sign, podium, lawns, steps, ramp | `src/world/oval.js`; the outlines (glass, roof, podium) and where the doors face are `OVAL` in `src/world/layout.js` |
+| The company's film on the landing page | the `movie` section in `index.html` (YouTube id in `data-movie`), styles at the end of `src/styles/site.css`, the player in `src/main.js` |
+| The hero camera drift | `update()` in `src/ui/story.js` |
 | The gate: name wall and where the host stands | `GATE` in `src/world/layout.js`; the wall and its sign in `src/world/site.js` |
 | LED screens: what they show / where they stand | `src/world/boards.js` (`LIVE` figures) / the list in `buildSite` in `src/world/site.js` |
 | Flags | `src/world/flags.js`, placed in `src/world/site.js` |
 | LFC Hamour: model and card / where it lies | `src/world/lfc.js` / `LFC_BERTH` in `src/world/layout.js` |
-| Fish farm position, jetty, gangway | `JETTY`, `CAGES` and `south()` in `src/world/layout.js`; drawn in `src/world/cages.js` |
+| Fish farm position, jetty, gangway, landing stage | `JETTY`, `CAGES` and `south()` in `src/world/layout.js`; drawn in `src/world/cages.js` |
 | Emirati figure (white ghutra) | `ALIAS` and `whiten()` in `src/world/avatars.js` (made from the library's Gulf figure at load time) |
 | Names and text of the ten areas | `src/data/areas.js` |
 | Species text and facts | `src/data/species.js` |
 | How fast each species grows (the age slider) | `src/data/growth.js` |
 | Which photo shows in which card | `src/data/photos.js` (files in `public/photos/`) |
 | Where buildings, roads and cages stand | `src/world/layout.js` (1.5 m per unit of the reference plan) |
-| Land, roads, lawns, parking | `src/world/land.js` |
+| Land, roads, lawns, parking | `src/world/land.js` (junctions, kerb corners and the fitting of the lawns are worked out from the centre lines in `ROADS`) |
 | Halls and their equipment | `src/world/halls.js` (kit of parts in `src/world/equip.js`) |
 | Innovation Park rooms | `src/world/park.js` |
-| Sea cages, jetty, gangway, walkway, barge, boats | `src/world/cages.js` |
+| Sea cages, jetty, gangway, landing stage, barge, boats | `src/world/cages.js` |
 | Trees, lights, cars, people outdoors, gulls, LED screens, flags | `src/world/site.js` |
 | How people move | `src/world/people.js` (who stands where), `src/world/avatars.js` (the rigged figures and their clips) |
 | Which figure plays which job | `CAST` in `src/world/avatars.js` (files in `public/people/`) |
@@ -138,6 +145,9 @@ Numbers follow the tour order in `src/data/areas.js`; the roofs, pins, dock and 
 | Fish farm position | Moved off the south shore in front of Phase 1, as asked, away from the military side on the north-east. Layout of cages, jetty and gangway is ours, not surveyed. Nothing military is drawn. |
 | LFC Hamour | Vessel of Jalboot Marine Network LLC, facts and photo from their specification sheet (LFC final.pdf). Confirm they agree to it being shown at SKMRC and to the photo being used. The model is our illustration. |
 | Arabic on the gate name wall | "مركز الشيخ خليفة للأبحاث البحرية", written by us. Needs a native speaker's check, like the exhibition panels. |
+| Area 08 outside | Follows the client's render and their photo of the building, not drawings: sizes of the shell, glass and podium, the steps, ramp and lawns are our reading. The name over the doors, "مركز الشيخ خليفة للأبحاث البحرية في إمارة أم القيوين", is copied from the render; needs a native check. The rooms inside still follow the floor plan |
+| Nursery cages | Taken out as asked (the eight covered cages by the jetty). Young fish now go from the nursery hall straight to the grow-out cages, starting in a fine-mesh net. Confirm |
+| The company's film | Gulf Aquaculture's own YouTube film, the one their website shows. Confirm they are happy for it to play on this site |
 | Emirati host | A generic library figure in Emirati dress, not a portrait of anyone. |
 | Arabic on the exhibition panels | Eight short titles and the centre's name, written by us. Needs a native speaker's check. |
 | Dashboards on the screens | Example figures, marked "example data" on each screen |
@@ -188,6 +198,18 @@ Numbers follow the tour order in `src/data/areas.js`; the roofs, pins, dock and 
 | Under water: click a fish, all 150 of its group ringed, slider grows the whole group, averages update | Pass |
 | Selection: soft white floor ring, no orange brackets | Pass |
 | Phone width 390: intro caption and skip, hero, dock, sea cages sheet | Pass |
+| Not tested | Real phone hardware, Safari, Firefox, sound by ear |
+
+## Tested, version 5 (15 November 2026, Chrome, M1)
+
+| Check | Result |
+|---|---|
+| Every road junction from above and from the side: lines stop, give-way lines, rounded kerbs, lawns clear, smooth bends at the pump house and the south-west corner | Pass, looked at close up |
+| Area 08 from the angle of the client's render, from the front, at the steps and from the beach side; walk-in to the aquarium hall; roof lifted | Pass |
+| Fish farm: 8 nursery cages gone, 12 grow-out cages, jetty, gangway, landing stage, LFC Hamour, area 10 card and views | Pass |
+| Opening film end to end (19.1 s): infrastructure before buildings, cranes, oval hall built, cages, boat, hero; skip leaves the page as `?nointro` | Pass |
+| Landing page: hero drift, film band, player opens and plays the YouTube film, Esc and the cross close it, focus goes back to the button | Pass |
+| `npm run build` | Pass |
 | Not tested | Real phone hardware, Safari, Firefox, sound by ear |
 
 ## How it is built

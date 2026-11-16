@@ -54,10 +54,11 @@ export function createStory(world, { onExplore, scrollTo }) {
       tau = raw < 0 ? -1 + clamp(y / Math.max(1, m.top - m.vh * LEAD), 0, 1) : raw;
       if (!active) return;
       const p = poseAt(tau);
-      sway += dt; const g = rig.goal;
-      const sw = tau < -0.4 ? Math.sin(sway * 0.13) * 0.06 * (1 - smooth(clamp((tau + 1) / 0.6, 0, 1))) : 0;
+      // at the top of the page the camera drifts slowly round the site, like a drone film, and settles as the tour begins
+      sway += dt; const g = rig.goal, hk = tau < -0.4 ? 1 - smooth(clamp((tau + 1) / 0.6, 0, 1)) : 0;
+      const sw = Math.sin(sway * 0.085) * 0.2 * hk, sd = 1 + Math.sin(sway * 0.06 + 1.1) * 0.07 * hk, sp = Math.sin(sway * 0.071 + 0.4) * 0.035 * hk;
       rig.flight = null; rig.path = null;
-      g.x = p.x; g.y = p.y; g.z = p.z; g.az = p.az + sw; g.pol = p.pol; g.dist = p.dist;
+      g.x = p.x; g.y = p.y; g.z = p.z; g.az = p.az + sw; g.pol = p.pol + sp; g.dist = p.dist * sd;
       const idx = Math.floor(tau), f = tau - idx, open = idx >= 0 && idx < N && f > 0.3 && f < 0.95 ? AREAS[idx].id : null;
       if (open !== api.open) { api.open = open; for (const a of areas.list) { if (a.id === open) areas.open(a.id); else if (a.goal) areas.close(a.id); } }
       const on = clamp(Math.floor(tau + 0.06), -1, N - 1);

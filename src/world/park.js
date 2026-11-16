@@ -7,12 +7,14 @@ import { wallRun, noteWall, roofGear, aoSkirts, CUT } from './shell.js';
 import * as E from './equip.js';
 import { WEAR, wearFor } from './people.js';
 import { PARK, PARK_FRAME } from './layout.js';
+import { buildOval } from './oval.js';
 import { P } from './rig.js';
 
 const F = E.FLOOR;
 export const RH = 11.1, RR = 14.7, RO = 25.5, RT = 33;      // hall wall, ring corridor, outer wall, terrace
 export const SPINE = { x: 12, z: -3.1, ry: 0.1396 };        // the angled corridor to the office wing (8° off the plan axis)
 const WING = { x0: -18.1, x1: 107.5, z0: -48.3, zr: -32.8, zc: -28.5, split: 29.1, h: 5.2 };
+const UPF = 3.6;                                              // height of the wing's upper floor
 const pol = (r, deg) => [Math.cos(deg * DEG) * r, Math.sin(deg * DEG) * r];
 const ux = Math.cos(SPINE.ry), uz = -Math.sin(SPINE.ry), vx = Math.sin(SPINE.ry), vz = Math.cos(SPINE.ry);
 /** spine frame (u along the corridor, v to the south) → local xz */
@@ -149,29 +151,8 @@ export function buildPark(world) {
   for (const [x0, z0, x1, z1, d] of [[91, -28.3, 115.1, -28.3], [115.1, -28.3, 115.1, -18.5], [91, -18.5, 115.1, -18.5, [{ at: 4.4, w: 2.2, h: 2.5, shut: false }]], [91, -28.3, 91, -18.5, [{ at: 4, w: 2, h: 2.5 }]], [103.4, -28.3, 103.4, -18.5, [{ at: 5, w: 1.4, h: 2.4 }]]]) wallRun(lo2, hi2, x0, z0, x1, z1, { t: 0.3, h: 5, doors: d || [] });
 
   /* ───────── roofs ───────── */
-  // the white shell over the drum: a thick disc whose rim rises and falls in three slow waves
-  {
-    const RIM = 31, rings = 12, seg = 120, verts = [], norms = [], tris = [];
-    const yTop = (r, a) => 10.4 - 1.9 * (r / RIM) ** 2 + (1.55 * Math.sin(3 * a + 0.9) + 0.45 * Math.sin(5 * a + 2.1)) * Math.min(1, Math.max(0, (r - 11) / 18)) ** 1.4;
-    for (let i = 0; i <= rings; i++) { const r = 4.2 + ((RIM - 4.2) * i) / rings; for (let j = 0; j <= seg; j++) { const a = (j / seg) * TAU; verts.push([Math.cos(a) * r, yTop(r, a), Math.sin(a) * r]); norms.push([0, 1, 0]); } }
-    for (let i = 0; i < rings; i++) for (let j = 0; j < seg; j++) { const a = i * (seg + 1) + j, b = a + seg + 1; tris.push(a, a + 1, b, a + 1, b + 1, b); }
-    // true normals from neighbours
-    for (let i = 0; i <= rings; i++) for (let j = 0; j <= seg; j++) { const k = i * (seg + 1) + j, a = verts[Math.max(0, i - 1) * (seg + 1) + j], b = verts[Math.min(rings, i + 1) * (seg + 1) + j], c = verts[i * (seg + 1) + ((j + seg - 1) % seg)], d = verts[i * (seg + 1) + ((j + 1) % seg)];
-      const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], e2 = [d[0] - c[0], d[1] - c[1], d[2] - c[2]]; let nx = e1[1] * e2[2] - e1[2] * e2[1], ny = e1[2] * e2[0] - e1[0] * e2[2], nz = e1[0] * e2[1] - e1[1] * e2[0]; if (ny < 0) { nx = -nx; ny = -ny; nz = -nz; } const l = Math.hypot(nx, ny, nz) || 1; norms[k] = [nx / l, ny / l, nz / l]; }
-    hi1.use('matte')._rawUp(verts, norms, tris, C.white);
-    // rounded rim band and the soffit
-    const rv = [], rn = [], rt = [], TH = 1.15;
-    for (let j = 0; j <= seg; j++) { const a = (j / seg) * TAU, ca = Math.cos(a), sa = Math.sin(a), y = yTop(RIM, a);
-      rv.push([ca * RIM, y, sa * RIM], [ca * (RIM + 0.35), y - TH * 0.5, sa * (RIM + 0.35)], [ca * RIM, y - TH, sa * RIM], [ca * 26.2, 7.5, sa * 26.2]);
-      rn.push([ca * 0.6, 0.8, sa * 0.6], [ca, 0, sa], [ca * 0.5, -0.86, sa * 0.5], [0, -1, 0]); }
-    for (let j = 0; j < seg; j++) for (let k = 0; k < 3; k++) { const a = j * 4 + k, b = a + 4; rt.push(a, b, a + 1, a + 1, b, b + 1); }
-    hi1._raw(rv, rn, rt, 0xf6f4ef);
-    hi1.use('window').prism(null, arcPts(4.4, 0, TAU, 0, 0, 10 * DEG), 9.7, 9.95, { sides: true }); hi1.use('satin').torus(C.alu, 4.45, 0.16, 0, 9.96, 0, 6, 48);
-    // raking white columns under the canopy, in pairs, as on site
-    for (let d = 14; d < 232; d += 15.5) { const top = pol(27.4, d); for (const s of [-1, 1]) { const ft = pol(28.6, d + s * 3.4); hi1.use('matte').rod(0xf6f4ef, 0.24, [ft[0], 0, ft[1]], [top[0], yTop(27.4, d * DEG) - 1.25, top[1]], 10); } }
-    // sign band over the entrance
-    const [sx, sz] = pol(RO + 3.9, 123); hi1.use('matte').box(0xefe9dc, 13.5, 1.9, 0.5, sx, 4.3, sz, -(123 * DEG) + Math.PI / 2);
-  }
+  // the white shell, the curved glass front, the name over the doors and the podium with its lawns, steps and ramp (oval.js)
+  const oval = buildOval(lo1, hi1, { RO, pol });
   // flat roofs
   const flat = (b, pts, y, hex = C.roof) => { b.use('matte').prism(hex, pts, y, y + 0.35); b.use('glow').prism(0xdde2e1, pts, y - 0.07, y - 0.03, { cap: false, sides: false, bottom: true }); };
   // ceilings seen from inside: the hall under the shell, the ring of rooms round it, the two wings
@@ -186,7 +167,16 @@ export function buildPark(world) {
   hi2.use('matte').box(C.roof, WING.x1 - WING.split + 0.6, 0.35, WING.zc - WING.z0 + 0.8, (WING.x1 + WING.split) / 2 + 0.1, WING.h, (WING.z0 + WING.zc) / 2);
   flat(hi2, [uv(3, -2.2), uv(92.4, -2.2), uv(92.4, 18), uv(23.7, 18), uv(23.7, 2.2), uv(3, 2.2)], 5);
   hi2.use('matte').box(C.roof, 24.6, 0.35, 10.4, 103.05, 5, -23.4);
-  roofGear(hi1, WING.x0 + 2, WING.z0 + 2, WING.split - 2, WING.zr - 1, WING.h + 0.35, 21); roofGear(hi2, WING.split + 2, WING.z0 + 2, WING.x1 - 2, WING.zr - 1, WING.h + 0.35, 22);
+  // the upper floor of the lab wing, as in the client's render: a plain white storey with a row of small square windows
+  // on both long sides (the shell only: it lifts away with the roof, the rooms below are unchanged)
+  for (const [b, x0, x1] of [[hi1, WING.x0, WING.split], [hi2, WING.split, WING.x1]]) {
+    const y = WING.h + 0.35, zm = (WING.z0 - 0.3 + WING.zc) / 2, d = WING.zc - WING.z0 + 0.3;
+    b.use('matte').box(0xf2f0eb, x1 - x0 + 0.02, UPF, d, (x0 + x1) / 2, y, zm);
+    b.use('matte').box(C.roof, x1 - x0 + 0.3, 0.35, d + 0.3, (x0 + x1) / 2, y + UPF, zm);
+    b.use('matte').box(0xe4e1da, x1 - x0 + 0.02, 0.5, 0.12, (x0 + x1) / 2, y + UPF - 0.1, WING.z0 - 0.47);       // parapet line on the beach side
+    for (let x = x0 + 2.2; x < x1 - 1.4; x += 3.3) for (const z of [WING.z0 - 0.37, WING.zc + 0.06]) b.use('window').box(null, 1.25, 1.25, 0.1, x, y + 1.25, z);
+  }
+  roofGear(hi1, WING.x0 + 2, WING.z0 + 2, WING.split - 2, WING.zr - 1, WING.h + 0.35 + UPF + 0.35, 21); roofGear(hi2, WING.split + 2, WING.z0 + 2, WING.x1 - 2, WING.zr - 1, WING.h + 0.35 + UPF + 0.35, 22);
   for (let u = 30; u < 88; u += 9.5) { const p = uv(u, 9.5); hi2.use('satin').box(C.steel, 2.2, 1.2, 1.4, p[0], 5.35, p[1], SPINE.ry); }
   for (let x = WING.x0 + 1; x < WING.x1; x += 8) (x < WING.split ? hi1 : hi2).use('glow').box(C.led, 6, 0.1, 0.1, x + 3, WING.h - 0.25, WING.z0 - 0.08);
 
@@ -196,20 +186,16 @@ export function buildPark(world) {
   lo1.use('matte').prism(C.grass, [[45, -25.6], [84.6, -25.6], [85.6, -19.6], [51, -14.6]], 0.05, 0.3);
   lo1.use('matte').prism(C.grassDark, [[52, -23.6], [80, -23.6], [80.6, -20.6], [57, -17.4]], 0.3, 0.42);
   for (let k = 0; k < 6; k++) { const x = 47 + k * 7.2; lo1.use('matte').box(C.wood, 2.2, 0.45, 0.6, x, 0.05, -27); }
-  lo1.use('matte'); for (const d of [152, 198]) { const a = pol(RO + 0.6, d), c = pol(RT + 4, d); lo1.wall(C.paving, a[0], a[1], c[0], c[1], 2.6, 0.02, 0.09); }
-  lo1.use('matte').arcWall(C.clayWarm, RT + 0.6, 12 * DEG, 205 * DEG, 0.5, 0, 0.5);                 // low planter wall round the terrace
-  for (let d = 20; d < 200; d += 9) { const [x, z] = pol(RT + 0.6, d); lo1.use('matte').ico(d % 18 ? 0x86c494 : 0x9fd3a6, 0.75, x, 0.75, z, 0.7, d, 1); }
 
-  const hitA = [[px - RT + 2, 0, pz - RO, px + RO, 10, pz + RO], [px + RO * 0.6, 0, pz + WING.zc, px + 47, 6, pz - 3], [px + WING.x0, 0, pz + WING.z0, px + WING.split, WING.h, pz + WING.zc]];
-  const hitB = [[px + WING.split, 0, pz + WING.z0, px + WING.x1, WING.h, pz + WING.zc], Ub(24.1, 1.9, 92, 17.6, 5), [px + 91, 0, pz - 28.3, px + 115.1, 5, pz - 18.5]];
+  const hitA = [[px - 35.5, 0, pz - 26, px + 35.5, 13, pz + 31.5], [px + RO * 0.6, 0, pz + WING.zc, px + 47, 6, pz - 3], [px + WING.x0, 0, pz + WING.z0, px + WING.split, WING.h + UPF + 0.7, pz + WING.zc]];
+  const hitB = [[px + WING.split, 0, pz + WING.z0, px + WING.x1, WING.h + UPF + 0.7, pz + WING.zc], Ub(24.1, 1.9, 92, 17.6, 5), [px + 91, 0, pz - 28.3, px + 115.1, 5, pz - 18.5]];
 
   const parkWalls = (lo1.walls || []).concat(lo2.walls || []);
   /* ═════════ 01 · Education and Visitor Centre ═════════ */
-  const signMat = new THREE.MeshBasicMaterial({ map: signTex(true), toneMapped: false, transparent: true });
-  { const [sx, sz] = pol(RO + 4.17, 123); const m = new THREE.Mesh(new THREE.PlaneGeometry(13.2, 1.72), signMat); m.position.set(px + sx, 5.25, pz + sz); m.rotation.y = -(123 * DEG) + Math.PI / 2; m.updateMatrix(); m.matrixAutoUpdate = false; m.userData.noShadow = true; var fascia = m; }
-  const high1 = hi1.build(roof1); high1.add(fascia); roof1.sign = signMat; signMat.userData.baseOpacity = 1;
+  const signMat = oval.signMat;
+  const high1 = hi1.build(roof1); high1.add(oval.sign); roof1.sign = signMat; signMat.userData.baseOpacity = 1;
   const a1 = areas.add({
-    id: 'visitor', frame: PARK_FRAME, low: lo1.build(mats), high: high1, roofMats: roof1, lift: 11, hit: hitA, pin: [px, 15.5, pz],
+    id: 'visitor', frame: PARK_FRAME, low: lo1.build(mats), high: high1, roofMats: roof1, lift: 11, hit: hitA, pin: [px, 17, pz],
     pose: P(px + 6, 2, pz + 2, -0.82, 1.0, 150), inside: P(px + 3, 1, pz - 3, -0.7, 0.66, 104), plan: P(px + 42, 0, pz - 8, 0, 0.1, 252), planWith: 'research',
     walk: P(px, 2.4, pz, 2.25, 1.44, 9.6), walls: parkWalls,
     rooms: [{ circle: true, x: 0, z: 0, r: RH - 0.9, h: 8.6, inner: 4.5 }, { circle: true, x: 0, z: 0, r: RO - 0.8, h: 6.6 }, { x0: WING.x0, x1: WING.split, z0: WING.z0, z1: WING.zc, h: WING.h }, { x0: WING.x0, x1: 29.1, z0: WING.zc, z1: -18.6, h: 5.2 }, { x0: 26, x1: 47.6, z0: WING.zc, z1: -5, h: 5.5 }],

@@ -1,6 +1,7 @@
-// Area 10: the cages off the south shore, in front of Phase 1. Eight covered nursery cages in two rows near the shore,
-// twelve open grow-out cages further out, a fixed jetty over the rock armour with a hinged gangway down to a floating walkway,
+// Area 10: the cages off the south shore, in front of Phase 1. Twelve open grow-out cages in three rows,
+// a fixed jetty over the rock armour with a hinged gangway down to a floating landing stage for the boats,
 // the feed barge, the work boat, and LFC Hamour (the live fish carrier) alongside the jetty.
+// (The eight covered nursery cages near the jetty were taken out at the client's request, with the walkway that served them.)
 import * as THREE from 'three';
 import { Builder, C, rng, TAU, canvasTex } from './kit.js';
 import { workBoat } from './props.js';
@@ -9,12 +10,10 @@ import { CAGES, JETTY, LFC_BERTH, south } from './layout.js';
 import { SEA_Y, terrainH } from './terrain-fn.js';
 import { P } from './rig.js';
 
-const SMALL_SP = [['hamour', 'Hamour'], ['hamra', 'Hamra, red snapper'], ['shiqra', 'Shiqra, mangrove snapper'], ['hamour', 'Hamour'], ['hamra', 'Hamra, red snapper'], ['shaari', 'Shaari'], ['hamour', 'Hamour'], ['shiqra', 'Shiqra, mangrove snapper']];
 const BIG_SP = [['hamour', 'Hamour'], ['hamra', 'Hamra, red snapper'], ['shiqra', 'Shiqra, mangrove snapper'], ['seabream', 'Seabream'], ['hamour', 'Hamour'], ['shaari', 'Shaari'], ['hamra', 'Hamra, red snapper'], ['shiqra', 'Shiqra, mangrove snapper'], ['hamour', 'Hamour'], ['seabream', 'Seabream'], ['hamra', 'Hamra, red snapper'], ['hamour', 'Hamour']];
 
 export function cageList() {
   const out = [];
-  CAGES.small.list.forEach(([x, z], i) => out.push({ x, z, r: CAGES.small.r, n: i + 1, kind: 'nursery', code: `NC-${String(i + 1).padStart(2, '0')}`, sp: SMALL_SP[i], depth: 6 }));
   CAGES.big.list.forEach(([x, z], i) => out.push({ x, z, r: CAGES.big.r, n: i + 1, kind: 'growout', code: `SC-${String(i + 1).padStart(2, '0')}`, sp: BIG_SP[i], depth: 9 }));
   return out;
 }
@@ -30,11 +29,6 @@ export function buildCages(world) {
   { const uv = netGeo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 110, uv.getY(i) * 12); }
   const nets = new THREE.InstancedMesh(netGeo, netMat, cages.length), m4 = new THREE.Matrix4(), q0 = new THREE.Quaternion();
   const floorG = new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), floors = new THREE.InstancedMesh(floorG, new THREE.MeshBasicMaterial({ color: 0x0d3550 }), cages.length);
-  // bird nets: a shallow cone of fine mesh over each nursery cage
-  const birdTex = canvasTex(64, 64, (g, w) => { g.clearRect(0, 0, w, w); g.strokeStyle = 'rgba(235,242,246,.9)'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(0, 0); g.lineTo(w, w); g.moveTo(w, 0); g.lineTo(0, w); g.stroke(); });
-  const coneGeo = new THREE.ConeGeometry(1, 1, 48, 1, true); { const uv = coneGeo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 70, uv.getY(i) * 10); }
-  const small = cages.filter((c) => c.kind === 'nursery');
-  const birds = new THREE.InstancedMesh(coneGeo, new THREE.MeshBasicMaterial({ map: birdTex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, color: 0xe8eef2 }), small.length);
 
   cages.forEach((c, i) => {
     const r = c.r, d = c.depth;
@@ -44,18 +38,12 @@ export function buildCages(world) {
     b.use('matte').ring(0x5f6b73, r + 1.05, r + 0.1, c.x, Y + 0.44, c.z, 64);                      // walkway between the two pipes
     b.use('satin').torus(C.yellow, r + 0.12, 0.05, c.x, Y + 1.45, c.z, 5, 64);
     const posts = Math.round(r * 1.7); for (let k = 0; k < posts; k++) { const a = (k / posts) * TAU; b.cyl(C.hdpe, 0.05, 1.1, c.x + Math.cos(a) * (r + 0.12), Y + 0.35, c.z + Math.sin(a) * (r + 0.12), 5); }
-    if (c.kind === 'nursery') {
-      b.use('satin').cyl(C.hdpe, 0.9, 0.35, c.x, Y, c.z, 12); b.cyl(C.yellow, 0.08, 5.2, c.x, Y + 0.3, c.z, 6);
-      for (let k = 0; k < 12; k++) { const a = (k / 12) * TAU; b.rod(0xdfe6ea, 0.03, [c.x, Y + 5.4, c.z], [c.x + Math.cos(a) * (r + 0.1), Y + 1.45, c.z + Math.sin(a) * (r + 0.1)], 4); }
-      m4.compose(new THREE.Vector3(c.x, Y + 1.45 + 1.975, c.z), q0, new THREE.Vector3(r + 0.1, 3.95, r + 0.1)); birds.setMatrixAt(small.indexOf(c), m4);
-    } else {
-      b.use('satin').cyl(C.orange, 0.7, 0.55, c.x, Y, c.z, 12); b.cyl(C.steelDark, 0.12, 0.8, c.x, Y + 0.55, c.z, 8);   // feed spreader
-      for (let k = 0; k < 4; k++) { const a = (k / 4) * TAU + 0.78; b.use('satin').ball(k % 2 ? C.orange : C.yellow, 0.7, c.x + Math.cos(a) * (r + 7), Y + 0.18, c.z + Math.sin(a) * (r + 7), 10, 8); }
-    }
+    b.use('satin').cyl(C.orange, 0.7, 0.55, c.x, Y, c.z, 12); b.cyl(C.steelDark, 0.12, 0.8, c.x, Y + 0.55, c.z, 8);   // feed spreader
+    for (let k = 0; k < 4; k++) { const a = (k / 4) * TAU + 0.78; b.use('satin').ball(k % 2 ? C.orange : C.yellow, 0.7, c.x + Math.cos(a) * (r + 7), Y + 0.18, c.z + Math.sin(a) * (r + 7), 10, 8); }
   });
-  nets.instanceMatrix.needsUpdate = true; floors.instanceMatrix.needsUpdate = true; birds.instanceMatrix.needsUpdate = true; nets.renderOrder = -12; floors.renderOrder = -13; birds.renderOrder = 3;
+  nets.instanceMatrix.needsUpdate = true; floors.instanceMatrix.needsUpdate = true; nets.renderOrder = -12; floors.renderOrder = -13;
 
-  /* ───── jetty, gangway and floating walkway ───── */
+  /* ───── jetty, gangway and the floating landing stage ───── */
   const J = JETTY, ju = J.u, half = J.w / 2, DY = J.y, WY = Y + 0.44;                 // jetty deck top, walkway deck top
   const at = (u, f) => south(u, f);
   // floating walkway: a deck on twin HDPE floats, cross cleats every few metres
@@ -66,12 +54,15 @@ export function buildCages(world) {
     for (const s of [-1, 1]) b.use('satin').rod(C.hdpe, 0.26, [a[0] + nx * s * (w / 2 - 0.15), Y + 0.02, a[1] + nz * s * (w / 2 - 0.15)], [c[0] + nx * s * (w / 2 - 0.15), Y + 0.02, c[1] + nz * s * (w / 2 - 0.15)], 8);
     for (let k = 0; k <= n; k += 2) { const x = a[0] + (dx * k) / n, z = a[1] + (dz * k) / n; for (const s of [-1, 1]) b.use('satin').cyl(C.steel, 0.07, 0.22, x + nx * s * (w / 2 - 0.25), WY, z + nz * s * (w / 2 - 0.25), 6); }
   };
-  const lastCol = Math.max(...small.map((c) => c.x)) + CAGES.small.r + 2.5;
-  way(at(ju - 1.3, J.way), at(lastCol, J.way));                                    // between the two rows of nursery cages
-  way(at(ju, J.foot - 2.2), at(ju, J.way + 1.3));                                  // from the gangway foot to the main walkway
+  // the gangway lands on a pontoon that runs on as a floating landing stage, where the work boats tie up
+  way(at(ju, J.foot - 2.2), at(ju, J.way + 1.3), 4.4);
   b.use('matte').box(0x8a959c, 5.2, 0.52, 4.4, at(ju, J.foot)[0], Y - 0.14, at(ju, J.foot)[1]);   // landing pontoon under the gangway
   b.box(0x71808a, 5.2, 0.06, 4.4, at(ju, J.foot)[0], Y + 0.38, at(ju, J.foot)[1]);
   for (const s of [-1, 1]) b.use('satin').rod(C.hdpe, 0.32, [at(ju + s * 2.2, J.foot - 2)[0], Y + 0.02, at(ju, J.foot - 2)[1]], [at(ju + s * 2.2, J.foot + 2)[0], Y + 0.02, at(ju, J.foot + 2)[1]], 8);
+  // cleats, fenders and a lifebuoy along the landing stage, and a guard rail across its far end
+  for (const f of [J.foot + 3, J.foot + 7.5, J.way - 0.5]) for (const s of [-1, 1]) { const p = at(ju + s * 2.05, f); b.use('satin').box(C.steelDark, 0.18, 0.16, 0.5, p[0], WY, p[1]); b.use('matte').box(0x1d2328, 0.22, 0.6, 1.1, p[0] + s * 0.25, Y - 0.2, p[1]); }
+  { const e = at(ju, J.way + 1.2); b.use('satin').rod(C.alu, 0.04, [ju - 2.1, WY + 1.05, e[1]], [ju + 2.1, WY + 1.05, e[1]], 5); for (const s of [-2.1, 0, 2.1]) b.cyl(C.alu, 0.03, 1.05, ju + s, WY, e[1], 5);
+    const lb = at(ju + 1.6, J.way + 1.1); b.use('satin').torus(C.orange, 0.32, 0.08, lb[0], WY + 0.7, lb[1], 6, 16); }
   // guide piles hold the landing pontoon in place but let it rise and fall with the tide
   for (const s of [-1, 1]) { const p = at(ju + s * 3.1, J.foot); const g = terrainH(p[0], p[1]); b.use('satin').cyl(C.steelDark, 0.3, Y + 3.4 - g, p[0], g, p[1], 10); b.cyl(C.yellow, 0.32, 0.5, p[0], Y + 2.9, p[1], 10); }
 
@@ -109,7 +100,7 @@ export function buildCages(world) {
     b.use('satin').rod(C.rubber, 0.16, [ju - 0.8, WY + 0.16, foot[1] + 0.2], [ju + 0.8, WY + 0.16, foot[1] + 0.2], 10);   // rollers
   }
 
-  // feed barge moored between the nursery and the grow-out cages
+  // feed barge moored between the jetty and the grow-out cages
   const fb = at(10, 118), fry = 0;
   b.push(fb[0], 0, fb[1], fry);
   b.use('satin').box(0x54626c, 16, 1.7, 9, 0, Y - 0.75, 0); b.use('matte').box(0x8a959c, 15.4, 0.1, 8.4, 0, Y + 0.95, 0);
@@ -117,14 +108,14 @@ export function buildCages(world) {
   b.use('satin').box(C.clay, 4.8, 2.8, 3.2, 4.4, Y + 1.05, 2.2); b.use('window').box(null, 4.84, 0.9, 3.24, 4.4, Y + 2.4, 2.2); b.use('matte').box(C.orange, 5.2, 0.14, 3.6, 4.4, Y + 3.85, 2.2);
   for (const s of [-1, 1]) for (let x = -7.4; x <= 7.5; x += 2.47) b.use('satin').cyl(C.yellow, 0.035, 1.1, x, Y + 1.0, s * 4.1, 5);
   b.pop();
-  for (let k = 0; k < 4; k++) { const c = cages[8 + k], t = [fb[0] - 6 + k * 3, fb[1] + 4.6]; b.use('satin').pipe(C.hdpe, 0.11, [[t[0], Y + 1.3, t[1]], [(t[0] + c.x) / 2, Y + 0.06, (t[1] + c.z - c.r) / 2 + (k - 1.5) * 2], [c.x, Y + 0.3, c.z - c.r]], 6); }
+  for (let k = 0; k < 4; k++) { const c = cages[k], t = [fb[0] - 6 + k * 3, fb[1] + 4.6]; b.use('satin').pipe(C.hdpe, 0.11, [[t[0], Y + 1.3, t[1]], [(t[0] + c.x) / 2, Y + 0.06, (t[1] + c.z - c.r) / 2 + (k - 1.5) * 2], [c.x, Y + 0.3, c.z - c.r]], 6); }
   // camera buoy between the grow-out rows
   const cb = at(-64.5, 180.5); b.use('satin').cyl(C.yellow, 0.8, 0.8, cb[0], Y - 0.2, cb[1], 12); b.cyl(C.steelDark, 0.07, 2.8, cb[0], Y + 0.6, cb[1], 6); b.use('glow').ball(C.red, 0.18, cb[0], Y + 3.5, cb[1], 8, 6);
   // yellow special-mark buoys at the corners of the farm, as on the charts
   { const xs = cages.map((c) => c.x), zs = cages.map((c) => c.z), x0 = Math.min(...xs) - 34, x1 = Math.max(...xs) + 34, z1 = Math.max(...zs) + 34;
     for (const [x, z] of [[x0, at(0, 30)[1]], [x1, at(0, 30)[1]], [x0, z1], [x1, z1]]) { b.use('satin').cyl(C.yellow, 0.9, 1.6, x, Y - 0.5, z, 12, 0.5); b.cyl(C.yellow, 0.08, 1.6, x, Y + 1.1, z, 6); b.boxC(C.yellow, 0.7, 0.12, 0.7, x, Y + 2.6, z, 0.78, 0, 0.78); b.boxC(C.yellow, 0.7, 0.12, 0.7, x, Y + 2.6, z, -0.78, 0, 0.78); } }
 
-  const low = b.build(mats, { cast: true }); low.add(nets, floors, birds);
+  const low = b.build(mats, { cast: true }); low.add(nets, floors);
   // the work boat does slow rounds of the grow-out cages; it faces the way it is going and leaves a wake
   const bb = new Builder(); workBoat(bb, 0, 0, 0, Y); const boat = bb.build(mats, { cast: true });
   const wake = new THREE.Mesh(new THREE.PlaneGeometry(22, 5).rotateX(-Math.PI / 2).translate(-14, Y + 0.06, 0), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, depthWrite: false })); boat.add(wake);
@@ -151,28 +142,27 @@ export function buildCages(world) {
     hit: cages.map((c) => [c.x - c.r - 2, Y, c.z - c.r - 2, c.x + c.r + 2, Y + 4, c.z + c.r + 2]).concat([lfcWorldBox()]),
     // seen from over the Phase 1 roofs, looking out to sea
     pose: P(cx + 6, Y, cz - 34, -2.55, 1.02, 430), inside: P(cx + 4, Y, cz - 26, -2.65, 0.84, 330), plan: P(cx, Y, cz, 0, 0.14, 420),
-    walk: P(cages[12].x, Y, cages[12].z, -2.4, 1.3, 64),
+    walk: P(cages[4].x, Y, cages[4].z, -2.4, 1.3, 64),
     makeInterior(_b, ctx) {
       cages.forEach((c, i) => {
-        const [sp, name] = c.sp, big = c.kind === 'growout', w = big ? 380 + Math.floor(R() * 620) : 12 + Math.floor(R() * 60), n = big ? 42000 + Math.floor(R() * 26000) : 60000 + Math.floor(R() * 50000);
-        ctx.school({ x: c.x, z: c.z, rx: c.r * 0.72, rz: c.r * 0.72, r0: 0.3, y0: Y - c.depth * 0.6, y1: Y - 0.8, n: big ? 60 : 44, sp, len: big ? 0.75 + w / 1500 : 0.42, speed: big ? 0.08 : 0.13 });
-        ctx.item({ code: c.code, group: big ? 'Grow-out cages' : 'Nursery cages', name: `${big ? 'Sea cage' : 'Nursery cage'} ${c.code}`, kind: `${name}, ${big ? 'open-sea grow-out' : 'first weeks at sea'}`, box: [c.x - c.r - 1, Y - 1, c.z - c.r - 1, c.x + c.r + 1, Y + (big ? 2.2 : 5.6), c.z + c.r + 1], label: i === 2 || i === 13 || i === 18,
-          desc: big ? 'A floating collar of two polyethylene pipes holds a net that hangs nine metres down. Sea water passes straight through, so the fish live in the same water as their wild cousins. They arrive from the nursery cages and stay until they reach market size.'
-            : 'Fingerlings from the hatchery spend their first weeks at sea here. The mesh is finer than in the grow-out cages and a net overhead keeps cormorants and gulls away. Once they are too big to slip through a wider mesh they move out to the large cages.',
-          card: [['Cage', c.code], ['Species', name], ['Fish', n.toLocaleString('en-US')], ['Average weight', `${w} g`], ['Stocked from', big ? `Nursery cage NC-0${(i % 8) + 1}` : `Nursery raceway N-0${(i % 6) + 1}`]],
-          specs: [[`${Math.round(c.r * 2)} m`, 'Diameter'], [`${c.depth} m`, 'Net depth'], [big ? 'Open top' : 'Bird net', 'Cover']],
+        const [sp, name] = c.sp, w = 380 + Math.floor(R() * 620), n = 42000 + Math.floor(R() * 26000);
+        ctx.school({ x: c.x, z: c.z, rx: c.r * 0.72, rz: c.r * 0.72, r0: 0.3, y0: Y - c.depth * 0.6, y1: Y - 0.8, n: 60, sp, len: 0.75 + w / 1500, speed: 0.08 });
+        ctx.item({ code: c.code, group: 'Grow-out cages', name: `Sea cage ${c.code}`, kind: `${name}, open-sea grow-out`, box: [c.x - c.r - 1, Y - 1, c.z - c.r - 1, c.x + c.r + 1, Y + 2.2, c.z + c.r + 1], label: i === 1 || i === 6 || i === 10,
+          desc: 'A floating collar of two polyethylene pipes holds a net that hangs nine metres down. Sea water passes straight through, so the fish live in the same water as their wild cousins. They arrive from the nursery hall on shore as fingerlings, start in a fine-mesh net and stay until they reach market size.',
+          card: [['Cage', c.code], ['Species', name], ['Fish', n.toLocaleString('en-US')], ['Average weight', `${w} g`], ['Stocked from', `Nursery raceway N-0${(i % 6) + 1}, by LFC Hamour`]],
+          specs: [[`${Math.round(c.r * 2)} m`, 'Diameter'], [`${c.depth} m`, 'Net depth'], ['Open top', 'Cover']],
           live: [{ k: 'Water temperature', u: '°C', v: 28.6, d: 0.15, lo: 18, hi: 35, p: 1 }, { k: 'Dissolved oxygen', u: 'mg/L', v: 6.1, d: 0.25, lo: 4, hi: 8, p: 1 }, { k: 'Current', u: 'cm/s', v: 11, d: 2, lo: 0, hi: 40, p: 0 }, { k: 'Feeding response', text: ['Strong', 'Strong', 'Good', 'Strong'][i % 4] }],
-          species: ['hamour', 'hamra', 'shaari', 'seabream', 'shiqra'].includes(sp) ? sp : null, stage: 'seacages', swim: { sp, n: big ? 150 : 170, net: c.r, depth: c.depth, grams: w }, cage: c });
+          species: ['hamour', 'hamra', 'shaari', 'seabream', 'shiqra'].includes(sp) ? sp : null, stage: 'seacages', swim: { sp, n: 150, net: c.r, depth: c.depth, grams: w }, cage: c });
       });
       ctx.item({ ...LFC_ITEM, box: lfcWorldBox(), label: true, prio: 1 });
       ctx.item({ code: 'FB', group: 'Support', name: 'Feed barge', kind: 'Feed store and control', box: [fb[0] - 9, Y - 1, fb[1] - 9, fb[0] + 9, Y + 7.4, fb[1] + 9], label: true,
         desc: 'A moored barge carrying feed silos and the feeding controls. Pellets are blown to each cage through floating pipes, and cameras under the nets show when the fish stop eating so nothing is wasted.',
         specs: [['3', 'Silos'], ['Air blown', 'Feed delivery'], ['Camera', 'Controlled']], live: [{ k: 'Feed delivered today', u: 'kg', v: 1840, d: 12, lo: 0, hi: 4000, p: 0, rise: true }, { k: 'Silo level', u: '%', v: 64, d: 0.4, lo: 10, hi: 100, p: 0 }] });
-      { const a = at(ju, J.f0), c = at(lastCol, J.way);
-        ctx.item({ code: 'JT', group: 'Support', name: 'Jetty, gangway and floating walkway', kind: 'Access from the shore', box: [ju - half - 0.6, Y, a[1], ju + half + 0.6, 2, at(ju, J.foot + 2)[1]], label: true,
-          desc: 'A fixed concrete jetty rises from the shore walk and crosses the rock armour on steel piles. At its head a hinged gangway drops to a landing pontoon, so the walk down is gentle at every tide, and a floating walkway runs on between the two rows of nursery cages. LFC Hamour moors along its west face to load fry.',
-          card: [['Jetty', `${J.f1 - J.f0} m, concrete deck on steel piles`], ['Gangway', 'Hinged, rolls on the pontoon'], ['Walkway', `${Math.round(c[0] - ju)} m, floating`], ['Berth', 'West face, four bollards and fenders']],
-          specs: [['Fixed + floating', 'Structure'], ['8', 'Cages reached on foot'], ['1', 'Vessel berth']] }); }
+      { const a = at(ju, J.f0);
+        ctx.item({ code: 'JT', group: 'Support', name: 'Jetty, gangway and landing stage', kind: 'Access from the shore', box: [ju - half - 0.6, Y, a[1], ju + half + 0.6, 2, at(ju, J.way + 1.5)[1]], label: true,
+          desc: 'A fixed concrete jetty rises from the shore walk and crosses the rock armour on steel piles. At its head a hinged gangway drops to a floating landing stage, so the walk down is gentle at every tide. The work boats tie up at the stage to run crews, nets and fingerlings out to the cages, and LFC Hamour moors along the west face of the jetty to load fry.',
+          card: [['Jetty', `${J.f1 - J.f0} m, concrete deck on steel piles`], ['Gangway', 'Hinged, rolls on the pontoon'], ['Landing stage', `${Math.round(J.way + 1.3 - (J.foot - 2.2))} m, floating`], ['Berth', 'West face, four bollards and fenders']],
+          specs: [['Fixed + floating', 'Structure'], ['Work boats', 'Landing stage'], ['1', 'Vessel berth']] }); }
       ctx.item({ code: 'WB', group: 'Support', name: 'Work boat', kind: 'Daily rounds', box: [bc[0] - 8, Y, bc[1] - 8, bc[0] + 8, Y + 3, bc[1] + 8], prio: -2,
         desc: 'Used for net changes, health checks, harvesting and carrying fingerlings out from the nursery. It circles the cages through the day.',
         specs: [['11 m', 'Length'], ['Crane', 'For nets']] });

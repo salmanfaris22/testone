@@ -8,7 +8,8 @@ import { createBoards } from './boards.js';
 import { createPeople, createTraffic, wearFor } from './people.js';
 import { hall } from './shell.js';
 import { fromFrame, resample } from './land.js';
-import { GATE, PARK_FRAME, ROADS, RB_W, RB_E, LAWNS, PARKING, DROP, SMALL, PUMP, coast, COAST, APRON, JETTY, south, CAGES, HATCH, HATCH_FRAME, BROOD, BROOD_FRAME, PLANT, PLANT_FRAME, GEN, P1, LANDLINE } from './layout.js';
+import { spaced } from './oval.js';
+import { OVAL, podium, facade, ovalT, ovalN, ovalRate, GATE, PARK_FRAME, ROADS, RB_W, RB_E, PARKING, DROP, SMALL, PUMP, coast, COAST, APRON, JETTY, south, CAGES, HATCH, HATCH_FRAME, BROOD, BROOD_FRAME, PLANT, PLANT_FRAME, GEN, P1, LANDLINE } from './layout.js';
 import { SEA_Y, terrainH } from './terrain-fn.js';
 
 export function buildSite(world) {
@@ -24,14 +25,19 @@ export function buildSite(world) {
   for (let z = -51; z <= 136; z += 18) palm(RB_W.x - 10.5, z);
   for (let x = -520; x <= -268; x += 18) { if (x > -344 && x < -280) continue; palm(x, RB_W.z - 10.5); palm(x, RB_W.z + 10.5); }     // (the name wall and the host stand in the gap)
   for (let x = -214; x < 140; x += 19.5) palm(x, 41.7, 1, 0.3);
-  for (let d = 150; d <= 250; d += 14) { const [x, z] = pf(Math.cos(d * DEG) * 39, Math.sin(d * DEG) * 39); palm(x, z, 1.05); }
-  for (let d = 20; d <= 100; d += 16) { const [x, z] = pf(Math.cos(d * DEG) * 38.5, Math.sin(d * DEG) * 38.5); palm(x, z, 0.95); }
+  // palms on the plaza round the podium of the oval hall, leaving the steps and the foot of the ramp open, and a pair at the steps
+  { const tS = ovalT(podium, OVAL.door), rS = ovalRate(podium, tS), out = (t, o) => { const p = podium(t), q = ovalN(podium, t); return pf(p[0] + q[0] * o, p[1] + q[1] * o); };
+    for (const t of spaced(podium, 26 * DEG, 228 * DEG, 9.5)) { const m = (t - tS) * rS; if (m > -31 && m < 11.5) continue; const [x, z] = out(t, 4.2); palm(x, z, 1.05); }
+    for (const s of [-1, 1]) { const [x, z] = out(tS + (s * 9.8) / rS, 3.4); palm(x, z, 1.15); } }
   // the palm courtyard between the laboratories and the offices (as drawn on the client's plan)
   for (const [x, z] of [[62, -21.2], [67, -20.6], [72, -21.4]]) { const w = pf(x, z); palms.push({ x: w[0], z: w[1], ry: R() * TAU, s: 1.15, y: 0.4 }); }
   for (const [x, z] of [[47.5, -25], [54, -25.2], [61, -25.2], [68.5, -25.2], [76, -25.2], [83, -25], [84.6, -20.5], [79, -18], [73, -17.2], [64, -16.4], [57, -15.6], [51.6, -17.4]]) { const w = pf(x, z); trees.push({ x: w[0], z: w[1], ry: R() * TAU, s: 0.62, y: 0.3 }); }
-  for (let d = 16; d < 204; d += 5.5) { const w = pf(Math.cos(d * DEG) * 33.6, Math.sin(d * DEG) * 33.6); shrubs.push({ x: w[0], z: w[1], ry: d, s: 0.95, y: 0.5 }); }
+  // low shrubs along the foot of the podium wall
+  { const tS = ovalT(podium, OVAL.door), rS = ovalRate(podium, tS);
+    for (const t of spaced(podium, 22 * DEG, 232 * DEG, 3.2)) { const m = (t - tS) * rS; if (m > -29 && m < 8.5) continue; const p = podium(t), q = ovalN(podium, t), w = pf(p[0] + q[0] * 1.2, p[1] + q[1] * 1.2); shrubs.push({ x: w[0], z: w[1], ry: t * 40, s: 0.8, y: 0.05 }); } }
   // shade trees on the lawns, beach palms, desert scrub inland
-  for (const [x0, z0, x1, z1] of LAWNS) { const n = Math.max(3, Math.round(((x1 - x0) * (z1 - z0)) / 330)); for (let k = 0; k < n; k++) tree(x0 + 4 + R() * (x1 - x0 - 8), z0 + 4 + R() * (z1 - z0 - 8), 1.2, 0.3); }
+  // (on the lawns as fitted round the roads: a tree is only planted well inside its lawn)
+  for (const { x0, z0, x1, z1, poly } of land.lawns) { const n = Math.max(3, Math.round(((x1 - x0) * (z1 - z0)) / 330)); for (let k = 0, g = 0; k < n && g < n * 12; g++) { const x = x0 + 4 + R() * (x1 - x0 - 8), z = z0 + 4 + R() * (z1 - z0 - 8); if (!inPoly(poly, x, z) || edgeDist(poly, x, z) < 3.5) continue; tree(x, z, 1.2, 0.3); k++; } }
   for (let k = 0; k < 150; k++) { const x = -1000 + R() * 720, z = -520 + R() * 660; if (z > 150 || Math.abs(z - RB_W.z) < 16 || (x + 76.5) * COAST.nx + (z + 243) * COAST.nz > -30) continue; shrub(x, z, 1.3 + R(), 0.15); }
   tree(RB_E.x, RB_E.z, 1.5, 0.4); for (const [x, z] of [[160, 46], [186, 100], [172, 124], [-254, 60], [-254, 120]]) tree(x, z, 1.1, 0.3);
   plantTrees(scene, mats, { palms, trees, shrubs });
@@ -97,7 +103,8 @@ export function buildSite(world) {
 
   /* ───── UAE flags: three behind the name wall at the gate and three by the drop-off, streaming in the breeze ───── */
   const flagsGate = createFlags(mats, [-1, 0, 1].map((k) => ({ x: GATE.sign[0] - 4 + k * 4.2, z: GATE.sign[1] + 6.2, h: 10 })));
-  const flagsDrop = createFlags(mats, [-1, 0, 1].map((k) => ({ x: DROP.x + 16 + k * 2.2, z: DROP.z - 14 + k * 3.4 })));
+  // three flags on the plaza to the left of the steps of the oval hall, facing the drop-off
+  const flagsDrop = createFlags(mats, [-1, 0, 1].map((k) => { const t = ovalT(podium, OVAL.door) + (19 + k * 3.4) / ovalRate(podium, ovalT(podium, OVAL.door)), p = podium(t), q = ovalN(podium, t), w = pf(p[0] + q[0] * 7.5, p[1] + q[1] * 7.5); return { x: w[0], z: w[1] }; }));
   flagsGate.group.name = 'flags-gate'; flagsDrop.group.name = 'flags-drop';
   for (const f of [flagsGate, flagsDrop]) { scene.add(f.group); world.updaters.push(f.update); }
 
@@ -122,16 +129,19 @@ export function buildSite(world) {
   const along = (pts, k, n, o = {}) => { for (let i = 0; i < n; i++) ppl.push({ x: pts[0][0], z: pts[0][1], hex: wearFor(k, R), kind: k, path: pts, off: (i + R() * 0.5) / n, speed: 1.05 + R() * 0.35, ...o }); };
   // visitors arriving, a school group by the coach, staff crossing between buildings, a stroll along the beach promenade
   who(DROP.x - 4, DROP.z - 6, 'visitor', { mode: 'talk' }); who(DROP.x - 2.6, DROP.z - 7.2, 'visitor', { s: 0.72 }); who(DROP.x - 5.4, DROP.z - 7.6, 'visitor', { s: 0.72 }); who(DROP.x - 3.4, DROP.z - 8.6, 'kandura', { mode: 'talk' }); who(DROP.x - 6.6, DROP.z - 5.4, 'visitor', { s: 0.74 });
-  along([[DROP.x + 11, DROP.z - 4], pf(-17.5, 26.5)], 'visitor', 3, { pause: 3 });
-  along(Array.from({ length: 36 }, (_, i) => pf(Math.cos((i / 36) * TAU) * 31, Math.sin((i / 36) * TAU) * 31)).filter((_, i) => i > 1 && i < 20), 'visitor', 4);
+  // from the drop-off to the foot of the steps; across the entrance court to the doors; a stroll round the podium walk
+  { const tS = ovalT(podium, OVAL.door), sp = podium(tS), sq = ovalN(podium, tS), tD = ovalT(facade, OVAL.door), dp = facade(tD), dq = ovalN(facade, tD);
+    along([[DROP.x + DROP.r * 0.55, DROP.z - DROP.r * 0.62], pf(sp[0] + sq[0] * 3.2, sp[1] + sq[1] * 3.2)], 'visitor', 3, { pause: 3 });
+    along([pf(sp[0] - sq[0] * 1.5, sp[1] - sq[1] * 1.5), pf(dp[0] + dq[0] * 2.4, dp[1] + dq[1] * 2.4)], 'visitor', 2, { y: OVAL.yp + 0.02, pause: 4 });
+    along(spaced(podium, 40 * DEG, 215 * DEG, 3).map((t) => { const p = podium(t), q = ovalN(podium, t); return pf(p[0] - q[0] * 1.8, p[1] - q[1] * 1.8); }), 'kandura', 3, { y: OVAL.yp + 0.02, speed: 0.9 }); }
   along([coast(-20, -APRON.back - 6), coast(400, -APRON.back - 6)], 'visitor', 5, { speed: 1.0 }); along([coast(380, -APRON.back - 8), coast(0, -APRON.back - 8)], 'office', 3);
   along([[-212, 37], [138, 37]], 'coat', 3); along([[140, 26.6], [-170, 26.6]], 'overall', 3); along([[-84, 5.4], [-84, 44]], 'coat', 2); along([[62, 23], [62, 44]], 'hivis', 2);
   along([[-128, -82], [-80, -82]], 'office', 2); along([[110, 86], [150, 86], [150, 100], [110, 100]], 'overall', 2, { loop: true });
   who(-93, 13.2, 'overall'); who(-95.4, 12.4, 'hivis'); who(84, 22.6, 'hivis'); who(120, 21, 'overall'); who(-20, -60, 'overall'); who(-18.4, -61.2, 'coat', { mode: 'talk' });
-  // the farm crew on the jetty and the floating walkway, and a deckhand by LFC Hamour
+  // the farm crew on the jetty and the landing stage, and a deckhand by LFC Hamour
   { const J = JETTY, j = south(J.u + 0.9, 24); who(j[0], j[1], 'hivis', { y: J.y + 0.02, mode: 'idle' }); const d = south(J.u - 1.1, 31); who(d[0], d[1], 'overall', { y: J.y + 0.02, mode: 'work', ry: -Math.PI / 2 });
     along([south(J.u + 0.8, J.f0 + 7), south(J.u + 0.8, J.f1 - 2)], 'hivis', 1, { y: J.y + 0.02, speed: 1.0, pause: 4 });
-    const east = Math.max(...CAGES.small.list.map((c) => c[0])) + 6; along([south(J.u + 3, J.way), south(east, J.way)], 'overall', 2, { y: SEA_Y + 0.44, speed: 0.95 }); }
+    const st = south(J.u + 0.7, J.foot + 6.5); who(st[0], st[1], 'overall', { y: SEA_Y + 0.44, mode: 'work', ry: Math.PI / 2 }); }
   const people = createPeople(mats, ppl, { y: 0.09, seed: 17 }); scene.add(people.group); world.updaters.push(people.update);
   // at the gate, where the intro begins: the guard in his booth and the Emirati host who welcomes you, in front of the name wall
   const host = createPeople(mats, [{ x: GATE.host[0], z: GATE.host[1], ry: GATE.hostRy, hex: wearFor('emirati', R), kind: 'emirati', cast: 'host', mode: 'present' }, { x: -331.5, z: RB_W.z - 6, ry: 1.2, hex: wearFor('hivis', R), kind: 'hivis', cast: 'guard', mode: 'idle' }], { y: 0.09, seed: 29 });
@@ -141,7 +151,8 @@ export function buildSite(world) {
   const rd = land.roads, rev = (p) => p.slice().reverse();
   const traffic = createTraffic(mats, [
     { pts: [[-620, RB_W.z], ...arc(RB_W, Math.PI, Math.PI * 1.9), ...rd.north, ...rd.shore, ...arc(RB_E, -Math.PI / 2, Math.PI * 0.4)], loop: false, n: 2, speed: 8.5 },
-    { pts: [...rd.avenue, ...rev(rd.south).slice(8), ...rev(rd.west).slice(0, -1)].filter((p) => p[0] >= RB_W.x - 0.5), loop: true, n: 2, speed: 7.2 },
+    // a loop: along the avenue, right onto the south road, right up the west road and right again into the avenue
+    { pts: ((av, rs, rw) => [...av, ...rs.slice(near(rs, av[av.length - 1]) + 2), ...rw.slice(0, near(rw, av[0]) - 1)])(rd.avenue, rev(rd.south), rev(rd.west)), loop: true, n: 2, speed: 7.2 },
   ]);
   scene.add(traffic.group); world.updaters.push(traffic.update);
 
@@ -150,6 +161,8 @@ export function buildSite(world) {
   const birds = createBirds(22, [fc[0], fc[1] - 60], env); scene.add(birds.mesh); world.updaters.push(birds.update);
   void glowPointsMat;
 }
+/** index of the point of a polyline nearest to q */
+function near(p, q) { let k = 0, best = Infinity; p.forEach((v, i) => { const d = Math.hypot(v[0] - q[0], v[1] - q[1]); if (d < best) { best = d; k = i; } }); return k; }
 function arc(rb, a0, a1, n = 10) { const out = []; for (let i = 0; i <= n; i++) { const a = a0 + ((a1 - a0) * i) / n; out.push([rb.x + Math.cos(a) * rb.r, rb.z + Math.sin(a) * rb.r]); } return out; }
 
 function createBirds(n, [cx, cz], env) {
@@ -186,3 +199,6 @@ function gateSignTex() {
   g.fillStyle = '#b8892f'; g.fillRect(392, 192, 240, 4);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
 }
+/** point in polygon (even-odd) and distance to its outline */
+function inPoly(p, x, z) { let c = false; for (let i = 0, j = p.length - 1; i < p.length; j = i++) { const a = p[i], b = p[j]; if ((a[1] > z) !== (b[1] > z) && x < ((b[0] - a[0]) * (z - a[1])) / (b[1] - a[1]) + a[0]) c = !c; } return c; }
+function edgeDist(p, x, z) { let m = Infinity; for (let i = 0, j = p.length - 1; i < p.length; j = i++) { const a = p[j], b = p[i], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)); m = Math.min(m, Math.hypot(a[0] + dx * t - x, a[1] + dz * t - z)); } return m; }

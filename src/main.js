@@ -117,7 +117,15 @@ function runIntro(lock, countItems) {
   const el = $('#intro'), cap = el.querySelector('.intro-cap'), chips = [...el.querySelectorAll('.intro-phases li')];
   el.hidden = false; let capT = null;
   intro.onCaption = (small, big) => { cap.classList.add('is-out'); clearTimeout(capT); if (!small) return; capT = setTimeout(() => { cap.querySelector('small').textContent = small; cap.querySelector('b').textContent = big; cap.classList.remove('is-out'); }, 430); };
-  intro.onCall = (it, i) => { if (!it) app.labels.clearTags(); else if (innerWidth > 760 || i % 2 === 0) app.labels.addTag(it); };      // a phone has room for every other one
+  const callout = el.querySelector('.intro-callout');
+  intro.onCall = (it) => {
+    app.labels.clearTags();
+    callout.hidden = !it;
+    if (!it) return;
+    callout.querySelector('small').textContent = `08 · ${it.code}`;
+    callout.querySelector('span').textContent = it.name;
+    if (innerWidth > 760) app.labels.addTag(it);
+  };
   intro.onPhase = (k) => chips.forEach((c, i) => { c.classList.toggle('is-on', i === k - 1); c.classList.toggle('is-done', i < k - 1); });
   const skip = () => intro.finish(true), onKey = (e) => { if (['Space', 'ArrowDown', 'PageDown', 'Escape', 'Enter', 'End'].includes(e.code)) { e.preventDefault(); skip(); } };
   el.querySelector('.intro-skip').addEventListener('click', skip, { once: true });
@@ -160,11 +168,11 @@ function frame(now) {
       railEl.style.opacity = story.tau > -0.2 && y < speciesTop - vh ? 1 : 0;
     }
   }
-  if (intro && intro.playing) { const w = innerWidth > 900, k = smooth(clamp((intro.time - 12.6) / 2.4, 0, 1)); world.rig.setShift(w ? -innerWidth * 0.16 * k : 0, w ? 0 : -innerHeight * 0.1 * k); if (app) app.labels.showPins(false); }
+  if (intro && intro.playing) { const w = innerWidth > 900, k = intro.settleProgress; world.rig.setShift(w ? -innerWidth * 0.16 * k : 0, w ? 0 : innerHeight * 0.2 * k); if (app) app.labels.showPins(false); }
   else if (world && story && !(app && app.S.exploring)) {
     if (!species.active) story.update(y, dt);
     const wide = innerWidth > 900, k = 1 - smooth(clamp((story.tau + 1) / 0.7, 0, 1));
-    world.rig.setShift(wide ? -innerWidth * 0.16 * k : 0, wide ? 0 : -innerHeight * 0.1 * k);
+    world.rig.setShift(wide ? -innerWidth * 0.16 * k : 0, wide ? 0 : innerHeight * 0.2 * k);
   }
 }
 if (!world) requestAnimationFrame(frame);

@@ -388,6 +388,20 @@ export function banner(b, x, z, { ry = 0, w = 1.8, h = 2.6, hex = C.teal, y = F,
   b.pop();
   return rot([-w / 2, 0, -0.25, w / 2, y + h + 0.1, 0.25], x, z, ry);
 }
+/** A thin 16:9 TV on a low pedestal, facing the hall. */
+export function exhibitTV(b, x, z, { ry = 0, w = 3.4, y = F, tile = 200 } = {}) {
+  const h = w * 9 / 16, bottom = y + 0.88, bezel = 0.055;
+  b.push(x, 0, z, ry);
+  b.use('satin').box(0x20292e, 1.5, 0.07, 0.68, 0, y, 0);
+  b.box(0x303b42, 0.16, 0.86, 0.14, 0, y + 0.07, -0.04);
+  b.box(0x5a666c, w + bezel * 2 + 0.025, h + bezel * 2 + 0.025, 0.085, 0, bottom - bezel - 0.0125, -0.025);
+  b.use('matte').box(0x080c10, w + bezel * 2, h + bezel * 2, 0.12, 0, bottom - bezel, 0);
+  b.box(0x151c23, w * 0.75, h * 0.72, 0.09, 0, bottom + h * 0.1, -0.1);
+  b.screen(tile, w, h, 0, bottom, 0.063);
+  b.use('glow').box(0x58dbc7, 0.025, 0.009, 0.006, w * 0.43, bottom - 0.03, 0.064);
+  b.pop();
+  return rot([-w / 2 - bezel, y, -0.35, w / 2 + bezel, bottom + h + bezel, 0.35], x, z, ry);
+}
 /** wall-mounted display screen */
 export function wallScreen(b, x, z, { ry = 0, w = 3.2, h = 1.8, y = 1.2, hex = C.screen, tile } = {}) {
   b.push(x, 0, z, ry);

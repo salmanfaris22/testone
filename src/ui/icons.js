@@ -51,7 +51,7 @@ const I = {
 };
 // first match wins, so the specific names come before the general ones
 const RULES = [
-  [/aquarium/i, 'fish'], [/Exhibition panel/, 'panel'], [/Welcome desk|Reception/, 'bell'], [/Amphitheatre/, 'seats'], [/lounge/i, 'sofa'], [/Academic|Workshop room|Seminar/, 'book'], [/Discovery/, 'scope'], [/canteen/i, 'fork'], [/courtyard/i, 'palm'],
+  [/aquarium/i, 'fish'], [/Exhibition panel|Fish screen/, 'panel'], [/Welcome desk|Reception/, 'bell'], [/Amphitheatre/, 'seats'], [/lounge/i, 'sofa'], [/Academic|Workshop room|Seminar/, 'book'], [/Discovery/, 'scope'], [/canteen/i, 'fork'], [/courtyard/i, 'palm'],
   [/Virology/, 'virus'], [/Molecular|Genomics/, 'dna'], [/Bacteriology/, 'dish'], [/Chemistry/, 'beaker'], [/Parasitology|Microscop/, 'scope'], [/Water.quality/i, 'drop'], [/Plankton/, 'plankton'], [/Sample reception/, 'box'],
   [/control room|SCADA/i, 'monitor'], [/Laboratory|laboratory|quality bench|culture lab/, 'flask'],
   [/Meeting/, 'people'], [/Production office/, 'chart'], [/Science office/, 'flask'], [/Management/, 'clip'], [/office/i, 'desk'], [/corridor/i, 'path'],

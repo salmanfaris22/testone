@@ -262,7 +262,7 @@ body.touring.has-panel .film-cap { max-width: min(34rem, calc(100vw - 500px)); }
 /* ───── v3: title tag pinned to the selected thing ───── */
 .focus-tag { position: absolute; left: 0; top: 0; pointer-events: none; opacity: 0; transition: opacity 0.35s var(--ease); will-change: transform; z-index: 3; }
 .focus-tag.is-on { opacity: 1; }
-.focus-tag .ft-card { position: absolute; left: 0; bottom: 46px; transform: translateX(-50%) translateY(8px); transition: transform 0.45s var(--ease); background: rgba(11, 43, 60, 0.94); color: #fff; border-radius: 14px; padding: 10px 16px 12px; min-width: 170px; max-width: 300px; box-shadow: 0 18px 34px -16px rgba(4, 30, 46, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.08) inset; border-top: 3px solid var(--signal); text-align: left; }
+.focus-tag .ft-card { position: absolute; left: 0; bottom: 46px; transform: translateX(-50%) translateY(8px); transition: transform 0.45s var(--ease); background: rgba(11, 43, 60, 0.94); color: #fff; border-radius: 14px; padding: 10px 16px 12px; width: max-content; min-width: 170px; max-width: 300px; box-shadow: 0 18px 34px -16px rgba(4, 30, 46, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.08) inset; border-top: 3px solid var(--signal); text-align: left; }
 .focus-tag.is-on .ft-card { transform: translateX(-50%); }
 .focus-tag small { display: block; font-family: var(--fc); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--lagoon); margin-bottom: 2px; white-space: nowrap; }
 .focus-tag strong { display: block; font-weight: 500; font-size: 16.5px; line-height: 1.22; }
@@ -371,3 +371,36 @@ body.diving .door, body.filming .door, body.droning .door { display: none !impor
 .fishgroup { margin: 10px 0 2px; padding: 10px 12px; border-radius: 12px; background: rgba(53, 196, 192, 0.12); border: 1px solid rgba(53, 196, 192, 0.35); font-size: 13.5px; line-height: 1.45; color: var(--text-2); }
 .fishgroup b { color: var(--ink); font-weight: 600; }
 .p-stats-group { margin-top: 8px; }
+
+/* Keep long exhibit names and controls inside a phone's bottom sheet. */
+.p-titlerow { grid-template-columns: 44px minmax(0, 1fr); }
+.p-tiles, .p-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.p-crumb { padding-right: 28px; flex-wrap: wrap; }
+.p-line, .p-group, .p-items button, .p-tiles > div { min-width: 0; }
+.p-group:not(.is-run) .p-items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.p-group:not(.is-run) .p-items button { grid-template-columns: 36px minmax(0, 1fr); }
+@media (max-width: 760px) {
+  .app-top { inset: calc(10px + env(safe-area-inset-top)) 10px auto; gap: 8px; }
+  .app-ctrl { gap: 6px; }
+  .app-ctrl .pill { width: 36px; min-height: 40px; }
+  .panel { bottom: calc(62px + env(safe-area-inset-bottom)); }
+  body.has-panel .panel.is-min { transform: translateY(calc(100% - 104px)); clip-path: inset(0 0 calc(100% - 104px) 0 round 20px); }
+  .p-head { padding-inline: 16px; }
+  .p-body { padding-inline: 16px; }
+  .p-title { align-items: center; gap: 12px; }
+  .p-num { flex: none; font-size: 48px; }
+  .p-line { font-size: 14px; overflow-wrap: break-word; }
+  .p-crumb { font-size: 12px; gap: 6px; }
+  .p-titlerow { grid-template-columns: 34px minmax(0, 1fr); gap: 10px; }
+  .p-titlerow svg { width: 34px; height: 34px; }
+  .p-body h2 { font-size: 23px; }
+  .p-group:not(.is-run) .p-items button { grid-template-columns: 28px minmax(0, 1fr); gap: 7px; padding: 7px; }
+  .p-group:not(.is-run) .p-items button > svg { width: 28px; height: 28px; padding: 6px; }
+  .p-group:not(.is-run) .p-items button b { font-size: 12.5px; }
+  .p-actions .btn { white-space: normal; text-align: center; }
+  .p-foot { font-size: 12px; }
+  .p-foot button { gap: 4px; padding-inline: 6px; }
+  .dock { bottom: calc(10px + env(safe-area-inset-bottom)); }
+  .focus-tag small { white-space: normal; }
+  .focus-tag .ft-card { max-width: min(230px, calc(100vw - 32px)); }
+}

@@ -21,14 +21,14 @@ const ISLAND = 96;                         // metres round it that are already p
 
 /** timeline, in seconds */
 const T = {
-  gate: 0, fly: 1.5,                     // the gate shot (a short push-in), then the camera leaves for area 08
-  bp: 1.7, draw0: 2.0, draw1: 4.6,       // the blueprint sheet and its linework: road centre lines first, then the footprints
-  open: 3.6, items: 4.7, gap: 0.5,       // the roof of 08 lifts, then its things are called out one by one
-  close: 9.4,                            // the call-outs go, the roof comes back down and the camera pulls out
-  util0: 9.1, util1: 11.2,               // services drawn on the plan: sea water from the intake, power from the generators
-  infra: 9.7, pace: 1.3,                 // paving starts at the gate (time 0 of the reveal map), a little faster than the map was timed for
-  p1: 12.2, p2: 13.7, p3: 15.4,          // the buildings, phase by phase
-  sea: 16.3, boat: 16.6, life: 17.5, settle: 18.9, end: 20.5,
+  gate: 0, fly: 2.0,
+  bp: 2.2, draw0: 2.5, draw1: 6.0,
+  open: 5.8, items: 7.2, gap: 0.9,
+  close: 15.5,
+  util0: 15.2, util1: 17.8,
+  infra: 15.8, pace: 1.3,
+  p1: 18.2, p2: 20.0, p3: 22.0,
+  sea: 23.0, boat: 23.3, life: 24.4, settle: 26.5, end: 28.8,
 };
 const SLAB = 0.42, SLAB_T = 0.32, HOLD = 0.22;   // each building: its slab first, a breath, then the walls rise
 
@@ -240,8 +240,9 @@ export function createIntro(world, { hero }) {
     [T.close - 0.15, 'Then the whole centre fills in', 'Roads, sea water and power first'],
     [T.p1, `${PHASES[0].name}`, PHASES[0].title], [T.p2, `${PHASES[1].name}`, PHASES[1].title], [T.p3, `${PHASES[2].name}`, PHASES[2].title], [T.life, 'Today', 'One centre, from egg to sea']];
   let capI = -1;
-  // the page eases the hero framing in from time 12.6 (written for the first film), so time is reported against the settle point
-  const api = { playing: false, onCaption: null, onPhase: null, onCall: null, get time() { return t - (T.settle - 14.0); }, T };
+  // Keep the page framing on the same clock as the final camera move.
+  const api = { playing: false, onCaption: null, onPhase: null, onCall: null,
+    get time() { return t; }, get settleProgress() { return smooth(win(t, T.settle - 1.4, 2.4)); }, T };
 
   const swapIn = (list) => { for (const s of list) s[0].material = s[2]; };
   const swapOut = (list) => { for (const s of list) s[0].material = s[1]; };
@@ -283,7 +284,7 @@ export function createIntro(world, { hero }) {
     if (V.interior) V.interior.scale.y = t < T.open + 1.3 ? Math.max(0.02, backOut(win(t, T.open + 0.15, 1.05))) : 1;
     while (callI < calls.length && t >= T.items + callI * T.gap && t < T.close) { if (api.onCall) api.onCall(calls[callI], callI); callI++; }
     rings.forEach((m, i) => {
-      const u = t - (T.items + i * T.gap), out = 1 - smooth(win(t, T.close - 0.1, 0.5));
+      const u = t - (T.items + i * T.gap), out = (1 - smooth(win(u, T.gap * 0.7, 0.45))) * (1 - smooth(win(t, T.close - 0.1, 0.5)));
       if (u < 0 || out <= 0) { m.visible = false; return; }
       const k = easeOut(win(u, 0, 0.8)); m.visible = true; m.scale.setScalar(m.userData.r * (0.3 + 0.7 * k));
       m.material.opacity = (1 - 0.35 * smooth(win(u, 0.5, 0.9)) + 0.12 * Math.sin(u * 3.2)) * out;
@@ -349,15 +350,15 @@ export function createIntro(world, { hero }) {
     const keys = [
       { p: gate },
       { p: P(-305, 2.1, -66, -1.52, 1.46, 46), t: T.fly },                             // in along the road to the host, the name wall and the flag
-      { p: P(-238, 2, -112, -1.42, 1.1, 150), t: 1.15 },                               // lift over the gate towards the white shell of area 08
-      { p: { ...vi, x: vc[0] + 3, z: vc[1] - 3, dist: 142 }, t: 1.35 },                // over it as the roof lifts
-      { p: P(vc[0] + 3, 1.5, vc[1] - 3, vi.az + 0.4, 0.7, 128), t: 1.9 },              // a slow swing round the whole building while the call-outs go up,
-      { p: P(vc[0] + 3, 1.5, vc[1] - 3, vi.az + 0.86, 0.76, 118), t: 1.9 },            // a little closer in the middle of it
-      { p: P(vc[0] + 4, 1.5, vc[1] - 4, vi.az + 1.22, 0.7, 132), t: 1.6 },
-      { p: P(-150, 0, -70, -1.05, 0.84, 390), t: 1.9 },                                // pull out: the paving comes in from the gate
-      { p: P(-60, 0, 20, -1.02, 0.84, 560), t: 2.0 },                                  // the whole site as the services and paving finish; phase 1 goes up
-      { p: P(-40, 0, 50, -0.95, 0.88, 520), t: 1.9 },                                  // phase 2
-      { p: P(-50, 0, 110, -0.95, 1.0, 650), t: 1.9 },                                  // phase 3, then out to sea: the cages and LFC Hamour
+      { p: P(-238, 2, -112, -1.42, 1.1, 150), t: 1.8 },
+      { p: { ...vi, x: vc[0] + 3, z: vc[1] - 3, dist: 142 }, t: T.open - T.fly - 1.8 },
+      { p: P(vc[0] + 3, 1.5, vc[1] - 3, vi.az + 0.26, 0.7, 132), t: 3.1 },
+      { p: P(vc[0] + 3, 1.5, vc[1] - 3, vi.az + 0.55, 0.72, 126), t: 3.2 },
+      { p: P(vc[0] + 4, 1.5, vc[1] - 4, vi.az + 0.8, 0.7, 142), t: T.close - T.open - 6.3 },
+      { p: P(-150, 0, -70, -0.7, 0.84, 390), t: 2.7 },
+      { p: P(-60, 0, 20, -0.9, 0.84, 540), t: 1.8 },
+      { p: P(-40, 0, 50, -0.95, 0.88, 570), t: 2.0 },
+      { p: P(-50, 0, 110, -0.95, 1.0, 650), t: 2.4 },
     ];
     const used = keys.reduce((s, k) => s + (k.t || 0), 0);
     keys.push({ p: hero, t: Math.max(1.2, T.end - used) });

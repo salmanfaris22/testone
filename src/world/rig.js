@@ -10,9 +10,18 @@ const copy = (a, b) => { a.x = b.x; a.y = b.y; a.z = b.z; a.az = b.az; a.pol = b
 const near = (a, b) => { let d = (b - a) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return a + d; };
 const _t = new THREE.Vector3();
 
-function cr(p0, p1, p2, p3, t) { // Catmull-Rom scalar
-  const t2 = t * t, t3 = t2 * t;
-  return 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+const POSE_KEYS = ['x', 'y', 'z', 'az', 'pol', 'dist'];
+// Time-aware, shape-preserving Hermite tangents. Adjacent legs share a velocity
+// in units per second, even when their durations differ. A turn slows naturally
+// instead of overshooting a roof, and takeoff/landing have zero velocity.
+function pathTangents(ks) {
+  return ks.map((k, i) => Object.fromEntries(POSE_KEYS.map((key) => {
+    if (!i || i === ks.length - 1) return [key, 0];
+    const h0 = k.t, h1 = ks[i + 1].t;
+    const a = (k.p[key] - ks[i - 1].p[key]) / h0, b = (ks[i + 1].p[key] - k.p[key]) / h1;
+    const w0 = 2 * h1 + h0, w1 = h1 + 2 * h0;
+    return [key, a * b <= 0 ? 0 : (w0 + w1) / (w0 / a + w1 / b)];
+  })));
 }
 
 export class Rig {
@@ -47,10 +56,12 @@ export class Rig {
   }
   /** continuous film move through key poses: [{p, t}] with t = seconds for the leg that ends at this key */
   playPath(keys, { loop = false, onLeg, done } = {}) {
-    this.flight = null;
-    const ks = keys.map((k) => ({ ...k, p: copy({}, k.p) }));
+    this.flight = null; this.path = null;
+    if (!keys.length) return;
+    const ks = keys.map((k) => ({ ...k, t: Math.max(1 / 240, k.t || 6), p: copy({}, k.p) }));
     for (let i = 1; i < ks.length; i++) ks[i].p.az = near(ks[i - 1].p.az, ks[i].p.az);
-    this.path = { ks, i: 0, t: 0, loop, onLeg, done };
+    if (ks.length === 1) { copy(this.goal, ks[0].p); done && done(); return; }
+    this.path = { ks, tangents: pathTangents(ks), i: 0, t: 0, loop, onLeg, done };
     onLeg && onLeg(0, ks[0]);
   }
   stopPath() { this.path = null; }
@@ -209,11 +220,20 @@ export class Rig {
   }
   _path(dt) {
     const p = this.path, ks = p.ks, n = ks.length;
-    if (p.i >= n - 1) { if (p.loop) { p.i = 0; p.t = 0; } else { this.path = null; p.done && p.done(); return; } }
-    const k1 = ks[p.i], k2 = ks[p.i + 1], k0 = ks[Math.max(0, p.i - 1)], k3 = ks[Math.min(n - 1, p.i + 2)];
-    p.t += dt / (k2.t || 6); const t = clamp(p.t, 0, 1), g = this.goal;
-    for (const key of ['x', 'y', 'z', 'az', 'pol', 'dist']) g[key] = cr(k0.p[key], k1.p[key], k2.p[key], k3.p[key], t);
-    if (p.t >= 1) { p.i++; p.t = 0; if (p.i < n - 1) p.onLeg && p.onLeg(p.i, ks[p.i]); }
+    p.t += dt;
+    while (p.t >= ks[p.i + 1].t) {
+      p.t -= ks[p.i + 1].t; p.i++;
+      if (p.i === n - 1) {
+        if (p.loop) p.i = 0;
+        else { copy(this.goal, ks[n - 1].p); this.path = null; p.done && p.done(); return; }
+      }
+      p.onLeg && p.onLeg(p.i, ks[p.i]);
+      if (this.path !== p) return;
+    }
+    const a = ks[p.i], b = ks[p.i + 1], h = b.t, u = p.t / h, u2 = u * u, u3 = u2 * u;
+    for (const key of POSE_KEYS) this.goal[key] = (2 * u3 - 3 * u2 + 1) * a.p[key]
+      + (u3 - 2 * u2 + u) * h * p.tangents[p.i][key]
+      + (-2 * u3 + 3 * u2) * b.p[key] + (u3 - u2) * h * p.tangents[p.i + 1][key];
   }
   _drone(dt) {
     const d = this.drone, K = this.keys;

@@ -54,7 +54,7 @@ export function createLabels(world, root) {
     clearDoors() { for (const t of doors) t.el.remove(); doors = []; },
     setRooms(items) {
       api.clearRooms();
-      rooms = items.map((it) => { const el = document.createElement('div'); el.className = 'room'; el.textContent = it.short || it.name.replace(/^Laboratory (\d+).*/, 'Lab $1').replace(/^Exhibition panel: /, ''); el.style.display = 'none'; el._on = false; root.appendChild(el); return { el, it }; });
+      rooms = items.map((it) => { const el = document.createElement('div'); el.className = 'room'; el.textContent = it.short || it.name.replace(/^Laboratory (\d+).*/, 'Lab $1').replace(/^(Exhibition panel|Fish screen): /, ''); el.style.display = 'none'; el._on = false; root.appendChild(el); return { el, it }; });
     },
     clearRooms() { for (const r of rooms) r.el.remove(); rooms = []; },
     /** loose tags placed by screen position (fish under water): list of { name, kind, ref } */
@@ -70,7 +70,7 @@ export function createLabels(world, root) {
     /** the name and key figures of the selected thing, pinned to it in the model */
     focus(it) {
       focusAt = it || null; focus.classList.remove('is-on');
-      if (!it) return;
+      if (!it || it.isDisplay) return; // the TV already carries its title; keep its picture unobstructed
       const figs = (it.specs || []).slice(0, 3).map(([v, k]) => `<span><b>${v}</b>${k}</span>`).join('');
       focus.innerHTML = `<div class="ft-card"><small>${it.code || ''}${it.group ? ` · ${it.group}` : ''}</small><strong>${it.name}</strong>${figs ? `<div class="ft-figs">${figs}</div>` : ''}</div><i class="ft-stem"></i><i class="ft-dot"></i>`;
       clearTimeout(focus._t); focus._t = setTimeout(() => { if (focusAt === it) focus.classList.add('is-on'); }, 900);

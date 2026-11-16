@@ -197,7 +197,7 @@ export function createApp(world, hooks) {
     const c = it.center, size = it.size;
     if (S.view === 'walk' && a.id !== 'seacages') {
       rig.stopPath(); rig.flight = null; S.arrived = true; body.classList.add('walking');
-      if (it.view) { rig.room = a; rig.fovGoal = WFOV(it.zone); rig.limits.polMin = 0.5; rig.limits.polMax = 1.56; rig.limits.distMin = 1.6; rig.limits.distMax = 28; rig.flyTo(it.view, { dur: 1.4, hop: 0 }); }
+      if (it.view) { rig.room = a; rig.fovGoal = it.isDisplay && coarse() ? 86 : WFOV(it.zone); rig.limits.polMin = 0.5; rig.limits.polMax = 1.56; rig.limits.distMin = 1.6; rig.limits.distMax = 28; rig.flyTo(it.view, { dur: 1.4, hop: 0 }); }
       else if (!it.out && inRooms(a, c[0], c[2])) {
         // a room: stand inside it and look along it. A thing: stand on the side that faces the middle of the room, so walls stay behind it.
         const [lx, lz] = a.toLocal(c[0], c[2]), rm = a.rooms.find((r) => (r.circle ? Math.hypot(lx - r.x, lz - r.z) < r.r : lx > r.x0 && lx < r.x1 && lz > r.z0 && lz < r.z1)), mid = rm && !it.zone ? a.toWorld(rm.circle ? rm.x : clamp(lx, rm.x0 + 9, rm.x1 - 9), rm.circle ? rm.z : (rm.z0 + rm.z1) / 2) : null;
@@ -217,8 +217,8 @@ export function createApp(world, hooks) {
       const pol = clamp(rig.goal.pol, 0.6, 1.02);
       rig.flyTo(P(c[0], clamp(c[1], 0, 3), c[2], rig.goal.az, pol, clamp(size * 2.5 + 9, 15, 150)), { dur: 1.2, hop: 0 });
     }
-    body.classList.add('has-panel'); panelEl.classList.remove('is-min'); setShift();
-    panel.item(it, a.items, { view: S.view }); setBack(); audio.select();
+    body.classList.add('has-panel'); panel.item(it, a.items, { view: S.view });
+    panelEl.classList.toggle('is-min', coarse() && !!it.isDisplay); setShift(); setBack(); audio.select();
   }
   function upToArea() {
     if (!S.area) return overview(); S.item = null; select.hide(); labels.focus(null); const a = areas.byId[S.area];

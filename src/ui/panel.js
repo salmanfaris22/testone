@@ -155,5 +155,5 @@ const NAMED = /^(EX|AC|OF|MDC|LAB|A|GR|FC|PK|WQ|OX|SF-I|BF-L|UV-L|P1-OF|P1-PL|P1
 const chipLabel = (it) => (/\d/.test(it.code || '') && !NAMED.test(it.code) ? `<b>${esc(it.code)}</b>` : esc(shortName(it)));
 const tileName = (it) => shortName(it).replace(/^\d+ (?=\D)/, '');
 function shortName(it) {
-  return it.name.replace(/^Exhibition panel: /, '').replace(/^Laboratory (\d+): (.*)$/, '$1 $2').replace(/^Photobioreactors, /, '').replace(/^Phase 1 /, '').replace(/^Marine Discovery Corner/, 'Discovery Corner');
+  return it.name.replace(/^(Exhibition panel|Fish screen): /, '').replace(/^Laboratory (\d+): (.*)$/, '$1 $2').replace(/^Photobioreactors, /, '').replace(/^Phase 1 /, '').replace(/^Marine Discovery Corner/, 'Discovery Corner');
 }

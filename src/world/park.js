@@ -218,11 +218,14 @@ export function buildPark(world) {
         card: [['On show', 'Hamour, Shaari, red snappers, seabream'], ['Raised', 'In this hatchery'], ['Water', 'Filtered Gulf sea water']],
         specs: [['360°', 'View'], ['6.3 m', 'Tall'], ['210 m³', 'Volume']], live: [{ k: 'Temperature', u: '°C', v: 26.0, d: 0.15, lo: 24, hi: 28, p: 1 }, { k: 'Salinity', u: 'ppt', v: 39.0, d: 0.2, lo: 36, hi: 42, p: 1 }, { k: 'Visitors today', u: '', v: 184, d: 0, lo: 0, hi: 600, p: 0, rise: true }] , swim: { sp: 'mix', n: 70, glass: true, tank: 3.3, depth: 6.1, age: 1.6 } });
       const topics = [['Hamour', C.orange], ['Shaari', 0x3a9ec4], ['Red snappers', 0xc9503c], ['Seabream', 0x7f97a8], ['From egg to sea', C.teal], ['Live feed', 0x69a95a], ['Clean water', 0x2f86ab], ['Restocking the Gulf', 0x2a5c7d]];
-      topics.forEach(([t, hex], k) => { const d = 20 + k * 45, [x, z] = pol(8.9, d); const box = E.banner(b, x, z, { ry: -(d * DEG) - Math.PI / 2, hex, w: 2.2, h: 2.7, tile: 100 + k });
-        ctx.item({ code: `EX-${k + 1}`, group: 'Exhibition hall', name: `Exhibition panel: ${t}`, kind: 'Arabic and English', box: [px + box[0], 0, pz + box[2], px + box[3], 2.9, pz + box[5]], label: k === 0, faceAz: -(d * DEG) - Math.PI / 2, species: { Hamour: 'hamour', Shaari: 'shaari', 'Red snappers': 'hamra', Seabream: 'seabream' }[t], link: { 'From egg to sea': 'hatchery', 'Live feed': 'livefeed', 'Clean water': 'plantroom', 'Restocking the Gulf': 'seacages' }[t],
-          card: [['Station', `${k + 1} of 8`], ['Topic', t], ['Printed panel', 'Arabic and English'], ['On the screen', t === 'Hamour' ? 'From egg to market size, in two minutes' : 'A short film and a touch quiz'], ['Made for', 'School groups, age 8 and up']],
-          desc: `One of eight stations round the hall. This one tells the story of ${t === 'From egg to sea' ? 'the production cycle, from a floating egg to a fish in a sea cage' : t === 'Clean water' ? 'how the centre filters and reuses its water' : t === 'Live feed' ? 'the microscopic food the larvae start on' : t === 'Restocking the Gulf' ? 'releasing hatchery-raised fish to rebuild wild stocks' : t} with a printed panel, a screen and touch content for schools.`,
-          specs: [['Arabic, English', 'Languages'], ['Touch screen', 'Interactive'], ['8', 'Stations']] }); });
+      topics.forEach(([t], k) => { const d = 20 + k * 45, [x, z] = pol(9.5, d), az = -(d * DEG) - Math.PI / 2;
+        const box = E.exhibitTV(b, x, z, { ry: az, tile: 200 + k });
+        ctx.item({ code: `EX-${k + 1}`, group: 'Exhibition hall', name: `Fish screen: ${t}`, kind: 'Widescreen marine-life display', isDisplay: true, box: [px + box[0], box[1], pz + box[2], px + box[3], box[4], pz + box[5]], label: k === 0, faceAz: az,
+          view: P(px + x, F + 1.85, pz + z, az, 1.5, 4.8),
+          species: { Hamour: 'hamour', Shaari: 'shaari', 'Red snappers': 'hamra', Seabream: 'seabream' }[t], link: { 'From egg to sea': 'hatchery', 'Live feed': 'livefeed', 'Clean water': 'plantroom', 'Restocking the Gulf': 'seacages' }[t],
+          card: [['Station', `${k + 1} of 8`], ['Topic', t], ['Display', '16:9, edge-to-edge picture'], ['On screen', 'Looping fish animation'], ['Languages', 'Arabic and English']],
+          desc: `One of eight TV displays around the living aquarium. Swimming fish, softly moving light and underwater scenery fill the widescreen picture. This exhibit introduces ${t.toLowerCase()}; the animation uses photographs of native fish.`,
+          specs: [['16:9', 'Widescreen'], ['Animated', 'Marine life'], ['8', 'Displays']] }); });
       for (let k = 0; k < 6; k++) { const d = 42 + k * 60, [x, z] = pol(6.3, d); E.kiosk(b, x, z, { ry: -(d * DEG) - Math.PI / 2 }); }
       b.use('matte'); for (let d = 196; d <= 250; d += 6) { const [x, z] = pol(5.4, d); b.box(C.wood, 0.55, 0.45, 0.9, x, F, z, -(d * DEG)); }
       b.use('satin').sector(C.ink, 7.7, 8.5, 306 * DEG, 334 * DEG, F, F + 1.05);

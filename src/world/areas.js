@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { Builder, clamp, easeIO } from './kit.js';
 import { createPeople, wearFor } from './people.js';
 import { buildScreens } from './screens.js';
+import { createExhibitTVs } from './exhibit-tv.js';
 import { rng } from './kit.js';
 
 const NOFRAME = { x: 0, z: 0, ry: 0 };
@@ -79,7 +80,9 @@ export function createAreas(world) {
         for (const q of b.seats) { const desk = q.kind === 'desk'; if (R() > (desk ? 0.52 : 0.2) * fill) continue; const k = office ? 'office' : R() < 0.6 ? 'lab' : 'office'; ctx.people.push({ x: q.x, z: q.z, ry: q.ry, y: q.y + 0.02, hex: wearFor(k, R), kind: k, mode: desk ? 'desk' : 'sit' }); } }
       if (ctx.people.length) { const pp = createPeople(mats, ctx.people, { y: 0.12, seed: a.id.length * 7 + ctx.people.length }); g.add(pp.group); a.updaters.push(pp.update); a.people = pp; }
       for (const o of ctx.extra) g.add(o);
-      if (b.scr.length) g.add(buildScreens(b.scr));
+      if (b.scr.length) g.add(buildScreens(b.scr.filter(q => q.tile < 200)));
+      const tvs = b.scr.filter(q => q.tile >= 200);
+      if (tvs.length) { const tv = createExhibitTVs(tvs, engine); g.add(tv.mesh); a.updaters.push(tv.update); }
       if (world.fish && (ctx.schools.length || ctx.fry.length)) { const f = world.fish.populate(ctx.schools, ctx.fry); g.add(f.group); }
       g.visible = a.open > 0.01 || a.alwaysOpen || a.peek;
       a.upper = b.up.build(mats, { cast: false, receive: true }); a.upper.name = a.id + '-upper'; a.upper.visible = a.peek && a.open < 0.01; a.root.add(a.upper);

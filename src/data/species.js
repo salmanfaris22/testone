@@ -85,6 +85,12 @@ export const SPECIES = [
   },
 ];
 export const speciesById = Object.fromEntries(SPECIES.map((s) => [s.id, s]));
+/** breeders that swim in the tanks but have no page of their own: what to call them */
+export const OTHER_FISH = {
+  mullet: { local: 'Mullet', common: 'Grey mullet', sci: 'Mugilidae' },
+  cobia: { local: 'Cobia', common: 'Black kingfish', sci: 'Rachycentron canadum' },
+  naisrah: { local: 'Naisrah', common: 'Local snapper', sci: null },
+};
 
 // Other breeders held in the broodstock building (client list).
 export const BROODSTOCK_TANKS = [

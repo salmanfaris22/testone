@@ -92,7 +92,7 @@ async function boot() {
     // entering from far down the page (the cycle list, the footer): the engine sleeps there, so wake it first
     const enter = app.enter; app.enter = (id) => { world.engine.setActive(true); story.setActive(false); species.setActive(false); veil.style.opacity = 0; enter(id); };
     species = createSpecies(world, { onGoto: (id) => app.enter(id), onAsk: (name) => { for (const c of form.querySelectorAll('[name=sp]')) c.checked = c.value === name; form.topic.value = 'Fry order'; syncForm(); scrollTo($('#contact').getBoundingClientRect().top + scrollY); } });
-    // the opening film: from the gate, the site is built phase by phase (skipped for reduced motion, #explore and ?nointro)
+    // the opening film: from the gate to area 08, whose roof lifts, then the rest of the site fills in phase by phase (skipped for reduced motion, #explore and ?nointro)
     const q = new URLSearchParams(location.search), wantIntro = !reduced && location.hash !== '#explore' && !q.has('nointro') && scrollY < 40;
     if (wantIntro) { const { createIntro } = await import('./world/intro.js'); intro = createIntro(world, { hero: HERO }); window.__intro = intro; }
     // otherwise open a little high and wide, then settle into the hero view as the loader lifts
@@ -117,6 +117,7 @@ function runIntro(lock, countItems) {
   const el = $('#intro'), cap = el.querySelector('.intro-cap'), chips = [...el.querySelectorAll('.intro-phases li')];
   el.hidden = false; let capT = null;
   intro.onCaption = (small, big) => { cap.classList.add('is-out'); clearTimeout(capT); if (!small) return; capT = setTimeout(() => { cap.querySelector('small').textContent = small; cap.querySelector('b').textContent = big; cap.classList.remove('is-out'); }, 430); };
+  intro.onCall = (it, i) => { if (!it) app.labels.clearTags(); else if (innerWidth > 760 || i % 2 === 0) app.labels.addTag(it); };      // a phone has room for every other one
   intro.onPhase = (k) => chips.forEach((c, i) => { c.classList.toggle('is-on', i === k - 1); c.classList.toggle('is-done', i < k - 1); });
   const skip = () => intro.finish(true), onKey = (e) => { if (['Space', 'ArrowDown', 'PageDown', 'Escape', 'Enter', 'End'].includes(e.code)) { e.preventDefault(); skip(); } };
   el.querySelector('.intro-skip').addEventListener('click', skip, { once: true });

@@ -112,7 +112,7 @@ export function createDive(world) {
     for (const g of per) for (let i = 0; i < g.count; i++) {
       const age0 = o.grams ? ageAtWeight(g.sp, o.grams * (0.7 + R() * 0.7)) : (o.age || 2.4) * (0.75 + R() * 0.6), len = lengthAt(g.sp, age0) / 100;
       const f = { sp: g.sp, i, age: age0, age0, len, glen: len, rho: rho0 + (rho1 - rho0) * Math.pow(R(), 1.5), y: y0 + (y1 - y0) * R(), th: R() * TAU, v: (0.35 + R() * 0.3) * (0.5 + len) * (kind === 'cage' ? 1 : 0.6), ph: R() * TAU, dr: 0.3 + R() * 1.2 * Math.min(1, r / 12), dy: 0.15 + R() * 0.5 * Math.min(1, depth / 5), pos: new THREE.Vector3(), hx: 1, hz: 0 };
-      g.rows.push([0, 0, 0, 0, 0, R(), 0, 1, 1]); g.list.push(f); S.fish.push(f);
+      f.gait = R(); g.rows.push([0, 0, 0, 0, 0, f.gait, 0, 1, 1]); g.list.push(f); S.fish.push(f);          // the same clock the shader uses for its burst and glide
     }
     for (const g of per) { const mesh = world.fish.mesh(g.sp, g.rows, true); mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); fishGroup.add(mesh); g.list.forEach((f) => { f.mesh = mesh; }); S.meshes.push(mesh); }
     S.per = per; step(0.016, uT.value); placeCamera(1, true); S.ready = true;
@@ -123,7 +123,7 @@ export function createDive(world) {
   function step(dt, t) {
     for (const f of S.fish) {
       const rho = clamp(f.rho + Math.sin(t * 0.11 + f.ph) * f.dr, S.rc + f.len * 1.4, S.r * 0.92), y = clamp(f.y + Math.sin(t * 0.17 + f.ph * 3.1) * f.dy, -S.depth + 0.3 + f.len * 0.3, -0.25 - f.len * 0.25);
-      f.th += (f.v / rho) * dt * (f === S.sel ? 0.55 : 1);
+      f.th += (f.v / rho) * dt * (f === S.sel ? 0.55 : 1) * (1 + 0.34 * Math.sin(t * 0.45 + f.gait * 31.4));      // faster while the tail beats hard, coasting in between
       f.len = damp(f.len, f.glen, 9, dt);
       const c = Math.cos(f.th), s = Math.sin(f.th); f.pos.set(c * rho, y, s * rho); f.hx = -s; f.hz = c;
       const pitch = Math.cos(t * 0.17 + f.ph * 3.1) * f.dy * 0.17 * 0.12;

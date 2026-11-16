@@ -2,7 +2,7 @@
 // Three ways to look at an area: walk in at eye level (the roof stays on), from above (the roof lifts off),
 // or as a plan. Tanks with fish can be entered under water, where every fish can be followed and aged.
 import { AREAS, areaById } from '../data/areas.js';
-import { speciesById } from '../data/species.js';
+import { speciesById, OTHER_FISH } from '../data/species.js';
 import { OVERVIEW, CAM_BOX } from '../world/layout.js';
 import { pickArea, pickItem, pickFloor } from '../world/areas.js';
 import { P } from '../world/rig.js';
@@ -256,7 +256,7 @@ export function createApp(world, hooks) {
       body.classList.add('diving', 'has-panel'); body.classList.remove('walking'); rig.user = false; setShift();
       const ids = [...new Set(dive.fish.map((f) => f.sp))];
       buildDiveBar(ids); panel.dive(it, ids); setBack(); audio.scene('under');
-      fishTags = labels.setFree(ids.map((id) => ({ name: (speciesById[id] || {}).local || id, kind: (speciesById[id] || {}).common || '', ref: id })), (id) => { stopTour(); const f = nearestOf(id); if (f) selectFish(f); });
+      fishTags = labels.setFree(ids.map((id) => ({ name: (speciesById[id] || OTHER_FISH[id] || {}).local || id, kind: (speciesById[id] || OTHER_FISH[id] || {}).common || '', ref: id })), (id) => { stopTour(); const f = nearestOf(id); if (f) selectFish(f); });
       setHint(touch ? 'Drag to look round. Tap any fish to follow it.' : 'Drag to look round. Click any fish to follow it. Scroll to zoom.');
     });
   }

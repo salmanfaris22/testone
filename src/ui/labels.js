@@ -42,6 +42,8 @@ export function createLabels(world, root) {
       });
     },
     clearTags() { for (const t of tags) t.el.remove(); tags = []; },
+    /** one more tag (the opening film calls things out one by one): it pops in and cannot be clicked */
+    addTag(it, cls = 'tag-film') { const el = document.createElement('div'); el.className = `tag ${cls}`; el.innerHTML = `<i></i><span><b>${it.name}</b><em>${it.kind || ''}</em></span>`; el.style.display = 'none'; el._on = false; root.appendChild(el); tags.push({ el, it, film: true }); },
     /** a name plate over the door of every room (walk-in view); click it to go in */
     setDoors(items, onClick) {
       api.clearDoors();
@@ -84,7 +86,8 @@ export function createLabels(world, root) {
       tags.forEach((t, i) => {
         const a = t.it.anchor;
         if (api.occl && (frame + i) % 6 === 0) t.occ = behindWall(api.occl, a[0], Math.min(a[1], 2.4), a[2]); else if (!api.occl) t.occ = false;
-        if (t.occ || t.it === focusAt) { if (t.el._on !== false) { t.el.style.display = 'none'; t.el._on = false; } } else place(t.el, a[0], a[1], a[2], 10);
+        if (t.occ || t.it === focusAt) { if (t.el._on !== false) { t.el.style.display = 'none'; t.el._on = false; } }
+        else if (place(t.el, a[0], a[1], a[2], 10) && t.film) { const left = p.x > world.engine.w * (world.engine.w <= 760 ? 0.5 : 0.7); if (left !== t.left) { t.left = left; t.el.classList.toggle('is-left', left); } }      // near the right edge a film tag opens to the left
       });
       if (doors.length) {
         // the nearest few, not behind a wall, and not the room you are standing in

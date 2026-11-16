@@ -31,7 +31,8 @@ export const FISH = {
 };
 export const MIX = ['hamour', 'shaari', 'hamra', 'seabream', 'shiqra', 'hamra', 'shaari'];
 
-/* Three species wear the client's own photographs. The picture is cut out, laid on the mid-plane for the fins,
+/* Seven species wear photographs of the real fish: three are the client's own pictures, four are free-licence photographs
+   (credits in public/fish/CREDITS.md). The picture is cut out (tools/fishcut.py), laid on the mid-plane for the fins,
    and wrapped round a body lofted from the outline measured off the same picture: x = share of the length from
    the snout, then the back and the belly line, in body lengths above the picture's centre line. */
 export const PHOTO = {
@@ -41,6 +42,14 @@ export const PHOTO = {
     env: [[0.012, -0.06, -0.082], [0.04, -0.01, -0.1], [0.1, 0.038, -0.122], [0.2, 0.097, -0.149], [0.3, 0.124, -0.169], [0.4, 0.13, -0.178], [0.5, 0.116, -0.175], [0.6, 0.089, -0.161], [0.7, 0.046, -0.122], [0.75, 0.023, -0.098], [0.8, 0.0, -0.076], [0.83, -0.006, -0.07]] },
   hamra: { src: 'fish/hamra.webp', aspect: 0.4203, wr: 0.42,
     env: [[0.014, -0.02, -0.045], [0.05, 0.04, -0.06], [0.1, 0.066, -0.083], [0.2, 0.116, -0.11], [0.3, 0.155, -0.134], [0.4, 0.167, -0.148], [0.5, 0.162, -0.151], [0.6, 0.128, -0.141], [0.7, 0.07, -0.118], [0.75, 0.034, -0.092], [0.79, 0.012, -0.086], [0.82, 0.006, -0.08]] },
+  shaari: { src: 'fish/shaari.webp', aspect: 0.4016, wr: 0.42,
+    env: [[0.012, -0.014, -0.05], [0.05, 0.017, -0.06], [0.1, 0.056, -0.07], [0.15, 0.103, -0.086], [0.2, 0.14, -0.1], [0.25, 0.155, -0.112], [0.3, 0.162, -0.12], [0.4, 0.158, -0.131], [0.5, 0.142, -0.135], [0.6, 0.115, -0.126], [0.7, 0.072, -0.1], [0.75, 0.048, -0.069], [0.8, 0.033, -0.053], [0.83, 0.03, -0.055]] },
+  seabream: { src: 'fish/seabream.webp', aspect: 0.4938, wr: 0.38,
+    env: [[0.012, 0.02, -0.027], [0.05, 0.059, -0.046], [0.1, 0.09, -0.07], [0.15, 0.114, -0.085], [0.2, 0.131, -0.097], [0.3, 0.147, -0.109], [0.4, 0.149, -0.12], [0.5, 0.141, -0.13], [0.6, 0.122, -0.127], [0.7, 0.063, -0.077], [0.75, 0.052, -0.059], [0.8, 0.042, -0.048], [0.83, 0.04, -0.046]] },
+  mullet: { src: 'fish/mullet.webp', aspect: 0.2516, wr: 0.8,
+    env: [[0.012, 0.01, -0.024], [0.05, 0.027, -0.045], [0.1, 0.042, -0.062], [0.2, 0.07, -0.078], [0.3, 0.085, -0.088], [0.4, 0.092, -0.09], [0.5, 0.093, -0.09], [0.6, 0.087, -0.085], [0.7, 0.07, -0.07], [0.75, 0.05, -0.052], [0.8, 0.035, -0.042], [0.83, 0.03, -0.036]] },
+  cobia: { src: 'fish/cobia.webp', aspect: 0.3297, wr: 0.82,
+    env: [[0.012, 0.016, -0.013], [0.05, 0.03, -0.023], [0.1, 0.046, -0.032], [0.2, 0.065, -0.05], [0.3, 0.077, -0.06], [0.4, 0.087, -0.06], [0.5, 0.075, -0.054], [0.6, 0.059, -0.045], [0.7, 0.041, -0.03], [0.75, 0.034, -0.023], [0.8, 0.026, -0.016], [0.83, 0.024, -0.013]] },
 };
 export function photoGeometry(id, nx = 14, nr = 8) {
   const S = PHOTO[id], E = S.env, pos = [], uv = [], idx = [], A = S.aspect;
@@ -143,10 +152,15 @@ export function fishTexture(id, W = 1024) {
     g.save(); g.clip(body);
     const bg = g.createLinearGradient(0, Y(s.hT), 0, Y(-s.hB)); bg.addColorStop(0, s.c.back); bg.addColorStop(0.3, s.c.back); bg.addColorStop(0.52, s.c.side); bg.addColorStop(0.78, s.c.side); bg.addColorStop(1, s.c.belly);
     g.fillStyle = bg; g.fillRect(0, 0, W, H);
-    // scales: fine crosshatch
-    g.strokeStyle = 'rgba(0,0,0,.07)'; g.lineWidth = 1; const st = W / 70;
-    for (let x = -H; x < W; x += st) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + H * 0.7, H); g.moveTo(x + H * 0.7, 0); g.lineTo(x, H); g.stroke(); }
     const xr = (t) => X(P.x(t)), u = W / 1024;
+    // soft blotches, so the flank is not one flat colour
+    for (let i = 0; i < 46; i++) { const t = 0.1 + R() * 0.85, cx = xr(t), cy = Y(-P.bot(t) + (P.top(t) + P.bot(t)) * R()), r = (26 + R() * 60) * u, gr = g.createRadialGradient(cx, cy, 0, cx, cy, r); gr.addColorStop(0, R() < 0.55 ? 'rgba(0,0,0,.1)' : 'rgba(255,255,255,.11)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(cx - r, cy - r, r * 2, r * 2); }
+    // scales: staggered rows of overlapping arcs behind the gill cover, each with a darker base and a lit free edge
+    { const r = 9.5 * u, dx = r * 1.5, dy = r * 1.02, x0 = xr(0.235), x1 = xr(0.99); let row = 0;
+      for (let y = Y(s.hT) - r; y < Y(-s.hB) + r; y += dy, row++) for (let x = x0 + (row % 2) * dx * 0.5; x < x1; x += dx) {
+        g.strokeStyle = 'rgba(0,0,0,.2)'; g.lineWidth = 1.5 * u; g.beginPath(); g.arc(x, y, r, -1.25, 1.25); g.stroke();
+        g.strokeStyle = 'rgba(255,255,255,.2)'; g.lineWidth = 1.1 * u; g.beginPath(); g.arc(x - 1.8 * u, y, r, -0.95, 0.95); g.stroke();
+      } }
     if (s.skin === 'hamour') {
       for (let k = 0; k < 5; k++) { g.fillStyle = 'rgba(60,45,25,.2)'; g.beginPath(); const x = xr(0.3 + k * 0.145); g.moveTo(x - 26 * u, Y(s.hT)); g.lineTo(x + 34 * u, Y(s.hT)); g.lineTo(x + 70 * u, Y(-s.hB)); g.lineTo(x + 10 * u, Y(-s.hB)); g.fill(); }
       for (let i = 0; i < 520; i++) { const t = 0.03 + R() * 0.96, yy = -P.bot(t) * 0.55 + (P.top(t) + P.bot(t) * 0.55) * R(); const r = (t < 0.24 ? 3.2 : 4.4 + R() * 3.6) * u; g.fillStyle = `rgba(${196 + R() * 26},${104 + R() * 34},${34 + R() * 20},${0.6 + R() * 0.3})`; g.beginPath(); g.ellipse(xr(t), Y(yy), r * 1.1, r, 0, 0, TAU); g.fill(); }
@@ -168,11 +182,17 @@ export function fishTexture(id, W = 1024) {
     }
     // back shading and a soft belly light
     const sd = g.createLinearGradient(0, Y(s.hT), 0, Y(-s.hB)); sd.addColorStop(0, 'rgba(0,0,0,.26)'); sd.addColorStop(0.22, 'rgba(0,0,0,0)'); sd.addColorStop(0.9, 'rgba(255,255,255,0)'); sd.addColorStop(1, 'rgba(255,255,255,.28)'); g.fillStyle = sd; g.fillRect(0, 0, W, H);
+    // a band of light along the upper flank, and the lateral line arching from the gill cover to the tail stalk
+    { const hb = g.createLinearGradient(0, Y(s.hT), 0, Y(-s.hB)); hb.addColorStop(0.28, 'rgba(255,255,255,0)'); hb.addColorStop(0.41, 'rgba(255,255,255,.17)'); hb.addColorStop(0.55, 'rgba(255,255,255,0)'); g.fillStyle = hb; g.fillRect(0, 0, W, H);
+      g.strokeStyle = 'rgba(0,0,0,.26)'; g.lineWidth = 2 * u; g.setLineDash([7 * u, 5 * u]); g.beginPath(); for (let i = 0; i <= 40; i++) { const t = 0.24 + (i / 40) * 0.74; g[i ? 'lineTo' : 'moveTo'](xr(t), Y(P.top(t) * (0.5 - 0.42 * sm(0.24, 0.9, t)))); } g.stroke(); g.setLineDash([]); }
     // gill cover, mouth, eye
     g.strokeStyle = 'rgba(0,0,0,.34)'; g.lineWidth = 3.4 * u; g.beginPath(); g.ellipse(xr(0.19), Y((P.top(0.25) - P.bot(0.25)) * 0.36), 30 * u, (P.top(0.25) + P.bot(0.25)) * 0.68 * (H / (2 * VF)) * 0.5, 0, -1.1, 1.2); g.stroke();
     g.lineWidth = 3 * u; g.beginPath(); g.moveTo(xr(0.0), Y(-P.bot(0.02) * 0.2)); g.quadraticCurveTo(xr(0.04), Y(-P.bot(0.06) * 0.55), xr(0.085), Y(-P.bot(0.09) * 0.42)); g.stroke();
     const ex = xr(s.eye[0]), ey = Y(P.top(s.eye[0]) * s.eye[1]), er = 15 * u;
-    g.fillStyle = '#e9dfb8'; g.beginPath(); g.arc(ex, ey, er, 0, TAU); g.fill(); g.fillStyle = '#10151a'; g.beginPath(); g.arc(ex, ey, er * 0.62, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,255,255,.9)'; g.beginPath(); g.arc(ex - er * 0.25, ey - er * 0.28, er * 0.2, 0, TAU); g.fill();
+    // the eye: a shaded socket, a golden iris that darkens to its rim, the pupil and a point of light
+    g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.arc(ex, ey, er * 1.16, 0, TAU); g.fill();
+    { const ig = g.createRadialGradient(ex, ey, er * 0.4, ex, ey, er); ig.addColorStop(0, '#c79a3c'); ig.addColorStop(0.7, '#ead9a4'); ig.addColorStop(1, '#5d4c2f'); g.fillStyle = ig; g.beginPath(); g.arc(ex, ey, er, 0, TAU); g.fill(); }
+    g.fillStyle = '#0b0f13'; g.beginPath(); g.arc(ex, ey, er * 0.56, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,255,255,.92)'; g.beginPath(); g.arc(ex - er * 0.24, ey - er * 0.27, er * 0.19, 0, TAU); g.fill();
     g.restore();
   }, { repeat: false, aniso: 8 });
 }
@@ -183,16 +203,19 @@ export function createFish(world) {
   const uTime = { value: 0 }, geo = {}, mat = {}, hiGeo = {}, loader = new THREE.TextureLoader();
   const getGeo = (id) => geo[id] || (geo[id] = PHOTO[id] ? photoGeometry(id, 12, 8) : fishGeometry(id, 12, 8));
   const photoTex = (id) => { const t = loader.load(import.meta.env.BASE_URL + PHOTO[id].src); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+  const uRip = world.sea && world.sea.uniforms ? world.sea.uniforms.uN : { value: null };
   const getMat = (id) => {
     if (mat[id]) return mat[id];
+    // photographed fish: alpha-to-coverage gives the fins a soft, anti-aliased edge instead of a stair-stepped cut
     const m = PHOTO[id]
-      ? new THREE.MeshStandardMaterial({ map: photoTex(id), roughness: 0.5, metalness: 0.04, side: THREE.DoubleSide, envMapIntensity: 0.7, alphaTest: 0.5 })
+      ? new THREE.MeshStandardMaterial({ map: photoTex(id), roughness: 0.42, metalness: 0.06, side: THREE.DoubleSide, envMapIntensity: 0.8, alphaTest: 0.5, alphaToCoverage: true })
       : new THREE.MeshStandardMaterial({ map: fishTexture(id, world.engine.tier === 'low' ? 512 : 1024), roughness: 0.46, metalness: 0.1, side: THREE.DoubleSide, envMapIntensity: 0.9 });
     m.onBeforeCompile = (sh) => {
-      sh.uniforms.uTime = uTime;
+      sh.uniforms.uTime = uTime; sh.uniforms.uRip = uRip;
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', `#include <common>
           attribute vec4 aPath; attribute vec4 aMove; attribute float aMode; uniform float uTime;
+          varying vec3 vFishW; varying float vFishUp;
           vec2 fFwd; vec2 fSide; vec3 fCentre;`)
         .replace('#include <beginnormal_vertex>', `
           float fTh = aMove.y * 6.2831853 + uTime * aMove.z;
@@ -201,14 +224,40 @@ export function createFish(world) {
           fFwd = mix(normalize(fT + vec2(1e-5, 0.0)), vec2(cos(aMove.z), sin(aMove.z)), aMode);
           fSide = vec2(-fFwd.y, fFwd.x);
           fCentre = vec3(aPath.x + aPath.z * fCs.x * (1.0 - aMode), aMove.x + sin(uTime * 0.7 + aMove.y * 40.0) * 0.07 * aMove.w, aPath.y + aPath.w * fCs.y * (1.0 - aMode));
-          vec3 objectNormal = vec3(fFwd.x * normal.x + fSide.x * normal.z, normal.y, fFwd.y * normal.x + fSide.y * normal.z);`)
+          vec3 objectNormal = vec3(fFwd.x * normal.x + fSide.x * normal.z, normal.y, fFwd.y * normal.x + fSide.y * normal.z);
+          vFishUp = normal.y;`)
         .replace('#include <begin_vertex>', `
           vec3 fp = position;
           float fFlex = smoothstep(0.3, -0.5, fp.x);
-          float fBeat = uTime * mix(4.0 + min(9.0, abs(aMove.z) * 30.0), 4.6, aMode) + aMove.y * 31.0;
-          fp.z += sin(fBeat - fp.x * 5.6) * (0.012 + 0.085 * fFlex * fFlex);
+          // a fish that is placed by hand (under water, in the studio) bursts and glides on its own clock:
+          // the tail beats harder and a little faster for a few seconds, then the fish coasts
+          float fGaitPh = uTime * 0.45 + aMove.y * 31.4;
+          float fBeat = uTime * mix(4.0 + min(9.0, abs(aMove.z) * 30.0), 4.4, aMode) + aMove.y * 31.0 - aMode * 2.4 * cos(fGaitPh);
+          float fAmp = mix(1.0, 0.7 + 0.42 * sin(fGaitPh), aMode);
+          float fWave = sin(fBeat - fp.x * 5.6);
+          fp.z += fWave * (0.012 + 0.085 * fFlex * fFlex) * fAmp;
+          // the head turns a touch against the tail
+          fp.z -= sin(fBeat - 0.6) * 0.03 * fp.x * (1.0 - fFlex) * fAmp;
           fp *= aMove.w;
-          vec3 transformed = fCentre + vec3(fFwd.x * fp.x + fSide.x * fp.z, fp.y, fFwd.y * fp.x + fSide.y * fp.z);`);
+          vec3 transformed = fCentre + vec3(fFwd.x * fp.x + fSide.x * fp.z, fp.y, fFwd.y * fp.x + fSide.y * fp.z);`)
+        .replace('#include <project_vertex>', `#include <project_vertex>
+          vec4 fWp = vec4(transformed, 1.0);
+          #ifdef USE_INSTANCING
+            fWp = instanceMatrix * fWp;
+          #endif
+          vFishW = (modelMatrix * fWp).xyz;`);
+      // sunlight through the moving surface ripples over the back, and the belly sits in its own shade
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', `#include <common>
+          uniform sampler2D uRip; uniform float uTime; varying vec3 vFishW; varying float vFishUp;`)
+        .replace('#include <map_fragment>', `#include <map_fragment>
+          {
+            vec2 fq = vFishW.xz;
+            float fa = texture2D(uRip, fq * 0.31 + uTime * vec2(0.05, 0.031)).a, fb = texture2D(uRip, fq * 0.74 - uTime * vec2(0.07, -0.043)).a;
+            float fCaus = 1.0 - smoothstep(0.0, 0.07, abs(fa - fb));
+            float fUp = smoothstep(-0.1, 0.75, vFishUp);
+            diffuseColor.rgb *= (1.0 + 0.6 * fCaus * fUp) * mix(0.8, 1.0, smoothstep(-0.9, 0.15, vFishUp));
+          }`);
     };
     mat[id] = m; return m;
   };
@@ -252,6 +301,8 @@ export function createFish(world) {
       rows.forEach((r, i) => { aPath.set([r[0], r[1], r[2], r[3]], i * 4); aMove.set([r[4], r[5], r[6], r[7]], i * 4); aMode[i] = r[8] || 0; });
       g.setAttribute('aPath', new THREE.InstancedBufferAttribute(aPath, 4)); g.setAttribute('aMove', new THREE.InstancedBufferAttribute(aMove, 4)); g.setAttribute('aMode', new THREE.InstancedBufferAttribute(aMode, 1));
       const m = new THREE.InstancedMesh(g, getMat(id), n); m.frustumCulled = false; m.castShadow = false; m.receiveShadow = false; m.name = 'fish-' + id;
+      // no two fish of a school are quite the same: a little lighter or darker, a touch warmer or cooler
+      if (n > 1) { const Q = rng(n * 31 + id.length * 7), col = new THREE.Color(); for (let i = 0; i < n; i++) { const v = 0.84 + Q() * 0.2, w = (Q() - 0.5) * 0.07; m.setColorAt(i, col.setRGB(v * (1 + w), v, v * (1 - w))); } m.instanceColor.needsUpdate = true; }
       return m;
     },
     setScale(v) { speckU.uScale.value = v; },

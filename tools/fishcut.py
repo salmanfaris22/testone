@@ -1,14 +1,19 @@
 # Cut a fish out of a plain-background photo: RGBA, head to the left, cropped tight, plus the silhouette per column.
-# usage: python -I fishcut.py <in> <out_prefix> <black|white> <flip 0|1> [thr]
+# usage: python -I fishcut.py <in> <out_prefix> <black|white|alpha> <flip 0|1> [thr] [rot] [erase boxes]
+# alpha: the input is already a cut-out with its own transparency (for example from Apple Vision), for photos whose background is not plain
 import sys, json
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
 src, out, bg, flip = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4] == '1'
 thr = float(sys.argv[5]) if len(sys.argv) > 5 else (34 if bg == 'black' else 236)
-im = Image.open(src).convert('RGB')
+im0 = Image.open(src)
+A0 = im0.convert('RGBA').getchannel('A') if bg == 'alpha' else None
+im = im0.convert('RGB')
 rot = float(sys.argv[6]) if len(sys.argv) > 6 else 0.0
-if rot: im = im.rotate(rot, resample=Image.BICUBIC, fillcolor=(0, 0, 0) if bg == 'black' else (255, 255, 255))
+if rot:
+    im = im.rotate(rot, resample=Image.BICUBIC, fillcolor=(0, 0, 0) if bg == 'black' else (255, 255, 255))
+    if A0 is not None: A0 = A0.rotate(rot, resample=Image.BICUBIC, fillcolor=0)
 if len(sys.argv) > 7:                       # erase boxes (fractions of the source): x0,y0,x1,y1;...
     dr = ImageDraw.Draw(im)
     for box in sys.argv[7].split(';'):
@@ -16,7 +21,9 @@ if len(sys.argv) > 7:                       # erase boxes (fractions of the sour
         dr.rectangle([x0 * im.width, y0 * im.height, x1 * im.width, y1 * im.height], fill=(0, 0, 0) if bg == 'black' else (255, 255, 255))
 a = np.asarray(im).astype(np.float32)
 H, W = a.shape[:2]
-cand = (a.max(axis=2) < thr) if bg == 'black' else ((a.min(axis=2) > thr) & ((a.max(axis=2) - a.min(axis=2)) < 30))
+if bg == 'alpha': cand = np.asarray(A0) < 128
+elif bg == 'black': cand = a.max(axis=2) < thr
+else: cand = (a.min(axis=2) > thr) & ((a.max(axis=2) - a.min(axis=2)) < 30)
 # background = candidate pixels connected to the border
 m = Image.fromarray((cand * 255).astype(np.uint8)).copy()
 for x in range(0, W, 7):
@@ -46,7 +53,7 @@ bgc = 0.0 if bg == 'black' else 255.0
 rgb = a.copy()
 edge = (alpha > 0.02) & (alpha < 0.98)
 al = np.clip(alpha[..., None], 0.25, 1)
-rgb = np.where(edge[..., None], np.clip((rgb - (1 - al) * bgc) / al, 0, 255), rgb)
+if bg != 'alpha': rgb = np.where(edge[..., None], np.clip((rgb - (1 - al) * bgc) / al, 0, 255), rgb)
 # bleed colour outwards into the transparent area (keeps mip-maps clean)
 solid = alpha > 0.5
 col = rgb * solid[..., None]

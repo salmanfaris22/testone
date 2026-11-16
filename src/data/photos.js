@@ -27,4 +27,4 @@ export const SPECIES_PHOTO = {
   hamour: { src: P('hamour-juvenile.webp'), cap: 'A young Hamour from the hatchery', r: '852 / 560' },
   hamra: { src: P('hamra-juvenile.webp'), cap: 'A young Hamra from the hatchery', r: '852 / 524' },
 };
-export const FISH_CUT = { hamour: `${import.meta.env.BASE_URL}fish/hamour.webp`, hamra: `${import.meta.env.BASE_URL}fish/hamra.webp`, shiqra: `${import.meta.env.BASE_URL}fish/shiqra.webp` };
+export const FISH_CUT = Object.fromEntries(['hamour', 'hamra', 'shiqra', 'shaari', 'seabream', 'mullet', 'cobia'].map((id) => [id, `${import.meta.env.BASE_URL}fish/${id}.webp`]));

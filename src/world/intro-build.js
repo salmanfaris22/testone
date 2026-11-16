@@ -108,14 +108,16 @@ export function revealMap(world, { gateX, roadDur = 2.8, flowSpeed = 64, flowDel
 }
 
 /* ───── hardscape: appears where the map says, low things first, with a warm glow on the front ───── */
-const GROUND_FRAG_DECL = '#include <common>\nvarying vec3 vRvW;\nuniform sampler2D uRvMap; uniform vec4 uRvBox; uniform float uRvP, uRvRise;';
+const GROUND_FRAG_DECL = '#include <common>\nvarying vec3 vRvW;\nuniform sampler2D uRvMap; uniform vec4 uRvBox; uniform vec4 uRvPre; uniform float uRvP, uRvRise;';
 const RV_AT = `vec2 rvUV = ( vRvW.xz - uRvBox.xy ) * uRvBox.zw;
   float rvAt = ( rvUV.x < 0.0 || rvUV.y < 0.0 || rvUV.x > 1.0 || rvUV.y > 1.0 ) ? -10.0 : texture2D( uRvMap, rvUV ).r;
-  float rvAge = uRvP - rvAt;`;
+  float rvAge = uRvP - rvAt;
+  // the island that stands from the first frame (centre x, z and radius): built long ago
+  if ( distance( vRvW.xz, uRvPre.xy ) < uRvPre.z ) { rvAge = 9.0; rvAt = max( rvAt, -4.0 ); }`;
 export function groundMat(src, G) {
   const m = src.clone();
   m.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, { uRvMap: G.map, uRvBox: G.box, uRvP: G.p, uRvRise: G.rise });
+    Object.assign(sh.uniforms, { uRvMap: G.map, uRvBox: G.box, uRvP: G.p, uRvRise: G.rise, uRvPre: G.pre });
     withWorldPos(sh);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', GROUND_FRAG_DECL)
       .replace('void main() {', `void main() {
@@ -129,7 +131,7 @@ export function groundMat(src, G) {
   return m;
 }
 /** the same test for a shader of our own (the blueprint paper fades where the ground is built) */
-export const RV_GLSL = { decl: 'uniform sampler2D uRvMap; uniform vec4 uRvBox; uniform float uRvP;', at: RV_AT };
+export const RV_GLSL = { decl: 'uniform sampler2D uRvMap; uniform vec4 uRvBox; uniform vec4 uRvPre; uniform float uRvP;', at: RV_AT };
 
 /* ───── buildings: rise from the ground with a glowing cut line, solid where the cut opens a wall ───── */
 const RISE_FRAG_DECL = '#include <common>\nvarying vec3 vRvW;\nuniform float uRiseH, uRiseG;';

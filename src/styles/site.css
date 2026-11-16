@@ -230,6 +230,8 @@ body.no-gl .species { background: linear-gradient(180deg, #0e6e7e, #0b2b3c); } b
 
 /* the opening film: captions, the three phases as they are built, and a way out */
 .intro { position: fixed; inset: 0; z-index: 40; pointer-events: none; }
+/* a soft shade behind the caption, so white type reads over pale floors and sand as well as over the sea */
+.intro::before { content: ''; position: absolute; left: 0; bottom: 0; width: min(74rem, 100%); height: 52%; background: radial-gradient(115% 100% at 0% 100%, rgba(4, 30, 46, 0.66), rgba(4, 30, 46, 0.3) 46%, rgba(4, 30, 46, 0) 72%); }
 .intro-cap { position: absolute; left: var(--pad); bottom: clamp(92px, 16vh, 150px); max-width: min(44rem, calc(100% - 2 * var(--pad))); color: #fff; text-shadow: 0 2px 24px rgba(4, 30, 46, 0.65), 0 1px 2px rgba(4, 30, 46, 0.4); transition: opacity 0.55s var(--ease), transform 0.7s var(--ease); }
 .intro-cap.is-out { opacity: 0; transform: translateY(12px); }
 .intro-cap small { display: block; font-family: var(--fc); font-weight: 600; font-size: 14px; letter-spacing: 0.09em; text-transform: uppercase; color: #ffb066; margin-bottom: 10px; }

@@ -101,10 +101,10 @@ export function buildSite(world) {
   for (const [x, z, w, d, h] of [[-640, -260, 90, 36, 9], [-760, -40, 60, 30, 8], [-700, 60, 80, 28, 10], [-900, -180, 110, 40, 12], [-560, 80, 46, 24, 7]]) { b.use('matte').box(0xe9e6df, w, h, d, x, 0, z); b.box(0x2a5c7d, w, 0.7, 0.2, x, h - 1.4, z - d / 2 - 0.06); }
   const g = b.build(mats, { cast: true }); g.name = 'site'; scene.add(g);
 
-  /* ───── UAE flags: three behind the name wall at the gate and three by the drop-off, streaming in the breeze ───── */
-  const flagsGate = createFlags(mats, [-1, 0, 1].map((k) => ({ x: GATE.sign[0] - 4 + k * 4.2, z: GATE.sign[1] + 6.2, h: 10 })));
-  // three flags on the plaza to the left of the steps of the oval hall, facing the drop-off
-  const flagsDrop = createFlags(mats, [-1, 0, 1].map((k) => { const t = ovalT(podium, OVAL.door) + (19 + k * 3.4) / ovalRate(podium, ovalT(podium, OVAL.door)), p = podium(t), q = ovalN(podium, t), w = pf(p[0] + q[0] * 7.5, p[1] + q[1] * 7.5); return { x: w[0], z: w[1] }; }));
+  /* ───── the UAE flag: one tall mast behind the name wall at the gate and one by the drop-off, streaming in the breeze ───── */
+  const flagsGate = createFlags(mats, [{ x: GATE.sign[0] - 4, z: GATE.sign[1] + 6.2, h: 13, s: 1.5 }]);
+  // on the plaza to the left of the steps of the oval hall, facing the drop-off
+  const flagsDrop = createFlags(mats, [(() => { const t = ovalT(podium, OVAL.door) + 19 / ovalRate(podium, ovalT(podium, OVAL.door)), p = podium(t), q = ovalN(podium, t), w = pf(p[0] + q[0] * 7.5, p[1] + q[1] * 7.5); return { x: w[0], z: w[1], h: 13, s: 1.5 }; })()]);
   flagsGate.group.name = 'flags-gate'; flagsDrop.group.name = 'flags-drop';
   for (const f of [flagsGate, flagsDrop]) { scene.add(f.group); world.updaters.push(f.update); }
 

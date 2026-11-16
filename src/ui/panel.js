@@ -1,7 +1,7 @@
 // The detail panel: an area (what is in this hall), an item (one tank or machine),
 // the view from under water, and one fish with its age slider.
 import { value, format, history, spark } from '../data/sim.js';
-import { speciesById } from '../data/species.js';
+import { speciesById, OTHER_FISH } from '../data/species.js';
 import { areaById, AREAS } from '../data/areas.js';
 import { AREA_PHOTO, ITEM_PHOTO, SPECIES_PHOTO, FISH_CUT } from '../data/photos.js';
 import { itemIcon } from './icons.js';
@@ -94,7 +94,7 @@ export function createPanel(el, { onAct, thumb = () => '' }) {
     dive(it, species) {
       api.stopLive(); current = { type: 'dive', id: it.id };
       const d = areaById[it.area];
-      const rows = species.map((id) => { const s = speciesById[id]; return `<button type="button" class="fishrow" data-act="pickfish" data-arg="${esc(id)}">${pic(id) ? `<img src="${pic(id)}" alt="" loading="lazy">` : '<i></i>'}<span><b>${esc(s ? s.local : id)}</b><em>${esc(s ? s.common : '')}</em></span>${ICON.next}</button>`; }).join('');
+      const rows = species.map((id) => { const s = speciesById[id] || OTHER_FISH[id]; return `<button type="button" class="fishrow" data-act="pickfish" data-arg="${esc(id)}">${pic(id) ? `<img src="${pic(id)}" alt="" loading="lazy">` : '<i></i>'}<span><b>${esc(s ? s.local : id)}</b><em>${esc(s ? s.common : '')}</em></span>${ICON.next}</button>`; }).join('');
       el.innerHTML = head(`<button data-act="surface" type="button">${ICON.back}<span>Back to the surface</span></button><span>${esc(d.short)}</span>`, it.code && it.code.length <= 7 ? it.code : d.n, 'Under water', !!(it.code && it.code.length <= 7)) + `<div class="p-body">
         <h2>${esc(it.name)}</h2>
         <p class="p-desc">You are below the surface, inside the ${it.swim.net ? 'net' : it.swim.glass ? 'aquarium' : 'tank'}. Drag to look round. Click any fish to swim beside it, read about it and see how it grows.</p>
@@ -108,7 +108,7 @@ export function createPanel(el, { onAct, thumb = () => '' }) {
     /** one fish: who it is, and a slider that takes it from egg to breeding age */
     fish(info, it) {
       api.stopLive(); current = { type: 'fish', id: info.sp };
-      const s = speciesById[info.sp] || { local: info.sp, common: '', sci: null, about: '', facts: [] }, g = GROWTH[info.sp] || GROWTH.naisrah, max = maxAge(info.sp);
+      const s = speciesById[info.sp] || { local: info.sp, common: '', sci: null, about: '', facts: [], ...OTHER_FISH[info.sp] }, g = GROWTH[info.sp] || GROWTH.naisrah, max = maxAge(info.sp);
       // growth curve
       const W = 320, H = 96, pts = []; for (let i = 0; i <= 60; i++) { const a = max * Math.pow(i / 60, 1.6); pts.push(`${i ? 'L' : 'M'}${((a / max) * W).toFixed(1)} ${(H - 6 - (lengthAt(info.sp, a) / g.Linf) * (H - 14)).toFixed(1)}`); }
       el.innerHTML = head(`<button data-act="fishback" type="button">${ICON.back}<span>Back to the school</span></button><span>${esc(it ? it.name : '')}</span>`, s.local, s.common, true) + `<div class="p-body">

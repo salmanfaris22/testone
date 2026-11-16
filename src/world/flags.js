@@ -17,14 +17,14 @@ function flagTex() {
 }
 
 /**
- * list: [{ x, z, h }] pole positions (ground y = 0) and heights. `wind` is the direction the flags stream towards (radians, three.js rotation.y).
+ * list: [{ x, z, h, s }] pole positions (ground y = 0), heights and the size of the flag (1 = 2.8 m long). `wind` is the direction the flags stream towards (radians, three.js rotation.y).
  * Returns { group, update(dt, t) }.
  */
 export function createFlags(mats, list, { wind = -2.36 } = {}) {
   const group = new THREE.Group(); group.name = 'flags';
   // poles and finials: one merged mesh
   const b = new Builder();
-  for (const f of list) { const h = f.h || 11; b.use('satin').cyl(0xe6e9eb, 0.09, h, f.x, 0, f.z, 8, 0.05); b.ball(0xd9b25a, 0.14, f.x, h + 0.1, f.z, 8, 6); b.use('satin').cyl(0xcfd4d7, 0.28, 0.35, f.x, 0, f.z, 10); }
+  for (const f of list) { const h = f.h || 11, k = f.s || 1; b.use('satin').cyl(0xe6e9eb, 0.09 * k, h, f.x, 0, f.z, 10, 0.05 * k); b.ball(0xd9b25a, 0.14 * k, f.x, h + 0.1 * k, f.z, 10, 8); b.use('satin').cyl(0xcfd4d7, 0.28 * k, 0.35, f.x, 0, f.z, 12); b.use('concrete').cyl(0xd8d4cb, 0.62 * k, 0.16, f.x, 0, f.z, 16); }
   group.add(b.build(mats, { cast: true }));
 
   const U = { uT: { value: 0 } };
@@ -53,8 +53,8 @@ export function createFlags(mats, list, { wind = -2.36 } = {}) {
   };
   const geo = new THREE.PlaneGeometry(FW, FH, 24, 12); geo.translate(FW / 2 + 0.1, 0, 0);
   for (const f of list) {
-    const h = f.h || 11, m = new THREE.Mesh(geo, mat);
-    m.position.set(f.x, h - FH / 2 - 0.25, f.z); m.rotation.y = wind; m.castShadow = true; m.frustumCulled = false;
+    const h = f.h || 11, k = f.s || 1, m = new THREE.Mesh(geo, mat);
+    m.scale.setScalar(k); m.position.set(f.x, h - (FH / 2) * k - 0.25, f.z); m.rotation.y = wind; m.castShadow = true; m.frustumCulled = false;
     group.add(m);
   }
   return { group, update: (dt, t) => { U.uT.value = t; } };

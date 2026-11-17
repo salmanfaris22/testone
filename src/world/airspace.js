@@ -87,6 +87,9 @@ export function createAirspace(world) {
           }
         }
         if (r.inner) { const ox = lx - r.x, oz = lz - r.z, d = Math.hypot(ox, oz), m = r.inner + R; if (d < m) { const k = d > 1e-4 ? m / d : 1; lx = r.x + ox * k; lz = r.z + (d > 1e-4 ? oz * k : m); moved = true; } }
+        // a round thing hanging in the room (08's globe): round it, over it or under it
+        if (r.globe) { const G = r.globe, ox = lx - G.x, oy = p.y - G.y, oz = lz - G.z, d = Math.hypot(ox, oy, oz), m = G.r + R;
+          if (d < m) { const k = d > 1e-4 ? m / d : 1; lx = G.x + ox * k; lz = G.z + oz * k; p.y = G.y + (d > 1e-4 ? oy * k : -m); moved = true; } }
       }
       if (moved) { const w = a.toWorld(lx, lz); push[0] += w[0] - p.x; push[1] += w[1] - p.z; p.x = w[0]; p.z = w[1]; }
     }

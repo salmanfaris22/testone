@@ -52,6 +52,25 @@ export function makeMaterials(ripples, env) {
     decal: new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
   };
   m.water.userData.flow = true;
+  // a round hole in the ground (x, z, radius; radius 0 = none): 08's walk-on aquarium sits below ground level under its glass floor
+  m.groundHole = { value: new THREE.Vector4(0, 0, 0, 0) };
+  m.ground.onBeforeCompile = (sh) => {
+    sh.uniforms.uHole = m.groundHole;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vGW;').replace('#include <project_vertex>', '#include <project_vertex>\n  vGW = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vGW;\nuniform vec4 uHole;').replace('void main() {', 'void main() {\n  if ( uHole.z > 0.0 && distance( vGW.xz, uHole.xy ) < uHole.z ) discard;');
+  };
+  m.ground.customProgramCacheKey = () => 'groundHole';
+  /** a copy of a material with the same hole in it (the site paving under 08) */
+  m.withHole = (src) => {
+    const c = src.clone();
+    c.onBeforeCompile = (sh) => {
+      sh.uniforms.uHole = m.groundHole;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vGW;').replace('#include <project_vertex>', '#include <project_vertex>\n  vGW = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vGW;\nuniform vec4 uHole;').replace('void main() {', 'void main() {\n  if ( uHole.z > 0.0 && distance( vGW.xz, uHole.xy ) < uHole.z ) discard;');
+    };
+    c.customProgramCacheKey = () => 'hole-' + src.type + (src.map ? 'm' : '') + (src.vertexColors ? 'v' : '');
+    return c;
+  };
   env.onNight((n) => {
     m.window.emissiveIntensity = n * 1.5;
     m.water.emissiveIntensity = n * 0.55;

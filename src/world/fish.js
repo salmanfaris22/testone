@@ -333,6 +333,14 @@ export function createFish(world) {
       const m = new THREE.InstancedMesh(g, getGlow(id), 1); m.frustumCulled = false; m.castShadow = false; m.receiveShadow = false; m.renderOrder = 5; m.name = 'fish-glow';
       return m;
     },
+    /** the same light over every fish of a group of one species (gaits: each fish's own clock; place fish i with setMatrixAt(i, m)) */
+    glowMany(id, gaits) {
+      const n = Math.max(1, gaits.length), g = (hiGeo[id] || (hiGeo[id] = PHOTO[id] ? photoGeometry(id, 46, 20) : fishGeometry(id, 56, 20))).clone();
+      const aMove = new Float32Array(n * 4); gaits.forEach((ga, i) => aMove.set([0, ga, 0, 1], i * 4));
+      g.setAttribute('aPath', new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4)); g.setAttribute('aMove', new THREE.InstancedBufferAttribute(aMove, 4)); g.setAttribute('aMode', new THREE.InstancedBufferAttribute(new Float32Array(n).fill(1), 1));
+      const m = new THREE.InstancedMesh(g, getGlow(id), n); m.frustumCulled = false; m.castShadow = false; m.receiveShadow = false; m.renderOrder = 5; m.name = 'fish-glow';
+      return m;
+    },
     /** how strongly the glow shows, 0 to 1 */
     glowLevel: glowU,
     setScale(v) { speckU.uScale.value = v; },

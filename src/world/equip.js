@@ -395,7 +395,8 @@ export function exhibitWall(b, x, z, { ry = 0, w = 3.7, hex = C.teal, y = F, pan
   const hy = bottom + th + bezel + 0.07, top = hy + hh + 0.12, front = d / 2;
   b.push(x, 0, z, ry);
   b.use('matte').box(C.clayCool, w + 0.12, 0.1, d + 0.16, 0, y, 0);
-  b.box(0xf7f4ee, w, top - y - 0.1, d, 0, y + 0.1, 0);
+  // (the white body stops a centimetre inside the coloured post and top band: faces that lie exactly on top of each other flicker)
+  b.box(0xf7f4ee, w - 0.02, top - y - 0.112, d, 0, y + 0.1, 0);
   b.box(hex, 0.12, top - y - 0.1, d + 0.02, -w / 2 + 0.06, y + 0.1, 0); b.box(hex, w, 0.06, d + 0.02, 0, top - 0.06, 0);
   b.screen(panel, hw, hh, 0.04, hy, front + 0.006, 0, 0, [0, 150 / 640]);
   b.use('matte').box(0x080c10, tw + bezel * 2, th + bezel * 2, 0.05, 0.04, bottom - bezel, front - 0.005);

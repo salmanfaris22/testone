@@ -15,6 +15,8 @@ export const RH = 11.1, RR = 14.7, RO = 25.5, RT = 33;      // hall wall, ring c
 export const SPINE = { x: 12, z: -3.1, ry: 0.1396 };        // the angled corridor to the office wing (8° off the plan axis)
 const WING = { x0: -18.1, x1: 107.5, z0: -48.3, zr: -32.8, zc: -28.5, split: 29.1, h: 5.2 };
 const UPF = 3.6;                                              // height of the wing's upper floor
+const POOL = 6.4, DEEP = 2.15;                                // the walk-on aquarium in the middle of the hall: radius, depth under the glass (its floor stays over the sea level under the land)
+const GLOBE = { y: F + 4.4, r: 2.2 };                          // the Earth turning over it (centre height, radius)
 const pol = (r, deg) => [Math.cos(deg * DEG) * r, Math.sin(deg * DEG) * r];
 const ux = Math.cos(SPINE.ry), uz = -Math.sin(SPINE.ry), vx = Math.sin(SPINE.ry), vz = Math.cos(SPINE.ry);
 /** spine frame (u along the corridor, v to the south) → local xz */
@@ -82,8 +84,9 @@ export function buildPark(world) {
   for (const b of [lo1, hi1, lo2, hi2]) b.push(px, 0, pz);
 
   /* ───────── floors ───────── */
-  lo1.use('floorTile').prism(C.floorStone, arcPts(RO, 0, TAU, 0, 0, 3 * DEG), 0, F, { sides: false });
-  lo1.use('matte').prism(0xf1ede4, arcPts(RH - 0.15, 0, TAU, 0, 0, 4 * DEG), F, F + 0.012, { sides: false });           // exhibition hall terrazzo
+  // the drum's floor is a ring round a glass disc: the aquarium is under the glass, the globe over it (POOL = its radius)
+  for (let k = 0; k < 8; k++) lo1.use('floorTile').prism(C.floorStone, sectorPts(POOL, RO, (k * TAU) / 8, ((k + 1) * TAU) / 8, 3 * DEG), 0, F, { sides: false });
+  for (let k = 0; k < 8; k++) lo1.use('matte').prism(0xf1ede4, sectorPts(POOL + 0.12, RH - 0.15, (k * TAU) / 8, ((k + 1) * TAU) / 8, 4 * DEG), F, F + 0.012, { sides: false });   // exhibition hall terrazzo, round the glass
   lo1.use('matte').prism(C.carpet, sectorPts(RR + 2.2, RO - 0.3, 10 * DEG, 89 * DEG), F, F + 0.02, { sides: false });   // amphitheatre carpet
   for (const [r0, r1, hex] of [[RO, 29, C.floor], [29, 33, C.floor], [33, 40.5, C.floorStone], [40.5, 47.4, C.floorStone]]) lo1.use('floorTile').prism(hex, fan(r0, r1), 0, F, { sides: false });
   lo1.use('floorTile').box(C.floor, WING.split - WING.x0, F, WING.zc - WING.z0, (WING.x0 + WING.split) / 2, 0, (WING.z0 + WING.zc) / 2);
@@ -201,25 +204,63 @@ export function buildPark(world) {
     walk: P(px, 2.4, pz, 2.25, 1.44, 9.6), walls: parkWalls,
     // (for the drone: the foyer inside the oval glass is indoors too, under the shell roof)
     envelope: [{ ellipse: true, x: px, z: pz + OVAL.cz, a: OVAL.fa - 0.3, b: OVAL.fb - 0.3, h: OVAL.top - 0.2 }],
-    rooms: [{ circle: true, x: 0, z: 0, r: RH - 0.9, h: 8.6, inner: 4.5 }, { circle: true, x: 0, z: 0, r: RO - 0.8, h: 6.6 }, { x0: WING.x0, x1: WING.split, z0: WING.z0, z1: WING.zc, h: WING.h }, { x0: WING.x0, x1: 29.1, z0: WING.zc, z1: -18.6, h: 5.2 }, { x0: 26, x1: 47.6, z0: WING.zc, z1: -5, h: 5.5 }],
+    rooms: [{ circle: true, x: 0, z: 0, r: RH - 0.9, h: 8.6, globe: { x: 0, z: 0, y: GLOBE.y, r: GLOBE.r + 0.14 } }, { circle: true, x: 0, z: 0, r: RO - 0.8, h: 6.6 }, { x0: WING.x0, x1: WING.split, z0: WING.z0, z1: WING.zc, h: WING.h }, { x0: WING.x0, x1: 29.1, z0: WING.zc, z1: -18.6, h: 5.2 }, { x0: 26, x1: 47.6, z0: WING.zc, z1: -5, h: 5.5 }],
     makeInterior(b0, ctx) {
       const b = b0; b.push(px, 0, pz); const R = rng(101);
       const who = (x, z, k, s, o = {}) => { const kk = k === 'coat' ? 'lab' : k; ctx.person(px + x, pz + z, o.ry ?? R() * TAU, wearFor(kk, R), undefined, { kind: kk, s, mode: /visitor|kandura|emirati|abaya/.test(kk) ? (R() < 0.4 ? 'talk' : 'idle') : kk === 'office' ? 'talk' : 'work', ...o }); };
       // an Emirati couple strolling the ring corridor round the hall (the visitor centre is kept calm: fewer people than before)
       for (let k = 0; k < 2; k++) ctx.person(0, 0, 0, wearFor(k ? 'abaya' : 'emirati', R), undefined, { kind: k ? 'abaya' : 'emirati', path: arcPts(12.9, 0, TAU, px, pz, 10 * DEG), loop: true, speed: 0.82, off: k * 0.02 });
-      /* exhibition hall and the living aquarium */
-      b.use('satin').cyl(C.ink, 3.9, 0.9, 0, F, 0, 48); b.use('metal').torus(C.alu, 3.42, 0.13, 0, F + 0.92, 0, 6, 56); b.torus(C.alu, 3.42, 0.16, 0, 7.2, 0, 6, 56);
-      b.use('glass').cyl(C.glass, 3.36, 6.3, 0, F + 0.9, 0, 56, 3.36, true);
-      b.use('matte'); for (let k = 0; k < 9; k++) { const a = R() * TAU, r = R() * 2.3; b.ico([0x8f9b8c, 0xb9a98a, 0x7d8f96][k % 3], 0.5 + R() * 0.6, Math.cos(a) * r, F + 1.2, Math.sin(a) * r, 0.7, R() * 3, 1); }
-      for (let k = 0; k < 7; k++) { const a = R() * TAU, r = 0.6 + R() * 2; b.cone([0xe98a6b, 0xd9a05b, 0x7fc9b0][k % 3], 0.16, 0.9 + R() * 0.8, Math.cos(a) * r, F + 1.4, Math.sin(a) * r, 6); }
-      b.use('glow').torus(0xdff6ff, 3.0, 0.08, 0, 7.05, 0, 6, 48);
-      const col = new THREE.Mesh(new THREE.CylinderGeometry(3.3, 3.3, 6.2, 56, 1, true), new THREE.MeshStandardMaterial({ color: 0x2fa3d6, transparent: true, opacity: 0.3, roughness: 0.1, emissive: 0x1787bd, emissiveIntensity: 0.35, side: THREE.DoubleSide, depthWrite: false }));
-      col.position.set(px, F + 4.0, pz); col.renderOrder = 2; ctx.extra.push(col);
-      ctx.school({ x: px, z: pz, rx: 2.5, rz: 2.5, r0: 0.25, y0: F + 1.9, y1: F + 6.5, n: 72, sp: 'mix', len: 0.42, speed: 0.2 });
-      ctx.item({ code: 'AQ', group: 'Exhibition hall', name: 'Living aquarium', kind: '360° cylinder, native Gulf species', box: Wb(-3.9, -3.9, 3.9, 3.9, 7.4), label: true, prio: 2,
-        desc: 'A floor-to-ceiling cylinder of sea water in the middle of the hall. Visitors walk all the way round it and see the same species the hatchery breeds, swimming together as they would on a Gulf reef.',
+      /* exhibition hall: a walk-on aquarium under a glass floor, and the Earth turning over it */
+      {
+        // the pool, made to look like the underwater scenes on the hall's fish screens: deep blue walls, a seabed of sand with
+        // dark rocks, bright corals and sea grass, sunlight dancing on the sand, shafts of light coming down through the glass
+        b.use('matte').lathe(0x0b3a5c, [[POOL, F - 0.02], [POOL, F - DEEP * 0.5], [POOL, F - DEEP]], 0, 0, 0, 72);
+        b.disc(0x8c7a55, POOL, 0, F - DEEP, 0, 72);
+        for (let k = 0; k < 22; k++) { const a = R() * TAU, r = 1 + R() * (POOL - 1.7); b.ico([0x4d5a57, 0x6b6556, 0x3f4c52][k % 3], 0.22 + R() * 0.42, Math.cos(a) * r, F - DEEP + 0.12, Math.sin(a) * r, 0.62, R() * 3, 1); }
+        for (let k = 0; k < 26; k++) { const a = R() * TAU, r = 0.8 + R() * (POOL - 1.4); b.use('glow').cone([0xff6f61, 0xffa24a, 0xc77dff, 0x5ce1c9][k % 4], 0.07 + R() * 0.06, 0.35 + R() * 0.6, Math.cos(a) * r, F - DEEP, Math.sin(a) * r, 6); }
+        for (let k = 0; k < 40; k++) { const a = R() * TAU, r = 0.6 + R() * (POOL - 1.2); b.use('matte').cone([0x2f7d4f, 0x3f9a5c][k % 2], 0.03, 0.5 + R() * 0.7, Math.cos(a) * r, F - DEEP, Math.sin(a) * r, 4); }
+        b.use('metal').torus(C.alu, POOL + 0.05, 0.07, 0, F + 0.02, 0, 6, 96);
+        b.use('glow').torus(0x7fd6ff, POOL - 0.16, 0.035, 0, F - 0.06, 0, 6, 96);
+        b.torus(0xdff6ff, 3.0, 0.08, 0, 7.05, 0, 6, 48);                                               // the ring of light in the ceiling over the globe
+        // sunlight dancing on the seabed (a moving pattern of light), and soft shafts of light down through the water
+        const causticTex = canvasTex(256, 256, (g, w) => { g.clearRect(0, 0, w, w); const Rc = rng(9); g.strokeStyle = 'rgba(190,240,255,.55)'; g.lineWidth = 3;
+          for (let i = 0; i < 60; i++) { const x = Rc() * w, y = Rc() * w, r = 10 + Rc() * 22; g.beginPath(); for (let k = 0; k <= 7; k++) { const a = (k / 7) * TAU, rr = r * (0.75 + Rc() * 0.4); k ? g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr) : g.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.stroke(); } });
+        causticTex.repeat.set(3, 3);
+        const caustics = new THREE.Mesh(new THREE.CircleGeometry(POOL - 0.05, 72).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: causticTex, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+        caustics.position.set(px, F - DEEP + 0.03, pz); caustics.renderOrder = 1; ctx.extra.push(caustics);
+        const shaftMat = new THREE.MeshBasicMaterial({ color: 0x9fe6ff, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+        for (let k = 0; k < 7; k++) { const a = (k / 7) * TAU + 0.4, r = 1.6 + (k % 3) * 1.3, sh = new THREE.Mesh(new THREE.PlaneGeometry(0.9 + (k % 2) * 0.6, DEEP - 0.1), shaftMat); sh.position.set(px + Math.cos(a) * r, F - DEEP / 2, pz + Math.sin(a) * r); sh.rotation.set(0, a, 0.18); sh.renderOrder = 2; ctx.extra.push(sh); }
+        // the water seen from above: a deep blue over the seabed, and the clear glass with its reflections on top
+        const tint = new THREE.Mesh(new THREE.CircleGeometry(POOL - 0.02, 72).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x0a5a8c, transparent: true, opacity: 0.38, depthWrite: false }));
+        tint.position.set(px, F - 0.09, pz); tint.renderOrder = 3; ctx.extra.push(tint);
+        const glassFloor = new THREE.Mesh(new THREE.CircleGeometry(POOL, 72).rotateX(-Math.PI / 2), new THREE.MeshPhysicalMaterial({ color: 0xe8f7ff, transparent: true, opacity: 0.07, roughness: 0.04, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.4, depthWrite: false }));
+        glassFloor.position.set(px, F + 0.004, pz); glassFloor.renderOrder = 4; glassFloor.receiveShadow = true; ctx.extra.push(glassFloor);
+        ctx.updaters.push((dt, t) => { causticTex.offset.set(Math.sin(t * 0.11) * 0.08 + t * 0.012, Math.cos(t * 0.09) * 0.08); });
+        // the globe: the Earth (NASA Blue Marble, public domain), lit from inside, turning once a minute on its tilted axis,
+        // in a clear glass shell that hangs from the ceiling on a steel rod
+        const earthMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.38, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.06, emissive: 0xffffff, emissiveIntensity: 0.32, envMapIntensity: 1.1 });
+        new THREE.TextureLoader().load('./photos/earth.webp', (tx) => { tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 8; earthMat.map = tx; earthMat.emissiveMap = tx; earthMat.needsUpdate = true; });
+        const globe = new THREE.Group(); globe.position.set(px, GLOBE.y, pz); globe.name = 'globe';
+        const tilt = new THREE.Group(); tilt.rotation.z = (23.44 * Math.PI) / 180; globe.add(tilt);
+        const earth = new THREE.Mesh(new THREE.SphereGeometry(GLOBE.r, 96, 64), earthMat); earth.castShadow = true; tilt.add(earth);
+        const shell = new THREE.Mesh(new THREE.SphereGeometry(GLOBE.r + 0.14, 72, 48), new THREE.MeshPhysicalMaterial({ color: 0xe6f6ff, transparent: true, opacity: 0.14, roughness: 0.02, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 2.4, depthWrite: false }));
+        shell.renderOrder = 3; globe.add(shell);
+        const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 8.6 - GLOBE.y - GLOBE.r - 0.14, 10), new THREE.MeshStandardMaterial({ color: 0xc7ced3, metalness: 0.85, roughness: 0.3 }));
+        rod.position.y = GLOBE.r + 0.14 + (8.6 - GLOBE.y - GLOBE.r - 0.14) / 2; globe.add(rod);
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.24, 0.12, 24), rod.material); cap.position.y = GLOBE.r + 0.16; globe.add(cap);
+
+        ctx.extra.push(globe);
+        ctx.updaters.push((dt, t) => { earth.rotation.y = t * ((TAU / 60) * 0.9); });
+        ctx.school({ x: px, z: pz, rx: POOL - 0.9, rz: POOL - 0.9, r0: 0.25, y0: F - DEEP + 0.45, y1: F - 0.4, n: 78, sp: 'mix', len: 0.42, speed: 0.2 });
+      }
+      ctx.item({ code: 'AQ', group: 'Exhibition hall', name: 'Living aquarium', kind: 'Walk-on, under a glass floor', box: Wb(-POOL, -POOL, POOL, POOL, F + 0.1, F - DEEP), label: true, prio: 2,
+        desc: 'The middle of the hall is a round aquarium under a glass floor. Visitors walk out over the water and see the same species the hatchery breeds swimming under their feet, as they would on a Gulf reef.',
         card: [['On show', 'Hamour, Shaari, red snappers, seabream'], ['Raised', 'In this hatchery'], ['Water', 'Filtered Gulf sea water']],
-        specs: [['360°', 'View'], ['6.3 m', 'Tall'], ['210 m³', 'Volume']], live: [{ k: 'Temperature', u: '°C', v: 26.0, d: 0.15, lo: 24, hi: 28, p: 1 }, { k: 'Salinity', u: 'ppt', v: 39.0, d: 0.2, lo: 36, hi: 42, p: 1 }, { k: 'Visitors today', u: '', v: 184, d: 0, lo: 0, hi: 600, p: 0, rise: true }] , swim: { sp: 'mix', n: 70, glass: true, tank: 3.3, depth: 6.1, age: 1.6 } });
+        specs: [['Glass floor', 'Walk over it'], [`${(POOL * 2).toFixed(1)} m`, 'Across'], [`${DEEP} m`, 'Deep']], live: [{ k: 'Temperature', u: '°C', v: 26.0, d: 0.15, lo: 24, hi: 28, p: 1 }, { k: 'Salinity', u: 'ppt', v: 39.0, d: 0.2, lo: 36, hi: 42, p: 1 }, { k: 'Visitors today', u: '', v: 184, d: 0, lo: 0, hi: 600, p: 0, rise: true }], swim: { sp: 'mix', n: 70, glass: true, tank: POOL - 0.4, depth: DEEP - 0.2, age: 1.6 } });
+      ctx.item({ code: 'GL', group: 'Exhibition hall', name: 'The ocean planet', kind: 'A turning globe of the Earth', box: Wb(-GLOBE.r - 0.2, -GLOBE.r - 0.2, GLOBE.r + 0.2, GLOBE.r + 0.2, GLOBE.y + GLOBE.r + 0.2, GLOBE.y - GLOBE.r - 0.2), label: true, prio: 2,
+        desc: 'A 4.4 metre globe of the Earth hangs over the aquarium in a clear glass shell, lit from inside and turning slowly on its tilted axis. Seven tenths of it is sea: the hall starts there, with the ocean the fish below come from.',
+        card: [['Picture', 'NASA Blue Marble'], ['Turns', 'Once a minute'], ['Axis', 'Tilted 23.4°, as the Earth']],
+        specs: [['4.4 m', 'Across'], ['71%', 'Of it is sea'], ['1 min', 'A turn']] });
       const topics = [['Hamour', C.orange], ['Shaari', 0x3a9ec4], ['Red snappers', 0xc9503c], ['Seabream', 0x7f97a8], ['From egg to sea', C.teal], ['Live feed', 0x69a95a], ['Clean water', 0x2f86ab], ['Restocking the Gulf', 0x2a5c7d]];
       topics.forEach(([t, hex], k) => { const d = 20 + k * 45, [x, z] = pol(9.5, d), az = -(d * DEG) - Math.PI / 2;
         const { box, tvY } = E.exhibitWall(b, x, z, { ry: az, hex, panel: 100 + k, tile: 200 + k });
@@ -299,6 +340,9 @@ export function buildPark(world) {
       b.pop();
     },
   });
+  // the ground (and the site paving) under 08's glass floor opens while its inside shows, so the aquarium below ground level can be seen
+  { const c = a1.toWorld(px, pz); world.land.hardscape.traverse((o) => { if (o.isMesh && !Array.isArray(o.material)) o.material = mats.withHole(o.material); });
+    world.updaters.push(() => { const v = !!(a1.interior && a1.interior.visible); mats.groundHole.value.set(c[0], c[1], v ? POOL - 0.04 : 0, 0); }); }
 
   /* ═════════ 02 · Research and Administration Wing ═════════ */
   const LABS = [

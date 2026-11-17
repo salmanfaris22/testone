@@ -434,18 +434,19 @@ export function createIntro(world, { hero }) {
     sheet.visible = false; craneG.visible = false; engine.shadowDirty = true;
   }
   /** hide what is to be built; call before the loader lifts */
-  api.prepare = () => {
+  /** quick: skip the warm-up drawing (a slow device that is already late: better a hitch in the film than a long loader) */
+  api.prepare = ({ quick = false } = {}) => {
     // the wheel bath's mirror draws the scene into a picture of its own, and every surface needs a second shader for that:
     // compile them all now, under the loader (helpers, the car and 08 included), not when the camera first comes near the bath
-    if (E && E.mirror && E.mirror.getRenderTarget) { const r = engine.renderer, was = r.getRenderTarget(), vis = helpers.visible; helpers.visible = true; r.setRenderTarget(E.mirror.getRenderTarget()); try { r.compile(scene, world.camera); } catch (e) { /* only a warm-up */ } r.setRenderTarget(was); helpers.visible = vis; }
+    if (!quick && E && E.mirror && E.mirror.getRenderTarget) { const r = engine.renderer, was = r.getRenderTarget(), vis = helpers.visible; helpers.visible = true; r.setRenderTarget(E.mirror.getRenderTarget()); try { r.compile(scene, world.camera); } catch (e) { /* only a warm-up */ } r.setRenderTarget(was); helpers.visible = vis; }
     // and send every picture in the scene to the graphics card now (08's screens, panels and photos are big): a texture is otherwise uploaded the first time it is drawn, which stalls that frame
-    { const r = engine.renderer, done = new Set(), up = (tx) => { if (tx && tx.isTexture && !done.has(tx)) { done.add(tx); try { r.initTexture(tx); } catch (e) { /* only a warm-up */ } } };
+    if (!quick) { const r = engine.renderer, done = new Set(), up = (tx) => { if (tx && tx.isTexture && !done.has(tx)) { done.add(tx); try { r.initTexture(tx); } catch (e) { /* only a warm-up */ } } };
       scene.traverse((o) => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const m of ms) { for (const k in m) up(m[k]); if (m.uniforms) for (const k in m.uniforms) up(m.uniforms[k] && m.uniforms[k].value); } }); }
     // let 08's inside run once (its screens draw their first picture, its people take their places)
     for (const u of V.updaters || []) { try { u(1 / 60, 0); } catch (e) { /* only a warm-up */ } }
     // draw the whole site once with 08's inside, the car, the cranes and the stand-ins showing, on the screen (under the loader) and
     // into the mirror's picture: every shape is on the graphics card and every surface prepared before the film starts
-    { let iv = false, cv = false, hv = false;
+    if (!quick) { let iv = false, cv = false, hv = false;
       world.warm(() => { iv = V.interior ? V.interior.visible : false; cv = craneG.visible; hv = helpers.visible; if (V.interior) V.interior.visible = true; car.group.visible = true; craneG.visible = true; helpers.visible = true; for (const c of cranes) c.root.position.y = 0; },
         () => { if (V.interior) V.interior.visible = iv; car.group.visible = false; craneG.visible = cv; helpers.visible = hv; for (const c of cranes) c.root.position.y = -400; },
         E && E.mirror && E.mirror.getRenderTarget ? [null, E.mirror.getRenderTarget()] : [null]); }

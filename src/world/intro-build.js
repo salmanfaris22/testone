@@ -8,6 +8,30 @@ import { ROADS, RB_W, RB_E, DROP } from './layout.js';
 
 const SQRT2 = Math.SQRT2;
 const INF = 1e9;
+const NI = [-1, 1, 0, 0, -1, 1, -1, 1], NJ = [0, 0, -1, 1, -1, -1, 1, 1];
+/** shortest distances over the cells where mask is set, from every cell whose d is already 0 (a binary heap, lazy deletion) */
+function roadDistances(d, mask, W, H, co, cd) {
+  const NC = [co, co, co, co, cd, cd, cd, cd];
+  let hk = new Int32Array(1 << 15), hd = new Float32Array(1 << 15), hn = 0;
+  const push = (k, v) => {
+    if (hn === hk.length) { const nk = new Int32Array(hn * 2), nd = new Float32Array(hn * 2); nk.set(hk); nd.set(hd); hk = nk; hd = nd; }
+    let i = hn++; while (i > 0) { const p = (i - 1) >> 1; if (hd[p] <= v) break; hk[i] = hk[p]; hd[i] = hd[p]; i = p; }
+    hk[i] = k; hd[i] = v;
+  };
+  for (let k = 0; k < W * H; k++) if (mask[k] && d[k] === 0) push(k, 0);
+  while (hn) {
+    const k = hk[0], v = hd[0], lk = hk[--hn], lv = hd[hn];
+    let i = 0; for (;;) { let c = 2 * i + 1; if (c >= hn) break; if (c + 1 < hn && hd[c + 1] < hd[c]) c++; if (hd[c] >= lv) break; hk[i] = hk[c]; hd[i] = hd[c]; i = c; }
+    hk[i] = lk; hd[i] = lv;
+    if (v > d[k]) continue;
+    const x = k % W, y = (k - x) / W;
+    for (let n = 0; n < 8; n++) {
+      const xx = x + NI[n], yy = y + NJ[n]; if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+      const q = yy * W + xx; if (!mask[q]) continue;
+      const nv = v + NC[n]; if (nv < d[q]) { d[q] = nv; push(q, nv); }
+    }
+  }
+}
 
 /* ───── world position for the fragment shader (works for plain and instanced meshes) ───── */
 const VERT_DECL = '#include <common>\nvarying vec3 vRvW;';
@@ -49,18 +73,12 @@ export function revealMap(world, { gateX, roadDur = 2.8, flowSpeed = 64, flowDel
   for (const rb of [RB_W, RB_E]) if (rb) stamp(rb.x, rb.z, rb.r + ROADS.w / 2 + 2.4);
   if (DROP) stamp(DROP.x, DROP.z, DROP.r + 3);
 
-  // distance along the roads from the gate (repeated chamfer sweeps, restricted to road cells)
+  // distance along the roads from the gate (shortest paths over the road cells)
   const d = new Float32Array(N).fill(INF), co = cell, cd = cell * SQRT2;
   const inIsland = (x, z) => !!island && Math.hypot(x - island.x, z - island.z) < island.r;
   const built = (x, z) => x < gateX + 2 || (pre && pre(x, z)) || inIsland(x, z);           // road there before the paving starts: it spreads from here
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const k = j * W + i; if (mask[k] && built(x0 + i * cell, z0 + j * cell)) d[k] = 0; }
-  const fwd = [[-1, 0, co], [-1, -1, cd], [0, -1, co], [1, -1, cd]], bwd = [[1, 0, co], [1, 1, cd], [0, 1, co], [-1, 1, cd]];
-  for (let it = 0; it < 60; it++) {
-    let changed = false;
-    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const k = j * W + i; if (!mask[k]) continue; let v = d[k]; for (const [di, dj, c] of fwd) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= W || jj >= H) continue; const q = jj * W + ii; if (mask[q] && d[q] + c < v) v = d[q] + c; } if (v < d[k]) { d[k] = v; changed = true; } }
-    for (let j = H - 1; j >= 0; j--) for (let i = W - 1; i >= 0; i--) { const k = j * W + i; if (!mask[k]) continue; let v = d[k]; for (const [di, dj, c] of bwd) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= W || jj >= H) continue; const q = jj * W + ii; if (mask[q] && d[q] + c < v) v = d[q] + c; } if (v < d[k]) { d[k] = v; changed = true; } }
-    if (!changed) break;
-  }
+  roadDistances(d, mask, W, H, co, cd);
   let dMax = 1; for (let k = 0; k < N; k++) if (d[k] < INF && d[k] > dMax) dMax = d[k];
   const roadSpeed = dMax / roadDur;
 
@@ -69,9 +87,9 @@ export function revealMap(world, { gateX, roadDur = 2.8, flowSpeed = 64, flowDel
   for (let k = 0; k < N; k++) if (d[k] < INF) f[k] = d[k] / roadSpeed + flowDelay;
   if (island) for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (inIsland(x0 + i * cell, z0 + j * cell)) f[j * W + i] = 0;
   const fo = cell / flowSpeed, fdg = (cell * SQRT2) / flowSpeed;
-  const ffwd = [[-1, 0, fo], [-1, -1, fdg], [0, -1, fo], [1, -1, fdg]], fbwd = [[1, 0, fo], [1, 1, fdg], [0, 1, fo], [-1, 1, fdg]];
-  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const k = j * W + i; let v = f[k]; for (const [di, dj, c] of ffwd) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= W || jj >= H) continue; const q = jj * W + ii; if (f[q] + c < v) v = f[q] + c; } f[k] = v; }
-  for (let j = H - 1; j >= 0; j--) for (let i = W - 1; i >= 0; i--) { const k = j * W + i; let v = f[k]; for (const [di, dj, c] of fbwd) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= W || jj >= H) continue; const q = jj * W + ii; if (f[q] + c < v) v = f[q] + c; } f[k] = v; }
+  const relax = (k, q, c) => { if (f[q] + c < f[k]) f[k] = f[q] + c; };
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const k = j * W + i; if (i > 0) relax(k, k - 1, fo); if (j > 0) { relax(k, k - W, fo); if (i > 0) relax(k, k - W - 1, fdg); if (i < W - 1) relax(k, k - W + 1, fdg); } }
+  for (let j = H - 1; j >= 0; j--) for (let i = W - 1; i >= 0; i--) { const k = j * W + i; if (i < W - 1) relax(k, k + 1, fo); if (j < H - 1) { relax(k, k + W, fo); if (i < W - 1) relax(k, k + W + 1, fdg); if (i > 0) relax(k, k + W - 1, fdg); } }
 
   const rv = new Float32Array(N), half = new Uint16Array(N);
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {

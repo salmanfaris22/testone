@@ -8,6 +8,7 @@ import * as E from './equip.js';
 import { WEAR, wearFor } from './people.js';
 import { PARK, PARK_FRAME, OVAL } from './layout.js';
 import { buildOval } from './oval.js';
+import { reefRocks, seaGrass, softCorals, causticTexture } from './reef.js';
 import { P } from './rig.js';
 
 const F = E.FLOOR;
@@ -212,21 +213,23 @@ export function buildPark(world) {
       for (let k = 0; k < 2; k++) ctx.person(0, 0, 0, wearFor(k ? 'abaya' : 'emirati', R), undefined, { kind: k ? 'abaya' : 'emirati', path: arcPts(12.9, 0, TAU, px, pz, 10 * DEG), loop: true, speed: 0.82, off: k * 0.02 });
       /* exhibition hall: a walk-on aquarium under a glass floor, and the Earth turning over it */
       {
-        // the pool, made to look like the underwater scenes on the hall's fish screens: deep blue walls, a seabed of sand with
-        // dark rocks, bright corals and sea grass, sunlight dancing on the sand, shafts of light coming down through the glass
+        // the pool, made like the underwater scenes on the hall's fish screens (reef.js, the same floor the dive shows): deep blue
+        // walls, a sandy seabed with dark teal rocks, sea grass that sways, a few muted sponges and corals, sunlight playing on the
+        // sand and shafts of light coming down through the glass
         b.use('matte').lathe(0x0b3a5c, [[POOL, F - 0.02], [POOL, F - DEEP * 0.5], [POOL, F - DEEP]], 0, 0, 0, 72);
-        b.disc(0x8c7a55, POOL, 0, F - DEEP, 0, 72);
-        for (let k = 0; k < 22; k++) { const a = R() * TAU, r = 1 + R() * (POOL - 1.7); b.ico([0x4d5a57, 0x6b6556, 0x3f4c52][k % 3], 0.22 + R() * 0.42, Math.cos(a) * r, F - DEEP + 0.12, Math.sin(a) * r, 0.62, R() * 3, 1); }
-        for (let k = 0; k < 26; k++) { const a = R() * TAU, r = 0.8 + R() * (POOL - 1.4); b.use('glow').cone([0xff6f61, 0xffa24a, 0xc77dff, 0x5ce1c9][k % 4], 0.07 + R() * 0.06, 0.35 + R() * 0.6, Math.cos(a) * r, F - DEEP, Math.sin(a) * r, 6); }
-        for (let k = 0; k < 40; k++) { const a = R() * TAU, r = 0.6 + R() * (POOL - 1.2); b.use('matte').cone([0x2f7d4f, 0x3f9a5c][k % 2], 0.03, 0.5 + R() * 0.7, Math.cos(a) * r, F - DEEP, Math.sin(a) * r, 4); }
+        b.disc(0x6f735e, POOL, 0, F - DEEP, 0, 72);
+        const Q = rng(77), bed = F - DEEP, uSway = { value: 0 }, rocks = [], grass = [], corals = [];
+        for (let k = 0; k < 11; k++) { const a = (k / 11) * TAU + Q() * 0.4, r = POOL - 0.75 - Q() * 0.5; rocks.push([Math.cos(a) * r, bed, Math.sin(a) * r, 0.42 + Q() * 0.38, 0.55 + Q() * 0.3]); }
+        for (let k = 0; k < 9; k++) { const a = Q() * TAU, r = 1.3 + Q() * (POOL - 2.8); rocks.push([Math.cos(a) * r, bed, Math.sin(a) * r, 0.18 + Q() * 0.26, 0.6]); }
+        for (let k = 0; k < 42; k++) { const a = Q() * TAU, r = 0.7 + Q() * (POOL - 1.3); grass.push([Math.cos(a) * r, bed, Math.sin(a) * r, 0.45 + Q() * 0.6]); }
+        for (let k = 0; k < 14; k++) { const a = Q() * TAU, r = 1 + Q() * (POOL - 1.9); corals.push([Math.cos(a) * r, bed, Math.sin(a) * r, ['tube', 'brain', 'branch'][k % 3], 0.9 + Q() * 0.5]); }
+        for (const m of [reefRocks(rocks, { seed: 11 }), seaGrass(grass, { uT: uSway, seed: 12 }), softCorals(corals, { seed: 13 })]) { m.position.set(px, 0, pz); ctx.extra.push(m); }
         b.use('metal').torus(C.alu, POOL + 0.05, 0.07, 0, F + 0.02, 0, 6, 96);
         b.use('glow').torus(0x7fd6ff, POOL - 0.16, 0.035, 0, F - 0.06, 0, 6, 96);
         b.torus(0xdff6ff, 3.0, 0.08, 0, 7.05, 0, 6, 48);                                               // the ring of light in the ceiling over the globe
         // sunlight dancing on the seabed (a moving pattern of light), and soft shafts of light down through the water
-        const causticTex = canvasTex(256, 256, (g, w) => { g.clearRect(0, 0, w, w); const Rc = rng(9); g.strokeStyle = 'rgba(190,240,255,.55)'; g.lineWidth = 3;
-          for (let i = 0; i < 60; i++) { const x = Rc() * w, y = Rc() * w, r = 10 + Rc() * 22; g.beginPath(); for (let k = 0; k <= 7; k++) { const a = (k / 7) * TAU, rr = r * (0.75 + Rc() * 0.4); k ? g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr) : g.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.stroke(); } });
-        causticTex.repeat.set(3, 3);
-        const caustics = new THREE.Mesh(new THREE.CircleGeometry(POOL - 0.05, 72).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: causticTex, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+        const causticTex = causticTexture().clone(); causticTex.repeat.set(3.4, 3.4); causticTex.needsUpdate = true;
+        const caustics = new THREE.Mesh(new THREE.CircleGeometry(POOL - 0.05, 72).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: causticTex, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
         caustics.position.set(px, F - DEEP + 0.03, pz); caustics.renderOrder = 1; ctx.extra.push(caustics);
         const shaftMat = new THREE.MeshBasicMaterial({ color: 0x9fe6ff, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
         for (let k = 0; k < 7; k++) { const a = (k / 7) * TAU + 0.4, r = 1.6 + (k % 3) * 1.3, sh = new THREE.Mesh(new THREE.PlaneGeometry(0.9 + (k % 2) * 0.6, DEEP - 0.1), shaftMat); sh.position.set(px + Math.cos(a) * r, F - DEEP / 2, pz + Math.sin(a) * r); sh.rotation.set(0, a, 0.18); sh.renderOrder = 2; ctx.extra.push(sh); }
@@ -235,7 +238,7 @@ export function buildPark(world) {
         tint.position.set(px, F - 0.09, pz); tint.renderOrder = 3; ctx.extra.push(tint);
         const glassFloor = new THREE.Mesh(new THREE.CircleGeometry(POOL, 72).rotateX(-Math.PI / 2), new THREE.MeshPhysicalMaterial({ color: 0xe8f7ff, transparent: true, opacity: 0.07, roughness: 0.04, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.4, depthWrite: false }));
         glassFloor.position.set(px, F + 0.004, pz); glassFloor.renderOrder = 4; glassFloor.receiveShadow = true; ctx.extra.push(glassFloor);
-        ctx.updaters.push((dt, t) => { causticTex.offset.set(Math.sin(t * 0.11) * 0.08 + t * 0.012, Math.cos(t * 0.09) * 0.08); });
+        ctx.updaters.push((dt, t) => { causticTex.offset.set(Math.sin(t * 0.11) * 0.08 + t * 0.012, Math.cos(t * 0.09) * 0.08); uSway.value = t; });
         // the globe: the Earth (NASA Blue Marble, public domain), lit from inside, turning once a minute on its tilted axis,
         // in a clear glass shell that hangs from the ceiling on a steel rod
         const earthMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.38, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.06, emissive: 0xffffff, emissiveIntensity: 0.32, envMapIntensity: 1.1 });

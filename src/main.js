@@ -88,17 +88,23 @@ const ldTick = setInterval(() => {
   if (target < 0.9) ldMsg.textContent = shown < 0.3 ? 'Drawing the site' : shown < 0.62 ? 'Building the halls' : 'Filling the tanks';
   if ((ldFactT -= 50) <= 0) { ldFactT = 2600; ldFact.classList.add('is-out'); setTimeout(() => { ldFactI = (ldFactI + 1) % LD_FACTS.length; ldFact.textContent = LD_FACTS[ldFactI]; ldFact.classList.remove('is-out'); }, 420); }
 }, 50);
-const done = () => { clearInterval(ldTick); ldPct.textContent = '100'; loaderEl.style.setProperty('--p', '1'); setTimeout(() => body.classList.remove('is-loading'), 380); };
+const done = () => { clearInterval(ldTick); ldPct.textContent = '100'; loaderEl.style.setProperty('--p', '1'); setTimeout(() => body.classList.remove('is-loading'), 90); };
 
 async function boot() {
   if (!hasWebGL() || new URLSearchParams(location.search).has('nogl')) { body.classList.add('no-gl'); fallbackSteps(); done(); return; }
   try {
-    await Promise.race([Promise.all([document.fonts.load('600 40px "IBM Plex Sans Condensed"'), document.fonts.load('600 40px "IBM Plex Sans"')]), new Promise((r) => setTimeout(r, 1800))]).catch(() => {});
-    const { createWorld } = await import('./world/world.js');
+    // the opening film: from the gate to area 09, then the rest of the site fills in phase by phase (skipped for reduced motion, #explore and ?nointro)
+    const q = new URLSearchParams(location.search), wantIntro = !reduced && location.hash !== '#explore' && !q.has('nointro') && scrollY < 40;
+    // ask for every module the first picture needs at once, while the fonts come in (one after another they cost a round trip each)
+    const worldMod = import('./world/world.js'), uiMods = Promise.all([import('./ui/app.js'), import('./ui/story.js'), import('./ui/species.js')]), introMod = wantIntro ? import('./world/intro.js') : null;
+    await Promise.race([Promise.all([document.fonts.load('600 40px "IBM Plex Sans Condensed"'), document.fonts.load('600 40px "IBM Plex Sans"')]), new Promise((r) => setTimeout(r, 1000))]).catch(() => {});
+    const { createWorld } = await worldMod;
     target = 0.1;
     world = await createWorld($('#stage'), { onProgress: (p) => { target = 0.1 + p * 0.75; } });
     window.__world = world;
-    const [{ createApp }, { createStory, HERO, heroPose }, { createSpecies }] = await Promise.all([import('./ui/app.js'), import('./ui/story.js'), import('./ui/species.js')]);
+    // the graphics driver compiles the site's shaders on its own threads while the page and the film are set up
+    const shaders = world.engine.renderer.compileAsync(world.scene, world.camera).catch(() => {});
+    const [{ createApp }, { createStory, HERO, heroPose }, { createSpecies }] = await uiMods;
     const hero = () => heroPose(world.engine.w, world.engine.h);
     const heroLens = () => { const r = world.rig; r.fov = r.fovGoal = HERO.fov; world.camera.fov = HERO.fov; world.camera.updateProjectionMatrix(); if (r.onFov) r.onFov(HERO.fov); };
     const countItems = () => { const n = world.items.size; if (n > 60) $('#fact-items').textContent = `${Math.floor(n / 10) * 10}+`; if (story) story.refresh(); };
@@ -117,20 +123,20 @@ async function boot() {
     // entering from far down the page (the cycle list, the footer): the engine sleeps there, so wake it first
     const enter = app.enter; app.enter = (id, view) => { world.engine.setActive(true); story.setActive(false); species.setActive(false); veil.style.opacity = 0; enter(id, view); };
     species = createSpecies(world, { onGoto: (id) => app.enter(id), onAsk: (name) => { for (const c of form.querySelectorAll('[name=sp]')) c.checked = c.value === name; form.topic.value = 'Fry order'; syncForm(); scrollTo($('#contact').getBoundingClientRect().top + scrollY); } });
-    // the opening film: from the gate to area 08, whose roof lifts, then the rest of the site fills in phase by phase (skipped for reduced motion, #explore and ?nointro)
-    const q = new URLSearchParams(location.search), wantIntro = !reduced && location.hash !== '#explore' && !q.has('nointro') && scrollY < 40;
-    if (wantIntro) { const { createIntro } = await import('./world/intro.js'); intro = createIntro(world, { hero }); window.__intro = intro; }
+    if (introMod) { const { createIntro } = await introMod; intro = createIntro(world, { hero }); window.__intro = intro; }
     // otherwise open a little high and wide, then settle into the hero view as the loader lifts
     else if (reduced) { world.rig.jump(hero()); heroLens(); world.rig.lambda = 4.2; }
     else { const h = hero(); world.rig.jump({ ...h, dist: h.dist * 1.45, pol: h.pol - 0.12, az: h.az + 0.22 }); heroLens(); world.rig.lambda = 1.5; setTimeout(() => { if (!app.S.exploring) world.rig.lambda = 4.2; }, 3200); }
     target = 0.92; ldMsg.textContent = 'Warming up';
-    await world.engine.renderer.compileAsync(world.scene, world.camera).catch(() => {});
-    if (intro) { intro.prepare(); body.classList.add('intro'); lock(true); story.setActive(false); }
+    await shaders; await world.engine.renderer.compileAsync(world.scene, world.camera).catch(() => {});
+    // a slow phone that is already late skips the film's warm-up drawing: the loader must be gone by 3 s
+    if (intro) { intro.prepare({ quick: performance.now() > 2100 }); body.classList.add('intro'); lock(true); story.setActive(false); }
     world.engine.start();
-    await new Promise((r) => setTimeout(r, 350));
-    target = 1; setTimeout(done, 260);
+    // let the first two frames draw under the loader, then lift it at once
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    target = 1; done();
     lastY = -1; window.__app = app;
-    if (intro) setTimeout(() => runIntro(lock, countItems), 420);
+    if (intro) setTimeout(() => runIntro(lock, countItems), 120);
     else setTimeout(() => world.prebuild && world.prebuild().then(countItems), 1800);
     if (location.hash === '#explore') setTimeout(() => app.enter(), 600);
   } catch (err) {

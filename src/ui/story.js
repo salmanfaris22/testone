@@ -109,7 +109,7 @@ export function createStory(world, { onExplore, onFocus, scrollTo }) {
       // LFC Hamour casts off when its step scrolls in, and sails out to the cages as you scroll through it
       if (world.cages && world.cages.sail) world.cages.sail(idx < LFC ? 0 : idx > LFC ? 1 : smooth(clamp((f - 0.12) / 0.72, 0, 1)));
       if (open !== api.open) { api.open = open; for (const a of areas.list) { if (a.id === open) areas.open(a.id); else if (a.goal) areas.close(a.id); } if (open) fill(open); }
-      const on = clamp(Math.floor(tau + 0.06), -1, N - 1);
+      const on = tau >= N ? -1 : clamp(Math.floor(tau + 0.06), -1, N - 1);          // past the last area no card is up (phones hold the card on screen)
       if (on !== cur) { cur = on; rail.forEach((b, i) => b.classList.toggle('is-on', i === on)); steps.forEach((s, i) => s.classList.toggle('is-on', i === on)); if (on >= 0) fill(TOUR[on].id); api.onStep && api.onStep(on); }
       // the line along the top of the card fills as you scroll through its area
       if (on >= 0) { const k = Math.round(clamp(tau - on, 0, 1) * 250) / 250; if (k !== barAt) { barAt = k; bars[on].style.transform = `scaleX(${k})`; } }

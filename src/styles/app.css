@@ -233,7 +233,7 @@ body.droning .dock, body.droning .app-top, body.droning .hint, body.filming .doc
 /* loader */
 /* the loading screen: the masterplan draws itself as the model loads (coast, roads, every building, the cages), in light
    blueprint lines on deep water, under the client's logo, with a progress line and a few facts about the centre */
-#loader { transition: opacity 0.8s var(--ease), visibility 0s 0.8s; color: var(--on-ink); font-family: var(--f); overflow: hidden;
+#loader { transition: opacity 0.5s var(--ease), visibility 0s 0.5s; color: var(--on-ink); font-family: var(--f); overflow: hidden;
   background: radial-gradient(110% 85% at 50% 42%, #0f3d57 0%, #082537 55%, #04131d 100%); }
 #loader::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.55;
   background-image: linear-gradient(rgba(127, 208, 255, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(127, 208, 255, 0.07) 1px, transparent 1px), linear-gradient(rgba(127, 208, 255, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(127, 208, 255, 0.035) 1px, transparent 1px);

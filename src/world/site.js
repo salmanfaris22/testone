@@ -10,6 +10,7 @@ import { createPeople, createTraffic, wearFor } from './people.js';
 import { hall } from './shell.js';
 import { fromFrame, resample } from './land.js';
 import { spaced } from './oval.js';
+import { onHelipad } from './helipad.js';
 import { OVAL, podium, facade, ovalT, ovalN, ovalRate, GATE, PARK_FRAME, ROADS, RB_W, RB_E, PARKING, DROP, SMALL, PUMP, coast, COAST, APRON, JETTY, south, CAGES, HATCH, HATCH_FRAME, BROOD, BROOD_FRAME, PLANT, PLANT_FRAME, GEN, P1, LANDLINE } from './layout.js';
 import { SEA_Y, terrainH } from './terrain-fn.js';
 
@@ -41,6 +42,8 @@ export function buildSite(world) {
   for (const { x0, z0, x1, z1, poly } of land.lawns) { const n = Math.max(3, Math.round(((x1 - x0) * (z1 - z0)) / 330)); for (let k = 0, g = 0; k < n && g < n * 12; g++) { const x = x0 + 4 + R() * (x1 - x0 - 8), z = z0 + 4 + R() * (z1 - z0 - 8); if (!inPoly(poly, x, z) || edgeDist(poly, x, z) < 3.5) continue; tree(x, z, 1.2, 0.3); k++; } }
   { const lag = lagoons(); for (let k = 0; k < 150; k++) { const x = -1000 + R() * 720, z = -520 + R() * 660; if (z > 150 || Math.abs(z - RB_W.z) < 16 || Math.abs(x - GATE.x) < 3 || (x + 76.5) * COAST.nx + (z + 243) * COAST.nz > -30 || lag.some((p) => inPolygon(p, x, z))) continue; shrub(x, z, 1.3 + R(), 0.15); } }
   tree(RB_E.x, RB_E.z, 1.5, 0.4); for (const [x, z] of [[160, 46], [186, 100], [172, 124], [-254, 60], [-254, 120]]) tree(x, z, 1.1, 0.3);
+  // nothing grows on the helipad or its way in
+  for (const [L, pad] of [[palms, 5], [trees, 3], [shrubs, 4]]) for (let i = L.length - 1; i >= 0; i--) if (onHelipad(L[i].x, L[i].z, pad)) L.splice(i, 1);
   plantTrees(scene, mats, { palms, trees, shrubs });
 
   /* ───── solar street lights along every road ───── */

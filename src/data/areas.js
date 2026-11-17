@@ -1,4 +1,5 @@
-// The ten areas of the centre, in tour order (grouped by the phase they were built in). Facts are the client's; the wording is ours.
+// The eleven areas of the centre, in number order (grouped by the phase they were built in): the tenth is LFC Hamour, the boat,
+// the eleventh the sea cages it serves. Facts are the client's; the wording is ours.
 /** the centre was built in phases; the tour, the dock and the intro follow them in order */
 export const PHASES = [
   { n: 1, name: 'Phase 1', title: 'The original hatchery', line: 'Where production began: six buildings south of the avenue.' },
@@ -70,12 +71,25 @@ export const AREAS = [
     stats: [['14', 'Laboratories'], ['1,200 m²', 'Office space'], ['ISO/IEC 17025', 'Provisioned for']],
   },
   {
-    id: 'seacages', n: '10', phase: 3, name: 'Sea Cage Grow-Out', short: 'Sea Cages', tag: 'Open sea',
+    id: 'lfc', n: '10', phase: 3, name: 'LFC Hamour', short: 'LFC Hamour', tag: 'Live fish carrier',
+    line: 'Live fry, carried by sea.',
+    desc: 'The first live fish carrier in the GCC, run by Jalboot Marine Network, berths at the jetty in front of Phase 1. Its four built-in wells keep oxygen, temperature and water quality steady while fry travel from the hatchery to the cages, so they arrive calm and healthy. Scroll on and it casts off for the sea cages, area 11.',
+    bullets: ['Four live-fish wells, about 360 m³', 'Oxygen generator, heat pump and filtration on board', 'Fish pump with optical counting', 'Berths along the west face of the jetty'],
+    stats: [['31.9 m', 'Length'], ['360 m³', 'Live-fish wells'], ['1st', 'In the GCC']],
+  },
+  {
+    id: 'seacages', n: '11', phase: 3, name: 'Sea Cage Grow-Out', short: 'Sea Cages', tag: 'Open sea',
     line: 'Back to the Gulf.',
-    desc: 'Fingerlings leave the nursery for round floating cages off the south shore, in front of the Phase 1 hatchery. They grow to market size in twelve open cages in natural Gulf water, starting in a fine-mesh net and moving to a wider one as they grow. LFC Hamour, the first live fish carrier in the GCC, berths at the jetty. Dive in to swim with the fish.',
-    bullets: ['Native species in their own water', 'Twelve grow-out cages in three rows', 'A jetty and gangway down to a floating landing stage, fed from the barge', 'LFC Hamour moves live fry with oxygen and temperature kept steady'],
-    stats: [['12', 'Cages'], ['Open sea', 'Water'], ['LFC Hamour', 'Live fish carrier']],
+    desc: 'Fingerlings leave the nursery for round floating cages off the south shore, in front of the Phase 1 hatchery. They grow to market size in nine open cages in natural Gulf water, under a bird net, starting in a fine-mesh net and moving to a wider one as they grow. LFC Hamour, the first live fish carrier in the GCC, berths at the jetty. Dive in to swim with the fish.',
+    bullets: ['Native species in their own water', 'Nine grow-out cages, three rows of three, each under a bird net', 'A jetty and gangway down to a floating landing stage, fed from the barge', 'LFC Hamour moves live fry with oxygen and temperature kept steady'],
+    stats: [['9', 'Cages'], ['Open sea', 'Water'], ['Bird net', 'Over every cage']],
   },
 ];
 export const areaById = Object.fromEntries(AREAS.map((a) => [a.id, a]));
 export const phaseOf = (a) => PHASES[(typeof a === 'string' ? areaById[a] : a).phase - 1];
+
+/** The scroll tour, the guided tour and the fly-through start where a visitor does, at the Innovation Park (08, 09),
+ *  then go through the hatcheries in the order they were built (01 to 07) and end at sea (10, 11). */
+export const TOUR = ['visitor', 'research', 'phase1', 'nursery', 'hatchery', 'livefeed', 'broodstock', 'plantroom', 'genroom', 'lfc', 'seacages'].map((id) => areaById[id]);
+/** the chapter banner that opens over the model at these steps of the tour: [big, small] */
+export const CHAPTERS = { visitor: ['Phase 3', 'Marine Innovation Park'], phase1: ['Phase 1', 'The original hatchery'], nursery: ['Phase 2', 'The new hatchery'], lfc: ['Phase 3', 'Out to sea'] };

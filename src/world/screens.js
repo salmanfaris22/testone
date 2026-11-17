@@ -174,6 +174,10 @@ function drawPanel(g, p, k, img) {
 }
 
 let dash = null, panels = null;
+/** set to the renderer (build.js): a picture redrawn after the fonts or the fish photos arrive is sent to the graphics card at once,
+ *  not on the first frame it is seen (for these big atlases that frame would stall) */
+export const uploadNow = { renderer: null };
+const upload = (t) => { if (uploadNow.renderer) try { uploadNow.renderer.initTexture(t); } catch (e) { /* uploaded on first use instead */ } };
 function atlas(w, h, paint) { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); paint(g); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
 function dashTex() {
   return dash || (dash = atlas(TW * COLS, TH * ROWS, (g) => { DRAW.forEach((fn, i) => { R = 97 + i * 131; g.save(); g.translate((i % COLS) * TW, Math.floor(i / COLS) * TH); g.beginPath(); g.rect(0, 0, TW, TH); g.clip(); g.textBaseline = 'middle'; fn(g); g.restore(); }); }));
@@ -184,8 +188,8 @@ function panelTex() {
   panels = atlas(PW * PCOLS, PH * PROWS, paint);
   // the client's fish pictures arrive a moment later
   const want = [...new Set(PANELS.map((p) => p.fish).filter(Boolean))], imgs = {}; let left = want.length;
-  for (const id of want) { const im = new Image(); im.onload = im.onerror = () => { if (im.naturalWidth) imgs[id] = im; if (--left === 0) { paint(panels.image.getContext('2d'), imgs); panels.needsUpdate = true; } }; im.src = `${import.meta.env.BASE_URL}fish/${id}.webp`; }
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { paint(panels.image.getContext('2d'), imgs); panels.needsUpdate = true; if (dash) { const g = dash.image.getContext('2d'); DRAW.forEach((fn, i) => { R = 97 + i * 131; g.save(); g.translate((i % COLS) * TW, Math.floor(i / COLS) * TH); g.beginPath(); g.rect(0, 0, TW, TH); g.clip(); g.textBaseline = 'middle'; fn(g); g.restore(); }); dash.needsUpdate = true; } });
+  for (const id of want) { const im = new Image(); im.onload = im.onerror = () => { if (im.naturalWidth) imgs[id] = im; if (--left === 0) { paint(panels.image.getContext('2d'), imgs); panels.needsUpdate = true; upload(panels); } }; im.src = `${import.meta.env.BASE_URL}fish/${id}.webp`; }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { paint(panels.image.getContext('2d'), imgs); panels.needsUpdate = true; upload(panels); if (dash) { const g = dash.image.getContext('2d'); DRAW.forEach((fn, i) => { R = 97 + i * 131; g.save(); g.translate((i % COLS) * TW, Math.floor(i / COLS) * TH); g.beginPath(); g.rect(0, 0, TW, TH); g.clip(); g.textBaseline = 'middle'; fn(g); g.restore(); }); dash.needsUpdate = true; upload(dash); } });
   return panels;
 }
 
@@ -196,7 +200,7 @@ export function buildScreens(list) {
     const qs = list.filter((q) => (q.tile >= 100) === ex); if (!qs.length) continue;
     const pos = new Float32Array(qs.length * 12), uv = new Float32Array(qs.length * 8), idx = [], cols = ex ? PCOLS : COLS, rows = ex ? PROWS : ROWS;
     qs.forEach((q, i) => {
-      pos.set(q.p, i * 12); const t = ex ? q.tile - 100 : q.tile % (COLS * ROWS), u0 = (t % cols) / cols, v1 = 1 - Math.floor(t / cols) / rows, u1 = u0 + 1 / cols, v0 = v1 - 1 / rows, e = 0.004;
+      pos.set(q.p, i * 12); const t = ex ? q.tile - 100 : q.tile % (COLS * ROWS), u0 = (t % cols) / cols, top = 1 - Math.floor(t / cols) / rows, u1 = u0 + 1 / cols, c = q.crop || [0, 1], v1 = top - c[0] / rows, v0 = top - c[1] / rows, e = 0.004;
       uv.set([u0 + e, v0 + e, u1 - e, v0 + e, u1 - e, v1 - e, u0 + e, v1 - e], i * 8); idx.push(i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3);
     });
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx);

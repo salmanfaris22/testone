@@ -24,9 +24,9 @@ const withWorldPos = (sh) => { sh.vertexShader = sh.vertexShader.replace('#inclu
  * When each bit of the hardscape appears, in seconds after paving starts.
  * Roads: distance along the road network from the gate, at a speed that paves the farthest road in `roadDur`.
  * Everything else (apron, pads, plazas, lawns, parking): flows out from the nearest paved road at `flowSpeed` m/s.
- * West of the gate (the public road) is there from the start.
+ * West of the gate (the public road) is there from the start, and so is anything `pre(x, z)` says is (the drive in).
  */
-export function revealMap(world, { gateX, roadDur = 2.8, flowSpeed = 64, flowDelay = 0.2, cell = 2 } = {}) {
+export function revealMap(world, { gateX, roadDur = 2.8, flowSpeed = 64, flowDelay = 0.2, cell = 2, pre = null } = {}) {
   const box = new THREE.Box3().setFromObject(world.land.hardscape);
   const x0 = Math.max(box.min.x - 4, gateX - 14), z0 = box.min.z - 4;
   const W = Math.ceil((box.max.x + 4 - x0) / cell) + 1, H = Math.ceil((box.max.z + 4 - z0) / cell) + 1, N = W * H;
@@ -70,8 +70,9 @@ export function revealMap(world, { gateX, roadDur = 2.8, flowSpeed = 64, flowDel
 
   const rv = new Float32Array(N), half = new Uint16Array(N);
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
-    const k = j * W + i, x = x0 + i * cell;
+    const k = j * W + i, x = x0 + i * cell, z = z0 + j * cell;
     let v = d[k] < INF ? d[k] / roadSpeed : f[k];
+    if (pre && pre(x, z)) v = -4;                                    // the way in that the film drives: built from the first frame, no blueprint over it
     if (x < gateX - 2) v = -10;                                      // outside the gate: the public road is already there
     rv[k] = Math.min(60, v); half[k] = THREE.DataUtils.toHalfFloat(rv[k]);
   }

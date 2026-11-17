@@ -1,31 +1,69 @@
 // The scroll tour: scrolling flies the camera from area to area and lifts each roof in turn.
-import { AREAS, PHASES } from '../data/areas.js';
+// It starts where a visitor does (08, 09), goes through the hatcheries (01 to 07) and ends at sea (10, 11): TOUR in data/areas.js.
+import { TOUR, CHAPTERS, PHASES } from '../data/areas.js';
 import { P } from '../world/rig.js';
 import { clamp, lerp, smooth, TAU } from '../world/kit.js';
+import { itemIcon } from './icons.js';
+import { shortName } from './panel.js';
 
-// the hero sees the whole site with the fish farm and LFC Hamour in front of it; the tour ends low over the grow-out cages
-export const HERO = P(-20, 0, 105, -0.8, 1.1, 720);
+// The hero is the view Jeffry picked from the drone (17 November): 34 m up over the drop-off of the Innovation Park, across the
+// shell roof of 08 and the arch to the Phase 2 halls, the beach and the sea cages. It was framed on a 2.54 : 1 window with a 50°
+// lens; a narrower window steps back along the same line (heroPose) so the roof of 08 and the arch both stay in the picture.
+// The opening film ends on it. The tour ends low over the grow-out cages.
+export const HERO = { ...P(-168.93, 0, -116.32, -2.1141, 1.1639, 87.2), fov: 50, aspect: 2.54 };
+/** the hero pose for a window of this shape: the same line of sight, further back on narrower windows */
+export const heroPose = (w, h) => {
+  const asp = Math.max(0.3, w / Math.max(1, h)), want = Math.min(2.4, Math.max(1, Math.pow(HERO.aspect / asp, 0.62)));
+  const fit = Math.max(1, Math.pow(1.5 / asp, 0.85));          // the rig already steps back this far on an upright screen (world.js)
+  return { ...HERO, dist: HERO.dist * Math.max(1, want / fit) };
+};
 const DIVE = P(-64, -2.2, 500, 2.95, 1.34, 80);
 const LEAD = 0.52;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const CTA = { seacages: 'Dive in', lfc: 'See the boat' };
+const ARROW = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9.5M8.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CHIPS = 2;                           // how many things each card offers to go straight to (the card is kept short)
 
-export function createStory(world, { onExplore, scrollTo }) {
+export function createStory(world, { onExplore, onFocus, scrollTo }) {
   const { rig, areas } = world;
-  const stepsEl = document.getElementById('tour-steps'), railEl = document.getElementById('tour-rail');
-  stepsEl.innerHTML = AREAS.map((a, i) => { const ph = PHASES[a.phase - 1], first = i === 0 || AREAS[i - 1].phase !== a.phase; return `<article class="step${first ? ' step-first' : ''}" data-area="${a.id}" data-phase="${a.phase}" id="area-${a.id}">${first ? `<div class="phase-banner" aria-hidden="true"><b>${esc(ph.name)}</b><span>${esc(ph.title)}</span></div>` : ''}<div class="step-card">
-    <div class="step-top"><span class="step-n">${a.n}</span><span class="step-tags"><span class="step-phase">${esc(ph.name)} · ${esc(ph.title)}</span><span class="step-tag">${esc(a.tag)}</span></span></div>
-    <h3>${esc(a.name)}</h3><p class="step-desc">${esc(a.desc)}</p>
-    <div class="step-stats">${a.stats.map(([v, l]) => `<div><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('')}</div>
-    <div class="step-actions"><button class="btn btn-ink" type="button" data-open="${a.id}">Open this area in 3D</button><span class="step-count">${i + 1} of 10</span></div>
+  const stepsEl = document.getElementById('tour-steps'), railEl = document.getElementById('tour-rail'), N = TOUR.length;
+  // the card is short: number and name, three figures, a few things to go straight to and the way in. The words about the
+  // area wait behind "Read more" (they open inside the card, above its buttons)
+  stepsEl.innerHTML = TOUR.map((a, i) => { const ph = PHASES[a.phase - 1], ch = CHAPTERS[a.id]; return `<article class="step${ch ? ' step-first' : ''}" data-area="${a.id}" data-phase="${a.phase}" id="area-${a.id}">${ch ? `<div class="phase-banner" aria-hidden="true"><b>${esc(ch[0])}</b><span>${esc(ch[1])}</span></div>` : ''}<div class="step-card"><i class="sc-bar" aria-hidden="true"></i>
+    <header class="sc-head"><span class="sc-n">${a.n}</span><div class="sc-meta"><p class="sc-eye">${esc(ph.name)} · ${esc(a.tag)}</p><h3>${esc(a.name)}</h3></div></header>
+    <ul class="sc-stats">${a.stats.map(([v, l]) => `<li><b>${esc(v)}</b><span>${esc(l)}</span></li>`).join('')}</ul>
+    <div class="sc-items" data-items="${a.id}" hidden><div></div></div>
+    <div class="sc-text" id="sc-text-${a.id}" hidden><p class="sc-line">${esc(a.line)}</p><p class="sc-desc">${esc(a.desc)}</p></div>
+    <footer class="sc-foot"><button class="sc-go" type="button" data-open="${a.id}"><span>${CTA[a.id] || 'Walk in'}</span>${ARROW}</button><button class="sc-more" type="button" data-more aria-expanded="false" aria-controls="sc-text-${a.id}">Read more</button><span class="sc-count"><b>${String(i + 1).padStart(2, '0')}</b> / ${N}</span></footer>
   </div></article>`; }).join('');
-  railEl.innerHTML = `<ol>${AREAS.map((a, i) => `${i === 0 || AREAS[i - 1].phase !== a.phase ? `<li class="rail-ph" aria-hidden="true">P${a.phase}</li>` : ''}<li><button type="button" data-rail="${a.id}" aria-label="${a.n} ${esc(a.name)}, Phase ${a.phase}">${a.n}<span>${esc(a.short)} · Phase ${a.phase}</span></button></li>`).join('')}</ol>`;
-  stepsEl.addEventListener('click', (e) => { const b = e.target.closest('[data-open]'); if (b) onExplore(b.dataset.open); });
+  railEl.innerHTML = `<ol>${TOUR.map((a) => `${CHAPTERS[a.id] ? `<li class="rail-ph" aria-hidden="true">P${a.phase}</li>` : ''}<li><button type="button" data-rail="${a.id}" aria-label="${a.n} ${esc(a.name)}, Phase ${a.phase}">${a.n}<span>${esc(a.short)} · Phase ${a.phase}</span></button></li>`).join('')}</ol>`;
+  stepsEl.addEventListener('click', (e) => {
+    const f = e.target.closest('[data-focus]'); if (f) { onFocus(f.dataset.focus); return; }
+    const b = e.target.closest('[data-open]'); if (b) { onExplore(b.dataset.open); return; }
+    const m = e.target.closest('[data-more]');
+    if (m) {
+      const card = m.closest('.step-card'), open = card.classList.toggle('is-open'); card.querySelector('.sc-text').hidden = !open; m.textContent = open ? 'Less' : 'Read more'; m.setAttribute('aria-expanded', String(open));
+      // an opened card must fit on the screen: if it now runs past the bottom, the page moves up just enough
+      if (open) requestAnimationFrame(() => { const over = card.getBoundingClientRect().bottom - (innerHeight - 14); if (over > 1) scrollTo(scrollY + over, 0); });
+    }
+  });
   railEl.addEventListener('click', (e) => { const b = e.target.closest('[data-rail]'); if (b) scrollTo(document.getElementById('area-' + b.dataset.rail), 0.34); });
-  const steps = [...stepsEl.children], rail = [...railEl.querySelectorAll('button')], N = AREAS.length;
+  const steps = [...stepsEl.children], bars = steps.map((s) => s.querySelector('.sc-bar')), rail = [...railEl.querySelectorAll('button')], LFC = TOUR.findIndex((a) => a.id === 'lfc');
+
+  // the things each card offers: the area's labelled items, most important first. Interiors are built when first needed, so the chips arrive then.
+  const filled = new Set();
+  function fill(id) {
+    const A = areas.byId[id]; if (filled.has(id) || !A || !A.built || !A.items.length) return;
+    filled.add(id);
+    const box = stepsEl.querySelector(`[data-items="${id}"]`), named = A.items.filter((it) => it.label).sort((p, q) => (q.prio || 0) - (p.prio || 0));
+    const list = (named.length ? named : A.items).slice(0, CHIPS), more = A.items.length - list.length;
+    box.lastElementChild.innerHTML = list.map((it) => `<button type="button" data-focus="${esc(it.id)}" title="${esc(it.name)}">${itemIcon(it)}<span>${esc(shortName(it))}</span></button>`).join('') + (more > 0 ? `<button type="button" class="is-more" data-open="${id}">+${more} more</button>` : '');
+    box.hidden = false;
+  }
 
   // camera keys along the tour position τ (τ = i while area i is on screen)
-  const keys = [{ t: -1, p: HERO }];
-  AREAS.forEach((a, i) => { const A = areas.byId[a.id]; keys.push({ t: i + 0.1, p: A.pose }, { t: i + 0.5, p: A.inside }, { t: i + 0.84, p: A.inside }); });
+  const keys = [{ t: -1, p: heroPose(world.engine.w, world.engine.h) }];
+  TOUR.forEach((a, i) => { const A = areas.byId[a.id]; keys.push({ t: i + 0.1, p: A.pose }, { t: i + 0.5, p: A.inside }, { t: i + 0.84, p: A.inside }); });
   keys.push({ t: N + 0.12, p: DIVE }, { t: N + 0.6, p: DIVE });
   for (let i = 1; i < keys.length; i++) { const a = keys[i - 1].p, b = { ...keys[i].p }; let d = (b.az - a.az) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; b.az = a.az + d; keys[i].p = b; }
   const out = P(0, 0, 0, 0, 0, 0);
@@ -39,14 +77,20 @@ export function createStory(world, { onExplore, scrollTo }) {
     return out;
   }
 
-  let active = true, tau = -1, cur = -2, metrics = null, sway = 0;
-  const measure = () => { const r = stepsEl.getBoundingClientRect(); metrics = { top: r.top + scrollY, stepH: steps[0].offsetHeight, vh: innerHeight }; };
+  let active = true, tau = -1, cur = -2, metrics = null, sway = 0, barAt = -1;
+  const measure = () => {
+    const r = stepsEl.getBoundingClientRect(); metrics = { top: r.top + scrollY, stepH: steps[0].offsetHeight, vh: innerHeight };
+    // the hero steps back on a narrower window (and the next key keeps its turn short)
+    const h = heroPose(world.engine.w, world.engine.h), d = (h.az - keys[1].p.az) % TAU; keys[0].p = { ...h, az: keys[1].p.az + (d > Math.PI ? d - TAU : d < -Math.PI ? d + TAU : d) };
+  };
   measure(); addEventListener('resize', measure);
   const api = {
-    HERO, DIVE,
+    HERO, DIVE, open: null,
     get tau() { return tau; },
-    setActive(v) { const was = active; active = v; if (v && !was) { cur = -2; rig.lambda = 4.2; } },
+    setActive(v) { const was = active; active = v; if (v && !was) { cur = -2; api.open = undefined; rig.lambda = 4.2; } if (!v && world.cages && world.cages.sail) world.cages.sail(0); },
     measure,
+    /** fill in the chips of every area whose inside has been built by now */
+    refresh() { for (const a of TOUR) fill(a.id); },
     /** call every frame with the scroll position */
     update(y, dt) {
       // LEAD sets how far up the screen a step must be before its area takes over (keeps card and roof in step)
@@ -54,16 +98,23 @@ export function createStory(world, { onExplore, scrollTo }) {
       tau = raw < 0 ? -1 + clamp(y / Math.max(1, m.top - m.vh * LEAD), 0, 1) : raw;
       if (!active) return;
       const p = poseAt(tau);
-      // at the top of the page the camera drifts slowly round the site, like a drone film, and settles as the tour begins
+      // at the top of the page the camera hangs over the drop-off like a drone, drifting a little, and settles as the tour begins
       sway += dt; const g = rig.goal, hk = tau < -0.4 ? 1 - smooth(clamp((tau + 1) / 0.6, 0, 1)) : 0;
-      const sw = Math.sin(sway * 0.085) * 0.2 * hk, sd = 1 + Math.sin(sway * 0.06 + 1.1) * 0.07 * hk, sp = Math.sin(sway * 0.071 + 0.4) * 0.035 * hk;
+      const sw = Math.sin(sway * 0.085) * 0.07 * hk, sd = 1 + Math.sin(sway * 0.06 + 1.1) * 0.035 * hk, sp = Math.sin(sway * 0.071 + 0.4) * 0.018 * hk;
       rig.flight = null; rig.path = null;
       g.x = p.x; g.y = p.y; g.z = p.z; g.az = p.az + sw; g.pol = p.pol + sp; g.dist = p.dist * sd;
-      const idx = Math.floor(tau), f = tau - idx, open = idx >= 0 && idx < N && f > 0.3 && f < 0.95 ? AREAS[idx].id : null;
-      if (open !== api.open) { api.open = open; for (const a of areas.list) { if (a.id === open) areas.open(a.id); else if (a.goal) areas.close(a.id); } }
+      // the hero's wider lens closes to the tour's as the first area comes in
+      rig.fovGoal = lerp(HERO.fov, 32, smooth(clamp((tau + 1) / 1.05, 0, 1)));
+      const idx = Math.floor(tau), f = tau - idx, open = idx >= 0 && idx < N && f > 0.3 && f < 0.95 ? TOUR[idx].id : null;
+      // LFC Hamour casts off when its step scrolls in, and sails out to the cages as you scroll through it
+      if (world.cages && world.cages.sail) world.cages.sail(idx < LFC ? 0 : idx > LFC ? 1 : smooth(clamp((f - 0.12) / 0.72, 0, 1)));
+      if (open !== api.open) { api.open = open; for (const a of areas.list) { if (a.id === open) areas.open(a.id); else if (a.goal) areas.close(a.id); } if (open) fill(open); }
       const on = clamp(Math.floor(tau + 0.06), -1, N - 1);
-      if (on !== cur) { cur = on; rail.forEach((b, i) => b.classList.toggle('is-on', i === on)); api.onStep && api.onStep(on); }
+      if (on !== cur) { cur = on; rail.forEach((b, i) => b.classList.toggle('is-on', i === on)); steps.forEach((s, i) => s.classList.toggle('is-on', i === on)); if (on >= 0) fill(TOUR[on].id); api.onStep && api.onStep(on); }
+      // the line along the top of the card fills as you scroll through its area
+      if (on >= 0) { const k = Math.round(clamp(tau - on, 0, 1) * 250) / 250; if (k !== barAt) { barAt = k; bars[on].style.transform = `scaleX(${k})`; } }
     },
   };
+  api.refresh();
   return api;
 }

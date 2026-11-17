@@ -224,8 +224,8 @@ export function buildHalls(world) {
           desc: 'Each morning a few larvae from every tank are checked under the microscope: gut full, swim bladder inflated, no deformities. What is seen here decides the day\'s feeding.',
           specs: [['Daily', 'Every tank'], ['Photo record', 'Kept']] });
         const cd = E.controlDesk(b, 86, 20.5, { ry: Math.PI }); E.panel(b, 91.3, 17, { ry: -Math.PI / 2 }); E.panel(b, 91.3, 19.4, { ry: -Math.PI / 2 });
-        ctx.item({ code: 'RAS', group: 'Recirculation', name: 'RAS control room', kind: 'All 26 systems', box: [81, 0, 14.4, 91.8, 2.2, 23], label: true, prio: 1,
-          desc: 'One console for the centre\'s 26 recirculating systems. Temperature, salinity, oxygen and day length are tracked for every tank, and any drift pages the duty team.',
+        ctx.item({ code: 'RAS', group: 'Recirculation', name: 'RAS control room', kind: 'All 26 systems', box: [81, 0, 14.4, 91.8, 2.2, 23], label: true, prio: 1, control: true,
+          desc: 'One console for the centre\'s 26 recirculating systems. Temperature, salinity, oxygen and day length are tracked for every tank, and any drift pages the duty team. Open its screen to see every system, tank and machine at once.',
           specs: [['26', 'Systems'], ['24/7', 'Monitoring'], ['SMS + app', 'Alarms']], live: [{ k: 'Systems online', u: 'of 26', v: 26, d: 0, lo: 0, hi: 26, p: 0 }, { k: 'Active alarms', u: '', v: 0, d: 0, lo: 0, hi: 5, p: 0 }, ...wq(26.2, 39.0, 6.7, 8.1).slice(0, 2)] });
         yellowLine(b, 91.6, -27, 91.6, 13); yellowLine(b, 47, 11.4, 91.6, 11.4); yellowLine(b, 49.2, -27, 91.6, -27.4);
         staff(ctx, R, [[56.5, -10.5, 'coat'], [70, 4, 'coat'], [84, -3, 'coat'], [73.5, 20.6, 'coat'], [86, 19, 'coat'], [99, 2.5, 'overall'], [55, 19.5, 'coat'], [63, -17.6, 'coat'], [80.4, 30, 'office'], [98, 42.8, 'coat'], [102, 36.6, 'coat']]);
@@ -314,8 +314,7 @@ export function buildHalls(world) {
         TANKS.forEach((s, i) => {
           const x = 1.5 + (i % 4) * 16.5, z = [-101, -79, -57][Math.floor(i / 4)], rad = 6.4, n = 26 + Math.floor(R() * 14), spawn = ['Spring', 'Winter', 'Spring', 'Summer', 'Winter', 'Summer', 'To be confirmed', 'Spring', 'Spring', 'Summer', 'Spring', 'Winter'][i];
           const box = E.roundTank(b, x, z, rad, 1.7, { wall: C.grpDark, water: C.waterDeep, pipe: C.pipeSea, level: 0.88 });
-          b.use('glow').torus(0xfff0cf, 4.2, 0.07, x, 4.3, z, 6, 40);
-          const s2 = i < 4 ? -1 : 1; b.use('satin'); for (const a of [0.6, 2.1, 3.7, 5.2]) b.rod(C.steelDark, 0.02, [x + Math.cos(a) * 4.2, 4.3, z + Math.sin(a) * 4.2], [x + Math.cos(a) * 4.2, 7.2, z + Math.sin(a) * 4.2], 4);
+          const s2 = i < 4 ? -1 : 1;           // (no hanging ring light or shade-cloth rings over the tanks: from above they read as stray lines)
           // egg collector at the overflow
           const ecx = x + (rad + 0.75) * 0.7071, ecz = z - s2 * (rad + 0.75) * 0.7071;
           b.use('satin').box(C.white, 1.3, 1.0, 1.0, ecx, F, ecz, 0.785); b.use('metal').box(C.alu, 1.1, 0.04, 0.8, ecx, F + 1.0, ecz, 0.785);
@@ -331,8 +330,6 @@ export function buildHalls(world) {
         for (let i = 0; i < 4; i++) { const x = 1.5 + i * 16.5; E.catwalk(b, x, -90.7, x, -94.2, { y: 1.9, w: 1.2, legsEvery: 99 }); E.catwalk(b, x, -89.3, x, -85.8, { y: 1.9, w: 1.2, legsEvery: 99 }); }
         E.catwalk(b, -6, -68, 58, -68, { y: 1.9, w: 1.5 }); E.steps(b, -7.2, -68, { ry: Math.PI / 2 });
         for (let i = 0; i < 4; i++) { const x = 1.5 + i * 16.5; E.catwalk(b, x, -67.3, x, -63.8, { y: 1.9, w: 1.2, legsEvery: 99 }); }
-        // shade cloth over each tank: breeders spawn better in dim, even light
-        for (let i = 0; i < 12; i++) { const x = 1.5 + (i % 4) * 16.5, z = [-101, -79, -57][Math.floor(i / 4)]; b.use('satin').torus(0x56636c, 6.9, 0.05, x, 7.2, z, 5, 40); b.use('glow').torus(0x7fb2ff, 5.2, 0.05, x, 7.15, z, 5, 40); }
         ctx.item({ code: 'CW', group: 'Access', name: 'Service walkway', kind: 'Safe access to every tank', box: [cw[0], 1.7, cw[2], cw[3], 3, cw[5]], prio: -1,
           desc: 'A raised walkway of non-slip grating runs down the middle of the hall with a spur to each tank. Staff feed, observe and net fish from here without leaning over the water.',
           specs: [['2 × 64 m', 'Length'], ['GRP grating', 'Deck'], ['12', 'Tank spurs']] });
@@ -436,7 +433,7 @@ export function buildHalls(world) {
         // control room
         partition(b, 116.6, -93.6, 123.6, -93.6, [{ at: 1.6, w: 1.2 }]); partition(b, 116.6, -93.6, 116.6, -84.4);
         const cd = E.controlDesk(b, 120.2, -86.6, { ry: Math.PI }); E.switchgear(b, 122.9, -90.4, { ry: -Math.PI / 2, n: 5 });
-        ctx.item({ code: 'SCADA', group: 'Control', name: 'Life-support control room', kind: 'Pumps, filters, oxygen, temperature', box: [117, 0, -93, 123.6, 2.3, -84.6], label: true, prio: 1,
+        ctx.item({ code: 'SCADA', group: 'Control', name: 'Life-support control room', kind: 'Pumps, filters, oxygen, temperature', box: [117, 0, -93, 123.6, 2.3, -84.6], label: true, prio: 1, control: true,
           desc: 'The operator sees every pump, filter, valve and sensor on one screen and can run the whole water system from here. If anything drifts, it alarms on site and on the duty phone.',
           specs: [['24/7', 'Staffed or on call'], ['1 s', 'Data refresh'], ['Remote', 'Access']], live: [{ k: 'Signals monitored', u: '', v: 1840, d: 0, lo: 0, hi: 2000, p: 0 }, { k: 'Active alarms', u: '', v: 0, d: 0, lo: 0, hi: 5, p: 0 }, { k: 'Water reused', u: '%', v: 93.5, d: 0.3, lo: 85, hi: 98, p: 1 }] });
         ctx.item({ code: 'CH', group: 'Circulation', name: 'Heat pumps', kind: 'Holding the temperature', box: [ch[0][0], 0, ch[0][2], ch[1][3], ch[0][4], ch[1][5]],
@@ -578,7 +575,6 @@ export function buildHalls(world) {
         /* C · broodstock */
         for (let k = 0; k < 8; k++) { const x = -13.5 + (k % 4) * 17.2, z = k < 4 ? 58.6 : 82, s = BROODSTOCK_TANKS[k % 4];
           const box = E.roundTank(b, x, z, 4.8, 1.6, { wall: C.grpDark, water: C.waterDeep });
-          b.use('glow').torus(0xfff0cf, 3.2, 0.06, x, 4.2, z, 6, 36);
           ctx.school({ x, z, rx: 3.5, rz: 3.5, r0: 0.3, y0: F + 0.7, y1: F + 1.3, n: 9, sp: s.sp, len: 0.68, speed: 0.12 });
           ctx.item({ code: `P1-B${k + 1}`, group: 'C · Broodstock', name: `Phase 1 broodstock tank B${k + 1}`, kind: s.name, box, label: k === 1,
             desc: 'One of the original breeding tanks. The first generations of hatchery-born fish at the centre came from the parents held in this hall.',
@@ -616,7 +612,7 @@ export function buildHalls(world) {
         ctx.item({ code: 'P1-PMP', group: 'E · Plant room', name: 'Phase 1 pumps and blowers', kind: 'Moving water and air', box: [119, 0, 50.4, 129.6, 1.8, 62.6],
           desc: 'Four pumps return treated water to the halls and the header tanks; two blowers supply the air for the biofilters and tank aeration.', specs: [['4', 'Pumps'], ['2', 'Blowers']], live: [{ k: 'Pumps running', u: 'of 4', v: 3, d: 0, lo: 0, hi: 4, p: 0 }, { k: 'Water reused', u: '%', v: 91.2, d: 0.3, lo: 80, hi: 98, p: 1 }] });
         partition(b, 129.6, 68, 140, 68, [{ at: 2, w: 1.2 }]); partition(b, 129.6, 68, 129.6, 80); E.controlDesk(b, 135, 77.6, { ry: Math.PI }); E.panel(b, 139.4, 71.6, { ry: -Math.PI / 2 });
-        ctx.item({ code: 'P1-CR', group: 'E · Plant room', name: 'Phase 1 control room', kind: 'Pumps, filters and alarms', box: [130, 0, 68.4, 140, 2.3, 80], label: true,
+        ctx.item({ code: 'P1-CR', group: 'E · Plant room', name: 'Phase 1 control room', kind: 'Pumps, filters and alarms', box: [130, 0, 68.4, 140, 2.3, 80], label: true, control: true,
           desc: 'The original control room. Its screens are repeated in the main life-support control room, so either can run the Phase 1 water system.', specs: [['24/7', 'Monitoring'], ['Mirrored', 'In area 07']], live: [{ k: 'Active alarms', u: '', v: 0, d: 0, lo: 0, hi: 5, p: 0 }] });
         E.pipeRack(b, [[72, 64.4], [128, 64.4]], 3.5, [C.pipeSea, C.pipeTreat, C.pipeO2], 0.12); yellowLine(b, 72, 62.8, 118, 62.8);
         ctx.item({ code: 'HT', group: 'E · Plant room', name: 'Header tanks', kind: 'Gravity supply', box: [ht[0][0], 0, ht[0][2], ht[2][3], 9, ht[0][5]], label: true,

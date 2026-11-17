@@ -148,11 +148,11 @@ export class Builder {
   /** box sitting on y */
   box(hex, w, h, d, x, y, z, ry = 0, rx = 0, rz = 0) { this._put(T.box(), x, y + h / 2, z, w, h, d, rx, ry, rz, hex); return this; }
   /** a flat picture facing +z (monitor, wall display, printed panel): remembered for screens.js, which draws what is on it. y is its bottom edge. */
-  screen(tile, w, h, x, y, z, ry = 0, rx = 0) {
+  screen(tile, w, h, x, y, z, ry = 0, rx = 0, crop = null) {
     if (!this.scr) return this;
     _m.compose(_p.set(x, y + h / 2, z), _q.setFromEuler(_e.set(rx, ry, 0, 'YXZ')), _s.set(1, 1, 1)).premultiply(this.base);
     const p = []; for (const [cx, cy] of [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]]) { _p.set(cx, cy, 0).applyMatrix4(_m); p.push(_p.x, _p.y, _p.z); }
-    this.scr.push({ tile, p }); return this;
+    this.scr.push({ tile, p, crop }); return this;            // crop: [top, bottom] as fractions of the tile's height, to show only a band of it
   }
   /** somewhere to sit (kind 'desk' or 'chair'), facing ry: remembered so people can be seated there */
   seat(kind, x, y, z, ry = 0) {
@@ -273,9 +273,10 @@ export class Builder {
   /** flat polygon facing up */
   poly(hex, pts, y) { return this.prism(hex, pts, y, y, { sides: false, cap: true }); }
 
-  /** finish: returns a Group of merged meshes using the shared material set */
+  /** finish: returns a Group of merged meshes using the shared material set (and the door leaves, one instanced mesh per material) */
   build(mats, { cast = true, receive = true, name = '' } = {}) {
     const g = new THREE.Group(); g.name = name;
+    if (this.leaves && this.leaves.length) { g.userData.doors = buildLeaves(this.leaves, mats, cast, receive, g); this.leaves = []; }
     for (const [key, b] of this.buckets) {
       if (b.empty) continue;
       const mat = mats[key]; if (!mat) { console.warn('no material', key); continue; }
@@ -291,6 +292,37 @@ export class Builder {
   }
 }
 const UV_SCALE = { water: 0.11, floorTile: 1, paving: 1, asphalt: 1, ground: 1, concrete: 1 };
+
+/* ───── door leaves: each builder's doors are one instanced mesh per material, so every door can open on its own ───── */
+const _lm = new THREE.Matrix4(), _lq = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ls = new THREE.Vector3(), _ly = new THREE.Vector3(0, 1, 0);
+let leafGeo = null;
+function buildLeaves(list, mats, cast, receive, g) {
+  if (!leafGeo) { leafGeo = new THREE.BoxGeometry(1, 1, 1); leafGeo.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(leafGeo.attributes.position.count * 3).fill(1), 3)); }
+  const byKey = new Map(); for (const d of list) { if (!byKey.has(d.key)) byKey.set(d.key, []); byKey.get(d.key).push(d); }
+  for (const [key, ds] of byKey) {
+    const mat = mats[key]; if (!mat) continue;
+    const n = ds.reduce((a, d) => a + d.n, 0), mesh = new THREE.InstancedMesh(leafGeo, mat, n); mesh.name = 'doors-' + key;
+    mesh.castShadow = cast && key !== 'window'; mesh.receiveShadow = receive;
+    let i = 0; for (const d of ds) { d.mesh = mesh; d.i = i; i += d.n; if (mat.vertexColors) for (let k = 0; k < d.n; k++) mesh.setColorAt(d.i + k, _c.setHex(d.hex)); placeLeaf(d); }
+    mesh.computeBoundingSphere(); g.add(mesh);
+  }
+  return list;
+}
+/** put a door's leaf (or leaves) where `open` says: a shutter rolls up into its head, a door slides into the wall, a pair parts */
+export function placeLeaf(d) {
+  const dx = d.x1 - d.x0, dz = d.z1 - d.z0, len = Math.hypot(dx, dz) || 1, ux = dx / len, uz = dz / len, k = Math.min(1, Math.max(0, d.open)), ry = -Math.atan2(dz, dx);
+  _lq.setFromAxisAngle(_ly, ry);
+  const put = (j, cx, cz, w, y0, y1) => {
+    if (w < 0.01 || y1 - y0 < 0.01) _lm.makeScale(0, 0, 0);
+    else _lm.compose(_lp.set(cx, (y0 + y1) / 2, cz), _lq, _ls.set(w, y1 - y0, d.t));
+    d.mesh.setMatrixAt(d.i + j, _lm);
+  };
+  const mx = (d.x0 + d.x1) / 2, mz = (d.z0 + d.z1) / 2;
+  if (d.kind === 'roll') put(0, mx, mz, len, d.y0 + (d.y1 - d.y0) * k * 0.985, d.y1);
+  else if (d.kind === 'slide') { const s = -len * 0.97 * k; put(0, mx + ux * s, mz + uz * s, len, d.y0, d.y1); }
+  else { const h = len / 2, s = h * 0.96 * k, o = 0.1; for (const j of [0, 1]) { const sg = j ? 1 : -1, c = sg * (h / 2 + s); put(j, mx + ux * c - uz * o, mz + uz * c + ux * o, h, d.y0, d.y1); } }
+  d.mesh.instanceMatrix.needsUpdate = true;
+}
 
 export function sectorPts(r0, r1, a0, a1, step = 4 * DEG) {
   const n = Math.max(2, Math.ceil(Math.abs(a1 - a0) / step)), pts = [];

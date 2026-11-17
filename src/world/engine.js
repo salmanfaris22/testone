@@ -72,7 +72,7 @@ export class Engine {
     if (raw < 200) this.ema += (raw - this.ema) * 0.06;
     if (this.frames > 90 && now - this.lastDprChange > 1400 && !this.lockDpr) {
       if (this.ema > 21.5 && this.dpr > this.minDpr) { this.dpr = Math.max(this.minDpr, this.dpr - 0.25); this._applyDpr(now); }
-      else if (this.ema < 12.5 && this.dpr < this.maxDpr) { this.dpr = Math.min(this.maxDpr, this.dpr + 0.125); this._applyDpr(now); }
+      else if (this.ema < 12.5 && this.dpr < this.maxDpr && !this.noUp) { this.dpr = Math.min(this.maxDpr, this.dpr + 0.125); this._applyDpr(now); }
     }
   }
   _applyDpr(now) { this.lastDprChange = now; this.renderer.setPixelRatio(this.dpr); this.renderer.setSize(this.w, this.h, false); this.ema = 16.7; }

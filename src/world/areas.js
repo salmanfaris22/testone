@@ -1,4 +1,4 @@
-// Area registry: each of the ten areas owns a shell that opens, an interior that is
+// Area registry: each of the eleven areas owns a shell that opens, an interior that is
 // built the first time it is needed, and a list of things you can click.
 // An area may sit in its own frame (moved and turned), so everything it declares is in local metres:
 // boxes, poses, pins and people. World positions are worked out here.
@@ -53,6 +53,7 @@ export function createAreas(world) {
       a.root = new THREE.Group(); a.root.name = a.id; a.root.position.set(f.x, 0, f.z); a.root.rotation.y = f.ry;
       if (a.low) a.root.add(a.low);
       if (a.high) { a.root.add(a.high); a.highMeshes = []; a.high.traverse((m) => { if (m.isMesh) a.highMeshes.push(m); }); }
+      a.doors = [...((a.high && a.high.userData.doors) || []), ...((a.low && a.low.userData.doors) || [])];     // leaves that open (shell.js doorLeaf)
       scene.add(a.root); a.root.updateMatrixWorld(true);
       list.push(a); byId[a.id] = a;
       return a;
@@ -84,7 +85,7 @@ export function createAreas(world) {
       const tvs = b.scr.filter(q => q.tile >= 200);
       if (tvs.length) { const tv = createExhibitTVs(tvs, engine); g.add(tv.mesh); a.updaters.push(tv.update); }
       if (world.fish && (ctx.schools.length || ctx.fry.length)) { const f = world.fish.populate(ctx.schools, ctx.fry); g.add(f.group); }
-      g.visible = a.open > 0.01 || a.alwaysOpen || a.peek;
+      g.visible = a.open > 0.01 || a.alwaysOpen || a.peek || a.near;
       a.upper = b.up.build(mats, { cast: false, receive: true }); a.upper.name = a.id + '-upper'; a.upper.visible = a.peek && a.open < 0.01; a.root.add(a.upper);
       a.interior = g; a.root.add(g); a.root.updateMatrixWorld(true);
       for (const it of a.items) world.items.set(it.id, it);
@@ -94,11 +95,17 @@ export function createAreas(world) {
     open(id, instant) { const a = byId[id]; if (!a) return; api.ensure(a); a.goal = 1; if (instant) { a.open = 0.999; } world.animating = true; return a; },
     close(id, instant) { const a = byId[id]; if (!a) return; a.goal = 0; if (instant) a.open = 0.001; world.animating = true; return a; },
     closeAll(except) { for (const a of list) { if (a.id !== except && a.goal) api.close(a.id); if (a.id !== except && a.peek) api.peek(a.id, false); } },
+    /** the drone is close by: its inside shows (through the doors and windows), with the roof on */
+    near(id, v) {
+      const a = byId[id]; if (!a || !!a.near === v) return a; if (v) api.ensure(a);
+      a.near = v; if (a.interior) a.interior.visible = v || a.peek || a.open > 0.01 || !!a.alwaysOpen;
+      engine.shadowDirty = true; world.animating = true; return a;
+    },
     /** walk-in view: the roof stays on but stops casting shade, so the hall is lit like a skylit room */
     peek(id, v) {
       const a = byId[id]; if (!a || a.peek === v) return a; if (v) api.ensure(a);
       a.peek = v; if (a.highMeshes) for (const m of a.highMeshes) m.castShadow = !v && !m.userData.noShadow && m.material !== a.roofMats.glass && m.material !== a.roofMats.glow && m.material !== a.roofMats.pane;
-      if (a.interior) a.interior.visible = v || a.open > 0.01 || !!a.alwaysOpen;
+      if (a.interior) a.interior.visible = v || a.open > 0.01 || !!a.alwaysOpen || !!a.near;
       if (a.upper) a.upper.visible = v && a.open < 0.01;
       const wm = a.roofMats && a.roofMats.window;       // from indoors the glazing reads as daylight, not as dark glass
       if (wm) { if (!wm.userData.out) wm.userData.out = { c: wm.color.getHex(), r: wm.roughness, m: wm.metalness }; wm.color.setHex(v ? 0xcfe6f4 : wm.userData.out.c); wm.roughness = v ? 0.9 : wm.userData.out.r; wm.metalness = v ? 0 : wm.userData.out.m; wm.userData.inside = v; if (v) { wm.emissive.setHex(0xa9cfe6); wm.emissiveIntensity = 0.75 * (1 - 0.8 * world.env.night); } else { wm.emissive.setHex(0xffd49a); wm.emissiveIntensity = world.env.night * 1.5; } }
@@ -118,7 +125,7 @@ export function createAreas(world) {
             for (const m of a.highMeshes) m.castShadow = !a.peek && !m.userData.noShadow && k < 0.35 && m.material !== a.roofMats.glass && m.material !== a.roofMats.glow && m.material !== a.roofMats.pane;
             a.high.updateMatrixWorld(true);
           }
-          if (a.interior) a.interior.visible = k > 0.01 || !!a.alwaysOpen || a.peek;
+          if (a.interior) a.interior.visible = k > 0.01 || !!a.alwaysOpen || a.peek || !!a.near;
           if (a.upper) a.upper.visible = a.peek && k < 0.01;
           a.onOpen && a.onOpen(k);
         }

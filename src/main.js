@@ -11,7 +11,7 @@ import './styles/app.css';
 import Lenis from 'lenis';
 import { SITE, NUMBERS, CYCLE, ABOUT, STORY, VISION, MISSION } from './data/site.js';
 import { SPECIES } from './data/species.js';
-import { AREAS } from './data/areas.js';
+import { TOUR } from './data/areas.js';
 
 // kept local so the 3D engine (and three.js) stays out of the first chunk
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -23,6 +23,17 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const body = document.body;
 history.scrollRestoration = 'manual';
+// the look of the scroll tour's cards: glass (default), caption or paper. ?card=caption previews one, ?pick shows a switch.
+{
+  const q = new URLSearchParams(location.search), LOOKS = ['glass', 'caption', 'paper'];
+  body.dataset.card = LOOKS.includes(q.get('card')) ? q.get('card') : 'glass';
+  if (q.has('pick')) {
+    const el = document.createElement('div'); el.className = 'card-pick'; el.setAttribute('role', 'group'); el.setAttribute('aria-label', 'Card look');
+    el.innerHTML = `<span>Card look</span>${LOOKS.map((k, i) => `<button type="button" data-look="${k}" aria-pressed="${k === body.dataset.card}">${i + 1} ${k[0].toUpperCase()}${k.slice(1)}</button>`).join('')}`;
+    el.addEventListener('click', (e) => { const b = e.target.closest('[data-look]'); if (!b) return; body.dataset.card = b.dataset.look; for (const o of el.querySelectorAll('button')) o.setAttribute('aria-pressed', String(o === b)); });
+    body.appendChild(el);
+  }
+}
 
 /* ───── static content from data ───── */
 $('#cycle-list').innerHTML = CYCLE.map((c) => `<li><span class="cy-n">${c.n}</span><div class="cy-name"><h3>${esc(c.name)}</h3><p class="cy-time">${esc(c.time)}</p></div><p class="cy-text">${esc(c.text)}</p><button class="btn btn-ink cy-go" type="button" data-goto="${c.area}"${c.item ? ` data-item="${c.item}"` : ''}>See it in 3D</button></li>`).join('');
@@ -79,25 +90,31 @@ async function boot() {
     target = 0.1;
     world = await createWorld($('#stage'), { onProgress: (p) => { target = 0.1 + p * 0.75; } });
     window.__world = world;
-    const [{ createApp }, { createStory, HERO }, { createSpecies }] = await Promise.all([import('./ui/app.js'), import('./ui/story.js'), import('./ui/species.js')]);
-    const countItems = () => { const n = world.items.size; if (n > 60) $('#fact-items').textContent = `${Math.floor(n / 10) * 10}+`; };
+    const [{ createApp }, { createStory, HERO, heroPose }, { createSpecies }] = await Promise.all([import('./ui/app.js'), import('./ui/story.js'), import('./ui/species.js')]);
+    const hero = () => heroPose(world.engine.w, world.engine.h);
+    const heroLens = () => { const r = world.rig; r.fov = r.fovGoal = HERO.fov; world.camera.fov = HERO.fov; world.camera.updateProjectionMatrix(); if (r.onFov) r.onFov(HERO.fov); };
+    const countItems = () => { const n = world.items.size; if (n > 60) $('#fact-items').textContent = `${Math.floor(n / 10) * 10}+`; if (story) story.refresh(); };
     const lock = (v) => { if (lenis) (v ? lenis.stop() : lenis.start()); document.documentElement.style.overflow = v ? 'hidden' : ''; };
-    story = createStory(world, { onExplore: (id) => app.enter(id), scrollTo: (el, at) => scrollTo(el, at) });
+    story = createStory(world, { onExplore: (id) => app.enter(id, 'walk'), onFocus: (iid) => app.enterItem(iid), scrollTo: (el, at) => scrollTo(el, at) });
     app = createApp(world, {
-      lock, enter: (id) => app.enter(id),
+      lock, enter: (id, view) => app.enter(id, view),
+      storyOpen: () => (story && !species.active ? story.open : null),      // the area whose roof the scroll tour has lifted: its things can be clicked from the page
+      busy: () => !!(intro && intro.playing),
       onExit: (last) => { story.setActive(true); lastY = -1; if (last) { const el = document.getElementById('area-' + last); if (el) scrollTo(el.getBoundingClientRect().top + scrollY + el.offsetHeight * 0.36, 0, true); } },
       goSpecies: (id) => { species.select(id, true); scrollTo($('.species-stage').getBoundingClientRect().top + scrollY, 0, true); },
       onArea: () => {},
     });
+    // on the page, the area pins keep clear of the menu bar and of the hero's words (in the model they go anywhere)
+    app.labels.pinClear = (x, y) => app.S.exploring || (y > 100 && !(innerWidth > 900 && x < Math.min(innerWidth * 0.54, 780) && y > 150));
     // entering from far down the page (the cycle list, the footer): the engine sleeps there, so wake it first
-    const enter = app.enter; app.enter = (id) => { world.engine.setActive(true); story.setActive(false); species.setActive(false); veil.style.opacity = 0; enter(id); };
+    const enter = app.enter; app.enter = (id, view) => { world.engine.setActive(true); story.setActive(false); species.setActive(false); veil.style.opacity = 0; enter(id, view); };
     species = createSpecies(world, { onGoto: (id) => app.enter(id), onAsk: (name) => { for (const c of form.querySelectorAll('[name=sp]')) c.checked = c.value === name; form.topic.value = 'Fry order'; syncForm(); scrollTo($('#contact').getBoundingClientRect().top + scrollY); } });
     // the opening film: from the gate to area 08, whose roof lifts, then the rest of the site fills in phase by phase (skipped for reduced motion, #explore and ?nointro)
     const q = new URLSearchParams(location.search), wantIntro = !reduced && location.hash !== '#explore' && !q.has('nointro') && scrollY < 40;
-    if (wantIntro) { const { createIntro } = await import('./world/intro.js'); intro = createIntro(world, { hero: HERO }); window.__intro = intro; }
+    if (wantIntro) { const { createIntro } = await import('./world/intro.js'); intro = createIntro(world, { hero }); window.__intro = intro; }
     // otherwise open a little high and wide, then settle into the hero view as the loader lifts
-    else if (reduced) { world.rig.jump(HERO); world.rig.lambda = 4.2; }
-    else { world.rig.jump({ ...HERO, dist: HERO.dist * 1.32, pol: HERO.pol - 0.17, az: HERO.az - 0.14 }); world.rig.lambda = 1.5; setTimeout(() => { if (!app.S.exploring) world.rig.lambda = 4.2; }, 3200); }
+    else if (reduced) { world.rig.jump(hero()); heroLens(); world.rig.lambda = 4.2; }
+    else { const h = hero(); world.rig.jump({ ...h, dist: h.dist * 1.45, pol: h.pol - 0.12, az: h.az + 0.22 }); heroLens(); world.rig.lambda = 1.5; setTimeout(() => { if (!app.S.exploring) world.rig.lambda = 4.2; }, 3200); }
     target = 0.92; ldMsg.textContent = 'Warming up';
     await world.engine.renderer.compileAsync(world.scene, world.camera).catch(() => {});
     if (intro) { intro.prepare(); body.classList.add('intro'); lock(true); story.setActive(false); }
@@ -138,7 +155,7 @@ function runIntro(lock, countItems) {
   });
 }
 function fallbackSteps() {
-  $('#tour-steps').innerHTML = AREAS.map((a) => `<article class="step"><div class="step-card"><div class="step-top"><span class="step-n">${a.n}</span><span class="step-tag">${esc(a.tag)}</span></div><h3>${esc(a.name)}</h3><p class="step-desc">${esc(a.desc)}</p></div></article>`).join('');
+  $('#tour-steps').innerHTML = TOUR.map((a) => `<article class="step"><div class="step-card"><header class="sc-head"><span class="sc-n">${a.n}</span><div class="sc-meta"><p class="sc-eye">Phase ${a.phase} · ${esc(a.tag)}</p><h3>${esc(a.name)}</h3></div></header><ul class="sc-stats">${a.stats.map(([v, l]) => `<li><b>${esc(v)}</b><span>${esc(l)}</span></li>`).join('')}</ul><div class="sc-text"><p class="sc-line">${esc(a.line)}</p><p class="sc-desc">${esc(a.desc)}</p></div></div></article>`).join('');
 }
 
 /* ───── per-frame page logic ───── */
@@ -168,27 +185,24 @@ function frame(now) {
       railEl.style.opacity = story.tau > -0.2 && y < speciesTop - vh ? 1 : 0;
     }
   }
-  if (intro && intro.playing) { const w = innerWidth > 900, k = intro.settleProgress; world.rig.setShift(w ? -innerWidth * 0.16 * k : 0, w ? 0 : innerHeight * 0.2 * k); if (app) app.labels.showPins(false); }
+  // (the hero is framed as Jeffry picked it: no sideways shift on a wide screen; on a phone the model sits above the words)
+  if (intro && intro.playing) { const w = innerWidth > 900, k = intro.settleProgress; world.rig.setShift(0, w ? 0 : innerHeight * 0.2 * k); if (app) app.labels.showPins(false); }
   else if (world && story && !(app && app.S.exploring)) {
     if (!species.active) story.update(y, dt);
     const wide = innerWidth > 900, k = 1 - smooth(clamp((story.tau + 1) / 0.7, 0, 1));
-    world.rig.setShift(wide ? -innerWidth * 0.16 * k : 0, wide ? 0 : innerHeight * 0.2 * k);
+    world.rig.setShift(0, wide ? 0 : innerHeight * 0.2 * k);
   }
 }
 if (!world) requestAnimationFrame(frame);
 boot().then(() => { measure(); if (world) { world.updaters.push((dt, t) => species.update(dt, t)); } });
 
-/* ───── the company's film: a YouTube player over the page (privacy-enhanced domain, only loaded when asked for) ───── */
-{
-  const modal = $('#movie-modal'), frame = modal && modal.querySelector('.movie-frame'); let back = null;
-  const close = () => { if (!modal || modal.hidden) return; modal.hidden = true; frame.innerHTML = ''; if (lenis) lenis.start(); if (back) back.focus(); };
-  document.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-movie]');
-    if (b && modal) { back = b; frame.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(b.dataset.movie)}?autoplay=1&rel=0&playsinline=1" title="Gulf Aquaculture film" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`; modal.hidden = false; if (lenis) lenis.stop(); modal.querySelector('.movie-x').focus(); return; }
-    if (modal && !modal.hidden && (e.target === modal || e.target.closest('.movie-x'))) close();
-  });
-  addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
-}
+/* ───── the company's film: it plays in place, at the top of its section (YouTube's privacy-enhanced domain, loaded only when asked for) ───── */
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-movie]'); if (!b) return;
+  const box = b.closest('.movie-player') || $('#movie-player'); if (!box) return;
+  box.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(b.dataset.movie)}?autoplay=1&rel=0&playsinline=1" title="Gulf Aquaculture film" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
+  box.classList.add('is-playing'); const f = box.querySelector('iframe'); f.tabIndex = 0; f.focus({ preventScroll: true });
+});
 
 /* ───── buttons outside the model ───── */
 document.addEventListener('click', (e) => {

@@ -4,12 +4,19 @@ import * as THREE from 'three';
 import { clamp, lerp, damp, dampAngle, easeIO, TAU } from './kit.js';
 import { SEA_Y, landSDF } from './terrain-fn.js';
 import { CAM_BOX } from './layout.js';
+import { BOUNDS, ALT_MAX } from './airspace.js';
 
 export const P = (x, y, z, az, pol, dist) => ({ x, y, z, az, pol, dist });
 const copy = (a, b) => { a.x = b.x; a.y = b.y; a.z = b.z; a.az = b.az; a.pol = b.pol; a.dist = b.dist; return a; };
 const near = (a, b) => { let d = (b - a) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return a + d; };
-const _t = new THREE.Vector3();
+const _t = new THREE.Vector3(), _q = new THREE.Vector3(), _c1 = new THREE.Vector3(), _c2 = new THREE.Vector3(), _l1 = new THREE.Vector3(), _l2 = new THREE.Vector3(), _sp = {};
+/** how high the drone's centre stands over whatever its feet are on (drone.js: the legs reach 0.222 below it, at 1.55 scale) */
+export const DRONE_LEG = 0.222 * 1.55;
+/** the shortest turn from one heading to another */
+const angleTo = (a, b) => { let d = (b - a) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; };
 
+/** the drone's cruising speeds, metres per second: slow (for a close look), cruise, fast, sport */
+export const DRONE_SPEED = [7, 16, 30, 52];
 const POSE_KEYS = ['x', 'y', 'z', 'az', 'pol', 'dist'];
 // Time-aware, shape-preserving Hermite tangents. Adjacent legs share a velocity
 // in units per second, even when their durations differ. A turn slows naturally
@@ -36,7 +43,7 @@ export class Rig {
     this.wheelZoom = false;       // wheel zooms (explore) or scrolls the page (story)
     this.drift = 0; this.idle = 0;
     this.shift = { x: 0, y: 0, gx: 0, gy: 0 };
-    this.fit = 1; this.moved = true; this.speed = 0;
+    this.fit = 1; this.fitOverride = null; this.floorOverride = null; this.moved = true; this.speed = 0;
     this.target = new THREE.Vector3();
     this.keys = new Set(); this.pointers = new Map(); this.walkIn = { f: 0, s: 0 };     // on-screen stick: forward and sideways, -1 to 1
     this.onUser = null; this.onTap = null; this.onHover = null; this.onDrag = null; this.onWheel = null;
@@ -67,22 +74,56 @@ export class Rig {
   stopPath() { this.path = null; }
   setShift(x, y) { this.shift.gx = x; this.shift.gy = y; }
   /* ───── drone ───── */
-  enterDrone() {
-    // take off from where the camera is, but drop to a height where the site reads well
-    const c = this.cam.position.clone(), t = this.target;
-    if (c.y > 70) { const k = 70 / c.y; c.set(t.x + (c.x - t.x) * k * 1.6, 70, t.z + (c.z - t.z) * k * 1.6); }
-    const yaw = Math.atan2(t.x - c.x, t.z - c.z), pitch = -Math.atan2(c.y - 6, Math.hypot(t.x - c.x, t.z - c.z));
-    this.drone = { pos: c, vel: new THREE.Vector3(), yaw, pitch, gy: yaw, gp: pitch, boost: 1, touch: { f: 0, s: 0, u: 0 } };
+  /**
+   * Take off. With a dock ({ rest, yaw, out, around(d, side, y) }, dock.js) the camera first comes down to the dock, its lid opens,
+   * the rotors spin up and the drone lifts out and turns to `out`; without one it starts where the camera is.
+   * `air` is the space it flies in (airspace.js): walls, doors, roofs, ceilings. The state is rig.drone; d.phase says what it is doing:
+   * 'launch', 'fly' (yours), 'home' (flying itself back to the dock), 'land' (down into it), 'done'.
+   */
+  enterDrone(dock = null, air = null) {
+    this.air = air; this.dock = dock;
+    const c = this.cam.position.clone(), t = this.target.clone();
+    const d = this.drone = { pos: c.clone(), vel: new THREE.Vector3(), cam: c.clone(), look: t.clone(), yaw: 0, cy: 0, pitch: -0.1, gy: 0, gp: -0.1, boost: 1, level: 1,
+      tiltX: 0, tiltZ: 0, thr: 0.3, motor: 1, size: 1, inK: 0, age: 0, kmh: 0, touch: { f: 0, s: 0, u: 0 }, phase: 'fly', pt: 0, lid: 0, bob: 1, sp: {}, inside: null };
+    if (dock) {
+      d.pos.copy(dock.rest); d.pos.y += DRONE_LEG; d.yaw = d.cy = d.gy = dock.yaw; d.thr = 0; d.motor = 0; d.bob = 0; d.phase = 'launch';
+      // where the camera watches the take-off from: in front of the dock and to one side, a little above it
+      const view = dock.around(5.6, -2.8, 4.1), at = dock.rest.clone(); at.y += 0.7;
+      d.L = { c0: c, l0: t, view, at, T1: clamp(1.0 + c.distanceTo(view) / 420, 1.4, 2.8) };
+    } else {
+      // no dock: take off from where the camera is, but drop to a height where the site reads well
+      if (c.y > 70) { const k = 70 / c.y; c.set(t.x + (c.x - t.x) * k * 1.6, 70, t.z + (c.z - t.z) * k * 1.6); }
+      d.pos.copy(c); d.cam.copy(c); d.yaw = d.cy = d.gy = Math.atan2(t.x - c.x, t.z - c.z); d.pitch = d.gp = clamp(-Math.atan2(c.y - 6, Math.hypot(t.x - c.x, t.z - c.z)), -0.85, 0.1);
+    }
     this.flight = null; this.path = null;
   }
-  exitDrone() {
+  /** fly home to the dock and land in it (with no dock: just stop). `skip` puts it straight in */
+  droneHome(skip = false) {
+    const d = this.drone; if (!d) return;
+    if (!this.dock) { d.phase = 'done'; return; }
+    if (skip) { const k = this.dock; d.pos.copy(k.rest); d.pos.y += DRONE_LEG; d.vel.set(0, 0, 0); d.yaw = d.cy = d.gy = k.yaw; d.motor = 0; d.thr = 0; d.lid = 0; d.phase = 'done'; return; }
+    if (d.phase === 'home' || d.phase === 'land' || d.phase === 'done') return;
+    // a smooth arc: up off where it is, over at a safe height, down onto a point above the dock
+    const k = this.dock, p0 = d.pos.clone(), p3 = k.rest.clone(); p3.y += DRONE_LEG + 6.5;
+    const h = Math.max(p0.y + 6, Math.min(70, 40 + p0.distanceTo(p3) * 0.03));
+    const p1 = new THREE.Vector3(p0.x, h, p0.z), p2 = new THREE.Vector3(p3.x, h, p3.z), len = p0.distanceTo(p1) + p1.distanceTo(p2) + p2.distanceTo(p3);
+    d.H = { p0, p1, p2, p3, T: clamp(len / 24, 2.6, 9) }; d.phase = 'home'; d.pt = 0; d.touch.f = d.touch.s = d.touch.u = 0;
+  }
+  /** put the drone above the dock at once (it was shut in a building: the screen has been faded out by the caller) */
+  droneOverDock() {
+    const d = this.drone, k = this.dock; if (!d || !k) return;
+    d.pos.copy(k.rest); d.pos.y += DRONE_LEG + 6.5; d.vel.set(0, 0, 0); d.inK = 0; d.size = 1; d.inside = null;
+    d.yaw = d.cy = d.gy = k.yaw; d.pitch = d.gp = -0.25; this._chaseCam(d, d.cam); d.phase = 'land'; d.pt = 0;
+  }
+  exitDrone(around = null) {
     const d = this.drone; if (!d) return; this.drone = null;
-    // turn the drone view back into an orbit around the ground point ahead
-    const dir = new THREE.Vector3(Math.sin(d.yaw) * Math.cos(d.pitch), Math.sin(d.pitch), Math.cos(d.yaw) * Math.cos(d.pitch));
-    let dist = dir.y < -0.05 ? clamp(-d.pos.y / dir.y, 20, 600) : 160;
-    const tx = d.pos.x + dir.x * dist, tz = d.pos.z + dir.z * dist;
-    const p = P(tx, 0, tz, Math.atan2(d.pos.x - tx, d.pos.z - tz), Math.acos(clamp((d.pos.y - 0) / dist, -1, 1)), dist);
-    copy(this.cur, p); copy(this.goal, p);
+    // turn the drone's camera back into an orbit, round the dock (when it has landed) or the ground point ahead of it
+    const c = this.cam.position, dir = new THREE.Vector3(Math.sin(d.cy) * Math.cos(d.pitch), Math.sin(d.pitch), Math.cos(d.cy) * Math.cos(d.pitch));
+    let tx, ty = 0, tz, dist;
+    if (around) { tx = around.x; ty = around.y; tz = around.z; dist = Math.hypot(c.x - tx, c.y - ty, c.z - tz); }
+    else { dist = dir.y < -0.05 ? clamp(-c.y / dir.y, 20, 600) : 160; tx = c.x + dir.x * dist; tz = c.z + dir.z * dist; }
+    const p = P(tx, ty, tz, Math.atan2(c.x - tx, c.z - tz), Math.acos(clamp((c.y - ty) / Math.max(1e-3, dist), -1, 1)), dist);
+    copy(this.cur, p); copy(this.goal, p); this.fovGoal = 32; this.air = null;
   }
   /* ───── per frame ───── */
   update(dt) {
@@ -119,12 +160,12 @@ export class Rig {
   _apply() {
     const c = this.cur, cam = this.cam, e = this.engine;
     const sp = Math.sin(c.pol), dx = sp * Math.sin(c.az), dy = Math.cos(c.pol), dz = sp * Math.cos(c.az);
-    let dist = c.dist * (this.room ? 1 : this.fit);
+    let dist = c.dist * (this.room ? 1 : (this.fitOverride ?? this.fit));        // (the opening film's drive holds the fit at 1 so the camera stays in the car)
     this.target.set(c.x, c.y, c.z);
     if (this.room) { const lim = this._roomLimit(c, dx, dy, dz, dist); this._rd = this._rd ? damp(this._rd, lim, 10, this._dt || 0.016) : lim; dist = Math.min(dist, this._rd); } else this._rd = 0;
     cam.position.set(c.x + dist * dx, c.y + dist * dy, c.z + dist * dz);
     // never dip under the ground or the sea
-    const floor = this.room ? 0.5 : SEA_Y + 3.4; if (cam.position.y < floor) cam.position.y = floor;
+    const floor = this.room ? 0.5 : (this.floorOverride ?? SEA_Y + 3.4); if (cam.position.y < floor) cam.position.y = floor;      // (the film's low shots by the gate and the wheel bath go lower)
     cam.lookAt(this.target);
     const n = this.room ? 0.14 : clamp(dist * 0.04, 0.35, 10);
     if (Math.abs(cam.near - n) > n * 0.08) { cam.near = n; cam.far = 9000; cam.updateProjectionMatrix(); }
@@ -235,27 +276,107 @@ export class Rig {
       + (u3 - 2 * u2 + u) * h * p.tangents[p.i][key]
       + (-2 * u3 + 3 * u2) * b.p[key] + (u3 - u2) * h * p.tangents[p.i + 1][key];
   }
+  /** the camera behind the drone and a little below its line (so the drone rides in the upper part of the picture);
+   *  closer in when it is indoors */
+  _chaseCam(d, out) {
+    const cp = Math.cos(d.pitch), sn = Math.sin(d.pitch), cx = Math.sin(d.cy), cz = Math.cos(d.cy), tall = this.engine.h > this.engine.w;
+    const back = lerp(tall ? 6.0 : 4.7, tall ? 3.1 : 2.5, d.inK), rise = lerp(tall ? 1.9 : 1.25, tall ? 0.95 : 0.72, d.inK);
+    return out.set(d.pos.x - cx * cp * back + cx * sn * rise, d.pos.y - sn * back - cp * rise, d.pos.z - cz * cp * back + cz * sn * rise);
+  }
+  /** the drone: it has weight (it takes a moment to get going and to stop), it leans the way it flies and banks into turns,
+   *  and the camera trails it on a soft tether. Walls, closed doors, roofs and ceilings stop it (airspace.js); doors open for it */
   _drone(dt) {
-    const d = this.drone, K = this.keys;
-    const f = (K.has('KeyW') || K.has('ArrowUp') ? 1 : 0) - (K.has('KeyS') || K.has('ArrowDown') ? 1 : 0) + d.touch.f;
-    const s = (K.has('KeyD') || K.has('ArrowRight') ? 1 : 0) - (K.has('KeyA') || K.has('ArrowLeft') ? 1 : 0) + d.touch.s;
-    const u = (K.has('KeyE') || K.has('Space') ? 1 : 0) - (K.has('KeyQ') ? 1 : 0) + d.touch.u;
-    const sp = 34 * d.boost * (K.has('ShiftLeft') || K.has('ShiftRight') ? 2.6 : 1);
-    d.yaw = dampAngle(d.yaw, d.gy, 10, dt); d.pitch = damp(d.pitch, d.gp, 10, dt);
-    const fx = Math.sin(d.yaw), fz = Math.cos(d.yaw);
-    _t.set((fx * f - fz * s) * sp, u * sp * 0.7 + Math.sin(d.pitch) * f * sp * 0.55, (fz * f + fx * s) * sp);
-    d.vel.x = damp(d.vel.x, _t.x, 3.2, dt); d.vel.y = damp(d.vel.y, _t.y, 3.2, dt); d.vel.z = damp(d.vel.z, _t.z, 3.2, dt);
-    d.pos.addScaledVector(d.vel, dt);
-    d.pos.x = clamp(d.pos.x, -950, 760); d.pos.z = clamp(d.pos.z, -860, 560);
-    const land = landSDF(d.pos.x, d.pos.z) < 6;
-    d.pos.y = clamp(d.pos.y, (land ? 0 : SEA_Y) + 2.2, 420);
-    const cam = this.cam; cam.position.copy(d.pos);
-    const cp = Math.cos(d.pitch);
-    _t.set(d.pos.x + fx * cp, d.pos.y + Math.sin(d.pitch), d.pos.z + fz * cp); cam.lookAt(_t);
-    this.target.set(d.pos.x + fx * 60, 0, d.pos.z + fz * 60);
-    if (cam.near !== 0.6) { cam.near = 0.6; cam.updateProjectionMatrix(); }
+    const d = this.drone, K = this.keys, cam = this.cam, air = this.air; d.age += dt; d.pt += dt;
+    const yaw0 = d.yaw, vx0 = d.vel.x, vz0 = d.vel.z, tall = this.engine.h > this.engine.w;
+    let camSet = false;
+    if (d.phase === 'fly') {
+      const f = (K.has('KeyW') || K.has('ArrowUp') ? 1 : 0) - (K.has('KeyS') || K.has('ArrowDown') ? 1 : 0) + d.touch.f;
+      const s = (K.has('KeyD') || K.has('ArrowRight') ? 1 : 0) - (K.has('KeyA') || K.has('ArrowLeft') ? 1 : 0) + d.touch.s;
+      const u = (K.has('KeyE') || K.has('Space') ? 1 : 0) - (K.has('KeyQ') ? 1 : 0) + d.touch.u;
+      let sp = DRONE_SPEED[d.level] * d.boost * (K.has('ShiftLeft') || K.has('ShiftRight') ? 1.8 : 1);
+      sp = lerp(sp, Math.min(sp, 6.5), d.inK);                                                  // indoors it goes carefully
+      d.yaw = dampAngle(d.yaw, d.gy, 6.5, dt); d.cy = dampAngle(d.cy, d.yaw, 3.6, dt); d.pitch = damp(d.pitch, d.gp, 8, dt);
+      const fx = Math.sin(d.yaw), fz = Math.cos(d.yaw);
+      _t.set((fx * f - fz * s) * sp, u * sp * 0.6 + Math.sin(d.pitch) * f * sp * 0.5, (fz * f + fx * s) * sp);
+      d.vel.x = damp(d.vel.x, _t.x, 2.3, dt); d.vel.y = damp(d.vel.y, _t.y, 3.2, dt); d.vel.z = damp(d.vel.z, _t.z, 2.3, dt);
+      // move in small steps so it can never slip through a wall, and keep it out of what is solid
+      const n = Math.min(14, Math.max(1, Math.ceil((d.vel.length() * dt) / 0.28))), h = dt / n;
+      for (let i = 0; i < n; i++) {
+        _q.copy(d.pos); d.pos.addScaledVector(d.vel, h);
+        d.pos.x = clamp(d.pos.x, BOUNDS[0], BOUNDS[1]); d.pos.z = clamp(d.pos.z, BOUNDS[2], BOUNDS[3]);
+        if (!air) continue;
+        air.guide(d.pos, d.vel, h);
+        const pu = air.collide(d.pos, _q);
+        if (pu[0] || pu[1]) { const L = Math.hypot(pu[0], pu[1]), nx = pu[0] / L, nz = pu[1] / L, vn = d.vel.x * nx + d.vel.z * nz; if (vn < 0) { d.vel.x -= vn * nx; d.vel.z -= vn * nz; } }
+      }
+      const g = air ? air.space(d.pos.x, d.pos.y, d.pos.z, d.sp) : { floor: (landSDF(d.pos.x, d.pos.z) < 6 ? 0 : SEA_Y) + 2.4, ceil: ALT_MAX, zone: null };
+      if (d.pos.y < g.floor) { d.pos.y = g.floor - d.pos.y > 0.3 ? damp(d.pos.y, g.floor, 14, dt) : g.floor; if (d.vel.y < 0) d.vel.y = 0; }
+      if (d.pos.y > g.ceil) { d.pos.y = g.ceil; if (d.vel.y > 0) d.vel.y = 0; }
+      d.inside = g.zone ? g.zone.a : null;
+    } else if (d.phase === 'launch') {
+      // the camera comes to the dock, the lid opens, the rotors spin up, the drone lifts out and turns towards the site
+      const L = d.L, t = d.pt, k1 = easeIO(clamp(t / L.T1, 0, 1)), t2 = t - L.T1;
+      d.lid = clamp((t - L.T1 + 0.55) / 1.0, 0, 1);
+      d.motor = clamp((t2 - 0.25) / 0.55, 0, 1); d.thr = 0.42 * d.motor;
+      const up = easeIO(clamp((t2 - 0.75) / 1.5, 0, 1)), k3 = easeIO(clamp((t2 - 0.9) / 1.7, 0, 1));
+      const rest = this.dock.rest.y + DRONE_LEG; d.pos.y = rest + 4.6 * up; d.bob = up;
+      d.yaw = d.cy = d.gy = this.dock.yaw + angleTo(this.dock.yaw, this.dock.out) * easeIO(clamp((t2 - 1.0) / 1.5, 0, 1));
+      d.vel.y = 0;
+      this._chaseCam(d, _c2);
+      _c1.copy(L.c0).lerp(L.view, k1); _l1.copy(L.l0).lerp(L.at, k1);
+      _l2.set(d.pos.x + Math.sin(d.cy) * 12, d.pos.y + Math.sin(d.pitch) * 12, d.pos.z + Math.cos(d.cy) * 12);
+      d.cam.copy(_c1).lerp(_c2, k3); d.look.copy(_l1).lerp(_l2, k3);
+      cam.position.copy(d.cam); cam.lookAt(d.look); camSet = true;
+      if (t2 > 2.7) { d.phase = 'fly'; d.pt = 0; d.motor = 1; d.bob = 1; d.L = null; }
+    } else if (d.phase === 'home') {
+      // along a smooth arc: up, over at a safe height, down to a point over the dock; facing the way it goes
+      const H = d.H, u = easeIO(clamp(d.pt / H.T, 0, 1)), v = 1 - u;
+      _t.set(0, 0, 0).addScaledVector(H.p0, v * v * v).addScaledVector(H.p1, 3 * v * v * u).addScaledVector(H.p2, 3 * v * u * u).addScaledVector(H.p3, u * u * u);
+      d.vel.copy(_t).sub(d.pos).multiplyScalar(1 / Math.max(dt, 1e-3)); d.pos.copy(_t);
+      const hv = Math.hypot(d.vel.x, d.vel.z); if (hv > 2.5) d.gy = Math.atan2(d.vel.x, d.vel.z); else if (u > 0.8) d.gy = this.dock.yaw;
+      d.yaw = dampAngle(d.yaw, d.gy, 4.5, dt); d.cy = dampAngle(d.cy, d.yaw, 3, dt); d.pitch = damp(d.pitch, -0.32, 2.5, dt); d.thr = damp(d.thr, 0.35 + hv / 70, 4, dt);
+      d.inside = null;
+      if (d.pt >= H.T) { d.phase = 'land'; d.pt = 0; }
+    } else if (d.phase === 'land') {
+      // over the dock: the lid opens, it comes straight down onto the pad, the rotors stop, the lid closes
+      const rest = this.dock.rest.y + DRONE_LEG, t = d.pt;
+      d.lid = Math.min(1, Math.max(d.lid, t / 0.9)) * (1 - clamp((t - 3.6) / 1.0, 0, 1));
+      const down = easeIO(clamp((t - 0.6) / 2.2, 0, 1)); d.pos.y = rest + 6.5 * (1 - down); d.vel.set(0, 0, 0); d.bob = 1 - down;
+      d.yaw = dampAngle(d.yaw, this.dock.yaw, 4, dt); d.cy = dampAngle(d.cy, d.yaw, 3, dt); d.pitch = damp(d.pitch, -0.42, 2.5, dt);
+      d.motor = 1 - clamp((t - 2.9) / 0.8, 0, 1); d.thr = 0.3 * d.motor;
+      // the camera eases round to watch it go in
+      const w = this.dock.around(7.2, -3.4, 3.3), at = this.dock.rest.clone(), k = easeIO(clamp((t - 0.2) / 2.4, 0, 1)); at.y += 0.8;
+      this._chaseCam(d, _c2); _l2.set(d.pos.x + Math.sin(d.cy) * 12, d.pos.y + Math.sin(d.pitch) * 12, d.pos.z + Math.cos(d.cy) * 12);
+      d.cam.lerp(_c2, 1 - Math.exp(-6 * dt)); _c1.copy(d.cam).lerp(w, k); d.look.copy(_l2).lerp(at, k);
+      cam.position.copy(_c1); cam.lookAt(d.look); camSet = true;
+      if (t > 4.7) d.phase = 'done';
+    }
+    // attitude: nose down while it speeds up and flies forward, a roll into sideways flight and into every turn
+    const idt = 1 / Math.max(dt, 1e-3), fx = Math.sin(d.yaw), fz = Math.cos(d.yaw), vf = d.vel.x * fx + d.vel.z * fz, vs = -d.vel.x * fz + d.vel.z * fx;
+    const af = ((d.vel.x - vx0) * fx + (d.vel.z - vz0) * fz) * idt, as = (-(d.vel.x - vx0) * fz + (d.vel.z - vz0) * fx) * idt;
+    let yr = (d.yaw - yaw0) % TAU; if (yr > Math.PI) yr -= TAU; if (yr < -Math.PI) yr += TAU; yr *= idt;
+    const air1 = d.phase === 'fly' || d.phase === 'home' ? 1 : 0;
+    d.tiltX = damp(d.tiltX, clamp(vf * 0.008 + af * 0.02, -0.46, 0.52) * air1, 7, dt);
+    d.tiltZ = damp(d.tiltZ, clamp(vs * 0.011 + as * 0.02 - yr * 0.2, -0.6, 0.6) * air1, 7, dt);
+    const speed = Math.hypot(d.vel.x, d.vel.y, d.vel.z); d.kmh = speed * 3.6;
+    if (d.phase === 'fly') d.thr = damp(d.thr, clamp(0.24 + speed / 62 + (Math.abs(af) + Math.abs(as)) * 0.012, 0, 1), 5, dt);
+    // indoors: closer camera, smaller-looking drone (it has doors to get through)
+    d.inK = damp(d.inK, d.inside ? 1 : 0, 3.2, dt); d.size = lerp(1, 0.62, d.inK);
+    if (!camSet) {
+      this._chaseCam(d, _t);
+      if (air) { const g = air.space(_t.x, Math.min(_t.y, d.pos.y), _t.z, _sp); _t.y = clamp(_t.y, g.floor - 0.2, Math.max(g.floor - 0.2, g.ceil + 0.2)); }
+      d.cam.lerp(_t, 1 - Math.exp(-(d.age < 1.2 && d.phase === 'fly' && !this.dock ? 4 : 13) * dt));
+      // never behind a wall: the camera comes in front of it, towards the drone
+      if (air) { const f = air.sight(d.pos, d.cam); if (f < 1) { const L = d.pos.distanceTo(d.cam); d.cam.sub(d.pos).multiplyScalar(Math.max(0.06, f - 0.14 / Math.max(L, 0.01))).add(d.pos); } }
+      cam.position.copy(d.cam);
+      const cp = Math.cos(d.pitch), sn = Math.sin(d.pitch); _l2.set(d.cam.x + Math.sin(d.cy) * cp, d.cam.y + sn, d.cam.z + Math.cos(d.cy) * cp); cam.lookAt(_l2);
+    }
+    this.target.set(d.pos.x + fx * lerp(60, 3, d.inK), 0, d.pos.z + fz * lerp(60, 3, d.inK));
+    const fov = (tall ? 62 : 50) + 9 * clamp(speed / 60, 0, 1) + (tall ? 6 : 8) * d.inK;            // the lens opens a little at speed, and indoors
+    if (Math.abs(this.fov - fov) > 0.05) { this.fov = damp(this.fov, fov, 3, dt); cam.fov = this.fov; cam.updateProjectionMatrix(); this.onFov && this.onFov(this.fov); }
+    const near = lerp(0.4, 0.12, d.inK); if (Math.abs(cam.near - near) > 0.02) { cam.near = near; cam.updateProjectionMatrix(); }
     if (this._sx || this._sy) { cam.clearViewOffset(); this._sx = this._sy = 0; }
-    cam.updateMatrixWorld(); this.moved = true; this.speed = d.vel.length();
+    cam.updateMatrixWorld(); this.moved = true; this.speed = speed;
   }
   /* ───── input ───── */
   _bind() {
@@ -275,7 +396,7 @@ export class Rig {
       const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY; moved += Math.abs(dx) + Math.abs(dy);
       if (this.onDrag && this.onDrag(dx, dy, e)) return;
       if (!active()) return;
-      if (this.drone) { this.drone.gy -= dx * 0.0042; this.drone.gp = clamp(this.drone.gp - dy * 0.0036, -1.35, 0.6); return; }
+      if (this.drone) { this.drone.gy -= dx * 0.0042; this.drone.gp = clamp(this.drone.gp - dy * 0.0036, -1.2, 0.3); return; }
       this._userTook();
       const g = this.goal;
       if (this.pointers.size >= 2) {
@@ -294,7 +415,7 @@ export class Rig {
     el.addEventListener('contextmenu', (e) => { if (active()) e.preventDefault(); });
     el.addEventListener('wheel', (e) => {
       if (this.onWheel && this.onWheel(e.deltaY, e)) { e.preventDefault(); return; }
-      if (this.drone) { e.preventDefault(); this.drone.boost = clamp(this.drone.boost * Math.exp(-e.deltaY * 0.001), 0.3, 5); return; }
+      if (this.drone) { e.preventDefault(); this.drone.boost = clamp(this.drone.boost * Math.exp(-e.deltaY * 0.001), 0.5, 2); return; }
       if (!this.user || (!this.wheelZoom && !e.ctrlKey)) return;
       e.preventDefault(); this._userTook();
       this.goal.dist *= Math.exp(clamp(e.deltaY, -120, 120) * (e.ctrlKey ? 0.008 : 0.0016));

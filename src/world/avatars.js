@@ -70,11 +70,22 @@ export const avatars = {
       Object.assign(this.types.get(id), { id, ready: true, geo, mat, bones, inv, map: map2, fmap, rootY: bones[0].t[1], female: FEMALE.has(id), height: h.max[1] - h.min[1] });
     } catch (e) { console.warn('avatar', id, e); this.types.delete(id); }
   },
+  /** a speck-sized rigged figure with the same kind of surface as every person, never shown: the page compiles its shader under the
+   *  loader and world.warm draws it once, so the first real person to walk into view does not stall the frame while that is done */
+  standIn(scene) {
+    const geo = new THREE.BoxGeometry(0.01, 0.01, 0.01), n = geo.attributes.position.count, sw = new Float32Array(n * 4); for (let i = 0; i < n; i++) sw[i * 4] = 1;
+    geo.setAttribute('skinIndex', new THREE.BufferAttribute(new Uint16Array(n * 4), 4)); geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+    const tex = new THREE.DataTexture(new Uint8Array([200, 200, 200, 255]), 1, 1); tex.colorSpace = THREE.SRGBColorSpace; tex.needsUpdate = true;
+    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.86, metalness: 0, alphaTest: 0.5, side: THREE.DoubleSide, envMapIntensity: 0.55 });
+    const bone = new THREE.Bone(), mesh = new THREE.SkinnedMesh(geo, mat); mesh.add(bone); mesh.bind(new THREE.Skeleton([bone]), new THREE.Matrix4());
+    mesh.frustumCulled = false; mesh.castShadow = true; mesh.receiveShadow = false; mesh.visible = false; mesh.name = 'avatar-stand-in'; mesh.position.set(-40, -3, 60);
+    scene.add(mesh); return mesh;
+  },
   /** one person: their own bones, the shared mesh */
   spawn(T, cast = true) {
     const bones = T.bones.map((b) => { const o = new THREE.Bone(); o.name = b.n; o.position.fromArray(b.t); o.quaternion.fromArray(b.q); return o; });
     T.bones.forEach((b, i) => { if (b.p >= 0) bones[b.p].add(bones[i]); });
-    const root = new THREE.Group(), mesh = new THREE.SkinnedMesh(T.geo, T.mat); root.add(bones[0], mesh);
+    const root = new THREE.Group(), mesh = new THREE.SkinnedMesh(T.geo, T.mat); mesh.layers.set(1); root.add(bones[0], mesh);      // (layer 1: the main camera sees them, the wheel bath's mirror does not, so it never has to prepare them mid-film)
     mesh.bind(new THREE.Skeleton(bones, T.inv), new THREE.Matrix4()); mesh.frustumCulled = false; mesh.castShadow = cast; mesh.receiveShadow = false;
     return { T, root, mesh, bones, cur: new Float32Array(T.map.length * 4), from: new Float32Array(T.map.length * 4), fade: 1, clip: null, ph: 0, rx: 0, ry: 1, rz: 0, fy: 1 };
   },

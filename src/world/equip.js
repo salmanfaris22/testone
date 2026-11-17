@@ -388,6 +388,23 @@ export function banner(b, x, z, { ry = 0, w = 1.8, h = 2.6, hex = C.teal, y = F,
   b.pop();
   return rot([-w / 2, 0, -0.25, w / 2, y + h + 0.1, 0.25], x, z, ry);
 }
+/** A freestanding exhibition wall, the TV set into it: the printed panel's title band (topic, subtitle, Arabic) across the top,
+ *  a 16:9 TV in a thin black frame, and the panel's dark footer strip under it. `panel` is the printed tile (100 + k), `tile` the TV's (200 + k). */
+export function exhibitWall(b, x, z, { ry = 0, w = 3.7, hex = C.teal, y = F, panel = 100, tile = 200 } = {}) {
+  const d = 0.32, tw = w - 0.62, th = (tw * 9) / 16, bottom = y + 0.74, bezel = 0.05, hw = w - 0.36, hh = (hw * 150) / 512, fh = (hw * 44) / 512;
+  const hy = bottom + th + bezel + 0.07, top = hy + hh + 0.12, front = d / 2;
+  b.push(x, 0, z, ry);
+  b.use('matte').box(C.clayCool, w + 0.12, 0.1, d + 0.16, 0, y, 0);
+  b.box(0xf7f4ee, w, top - y - 0.1, d, 0, y + 0.1, 0);
+  b.box(hex, 0.12, top - y - 0.1, d + 0.02, -w / 2 + 0.06, y + 0.1, 0); b.box(hex, w, 0.06, d + 0.02, 0, top - 0.06, 0);
+  b.screen(panel, hw, hh, 0.04, hy, front + 0.006, 0, 0, [0, 150 / 640]);
+  b.use('matte').box(0x080c10, tw + bezel * 2, th + bezel * 2, 0.05, 0.04, bottom - bezel, front - 0.005);
+  b.screen(tile, tw, th, 0.04, bottom, front + 0.024);
+  b.use('glow').box(0x58dbc7, 0.025, 0.009, 0.006, 0.04 + tw * 0.43, bottom - 0.03, front + 0.024);
+  b.screen(panel, hw, fh, 0.04, y + 0.3, front + 0.006, 0, 0, [596 / 640, 1]);
+  b.pop();
+  return { box: rot([-w / 2, y, -d / 2 - 0.1, w / 2, top, d / 2 + 0.1], x, z, ry), tvY: bottom + th / 2 };
+}
 /** A thin 16:9 TV on a low pedestal, facing the hall. */
 export function exhibitTV(b, x, z, { ry = 0, w = 3.4, y = F, tile = 200 } = {}) {
   const h = w * 9 / 16, bottom = y + 0.88, bezel = 0.055;

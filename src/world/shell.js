@@ -16,10 +16,21 @@ function spans(len, doors = []) {
   return out;
 }
 
-/** remember a wall (in the area's own frame) so the walk-in camera can stay on the right side of it */
-export function noteWall(b, x0, z0, x1, z1, top, door = 0) {
+/** remember a wall (in the area's own frame) so the walk-in camera can stay on the right side of it:
+ *  [x0, z0, x1, z1, top, door, leaf, doorTop, wallTop]. door: 0 a wall, 1 a closed door, 2 an open doorway, 3 a gap in a partition,
+ *  4 a wide opening (no door at all). A closed door carries its leaf (doorLeaf): the drone opens it as it comes and passes once it is
+ *  open. For an opening, doorTop is the head of it and wallTop the top of the wall over it (the drone passes under the one, not the other). */
+export function noteWall(b, x0, z0, x1, z1, top, door = 0, leaf = null, doorTop = 99, wallTop = top) {
   if (!b) return; const e = b.base.elements, W = b.walls || (b.walls = []);
-  W.push([e[0] * x0 + e[8] * z0 + e[12], e[2] * x0 + e[10] * z0 + e[14], e[0] * x1 + e[8] * z1 + e[12], e[2] * x1 + e[10] * z1 + e[14], top, door]);
+  W.push([e[0] * x0 + e[8] * z0 + e[12], e[2] * x0 + e[10] * z0 + e[14], e[0] * x1 + e[8] * z1 + e[12], e[2] * x1 + e[10] * z1 + e[14], top, door, leaf, doorTop, wallTop]);
+}
+/** a door leaf that can open, built on its own (Builder.build makes the leaves of a builder one instanced mesh, kit.js):
+ *  from (x0,z0) to (x1,z1) in the builder's own frame, y0..y1, thickness t. kind: 'roll' (a shutter that rolls up), 'slide' (slides
+ *  along the wall, into it), 'part' (two leaves that slide apart). Returns the door, with `open` 0..1 that the drone's world drives. */
+export function doorLeaf(b, x0, z0, x1, z1, y0, y1, { t = 0.12, hex = C.steel, key = 'satin', kind } = {}) {
+  const e = b.base.elements, L = b.leaves || (b.leaves = []), len = Math.hypot(x1 - x0, z1 - z0);
+  const d = { x0: e[0] * x0 + e[8] * z0 + e[12], z0: e[2] * x0 + e[10] * z0 + e[14], x1: e[0] * x1 + e[8] * z1 + e[12], z1: e[2] * x1 + e[10] * z1 + e[14], y0: y0 + e[13], y1: y1 + e[13], t, hex, key, kind: kind || (len >= 2.6 ? 'roll' : 'slide'), open: 0, want: 0, mesh: null, i: 0, n: kind === 'part' ? 2 : 1 };
+  L.push(d); return d;
 }
 
 /** wall from (x0,z0) to (x1,z1): low part + cap in `lo`, upper part in `hi` (if given) */
@@ -30,8 +41,13 @@ export function wallRun(lo, hi, x0, z0, x1, z1, { t = 0.4, h = 5, cut = CUT, hex
   const ux = dx / len, uz = dz / len;
   const seg = (b, a0, a1, y0, y1, c, tt = t, bucket = 'matte') => { if (a1 - a0 < 0.02 || y1 - y0 < 0.01) return; b.use(bucket).wall(c, x0 + ux * a0, z0 + uz * a0, x0 + ux * a1, z0 + uz * a1, tt, y0, y1); };
   for (const [a0, a1] of spans(len, doors)) noteWall(lo, x0 + ux * a0, z0 + uz * a0, x0 + ux * a1, z0 + uz * a1, hi ? h : cut);
-  // doorways: 1 = a closed door in an outer or corridor wall, 2 = an open one, 3 = a gap in a partition inside a hall (2 and 3 never block)
-  for (const d of doors) { const a0 = Math.max(0, d.at - d.w / 2), a1 = Math.min(len, d.at + d.w / 2), shut = hi && !inner && d.shut !== false; noteWall(lo, x0 + ux * a0, z0 + uz * a0, x0 + ux * a1, z0 + uz * a1, shut ? d.h || doorH : 0, shut ? 1 : inner || !hi ? 3 : 2); }
+  // doorways: 1 = a closed door in an outer or corridor wall, 2 = an open one, 3 = a gap in a partition inside a hall (2 and 3 never block).
+  // A closed door's leaf is built on its own (it opens for the drone): a shutter if it is wide, a sliding door if not
+  for (const d of doors) {
+    const a0 = Math.max(0, d.at - d.w / 2), a1 = Math.min(len, d.at + d.w / 2), shut = hi && !inner && d.shut !== false, dh = d.h || doorH;
+    const leaf = shut ? doorLeaf(hi, x0 + ux * a0, z0 + uz * a0, x0 + ux * a1, z0 + uz * a1, base, dh, { hex: d.hex || C.steel }) : null;
+    noteWall(lo, x0 + ux * a0, z0 + uz * a0, x0 + ux * a1, z0 + uz * a1, shut ? dh : 0, shut ? 1 : inner || !hi ? 3 : 2, leaf, hi && h > dh ? dh : 99, hi ? h : cut);
+  }
   for (const [a0, a1] of spans(len, doors)) {
     if (glass) {
       seg(lo, a0, a1, base, base + 0.28, hex);                                   // sill
@@ -49,7 +65,7 @@ export function wallRun(lo, hi, x0, z0, x1, z1, { t = 0.4, h = 5, cut = CUT, hex
       } else seg(hi, a0, a1, cut, h, hex);
     }
   }
-  if (hi) for (const d of doors) { const a0 = Math.max(0, d.at - d.w / 2), a1 = Math.min(len, d.at + d.w / 2), dh = d.h || doorH; if (h > dh) seg(hi, a0, a1, Math.max(cut, dh), h, hex); if (d.shut !== false && !inner) seg(hi, a0, a1, base, dh, d.hex || C.steel, 0.12, 'satin'); }
+  if (hi) for (const d of doors) { const a0 = Math.max(0, d.at - d.w / 2), a1 = Math.min(len, d.at + d.w / 2), dh = d.h || doorH; if (h > dh) seg(hi, a0, a1, Math.max(cut, dh), h, hex); }      // (the leaves: doorLeaf above)
 }
 
 /** rectangular hall. sides: n (z0), s (z1), w (x0), e (x1); doors/windows per side measured from the west or north end */

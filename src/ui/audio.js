@@ -30,6 +30,11 @@ export function createAudio() {
     { const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = 43; const g = gain(0), am = gain(0.5); lfo(3.1, 0.5, am.gain); o.connect(am); am.connect(g); g.connect(master); o.start(); L.pump = g; }
     // pad: soft chord tones that fade in and out, with a long echo
     { const g = gain(0), lp = filt('lowpass', 900), dly = ctx.createDelay(1.2), fb = gain(0.42); dly.delayTime.value = 0.61; lp.connect(g); lp.connect(dly); dly.connect(fb); fb.connect(dly); dly.connect(g); g.connect(master); L.pad = g; L.padIn = lp; }
+    // drone: four rotors a few hertz apart (they beat against each other) with their overtones, and the air they move
+    { const g = gain(0), lp = filt('lowpass', 1500, 0.6), wob = gain(1); L.droneO = [];
+      for (const [mul, det, v] of [[1, -14, 0.34], [1, 9, 0.34], [1, 23, 0.3], [1, -31, 0.3], [2, 6, 0.2], [2, -11, 0.2], [3, 4, 0.1], [4, -7, 0.06]]) { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 98 * mul; o.detune.value = det; const og = gain(v); o.connect(og); og.connect(lp); o.start(); L.droneO.push([o, mul]); }
+      const src = noise(2, false), nb = filt('bandpass', 2600, 0.6), ng = gain(0.5); src.connect(nb); nb.connect(ng); ng.connect(wob); src.start(); L.droneN = ng; L.droneF = lp;
+      lp.connect(wob); lfo(11.5, 0.1, wob.gain); wob.connect(g); g.connect(master); L.drone = g; }
     L.bubble = gain(0); L.bubble.connect(master);
     L.fx = gain(0.9); L.fx.connect(master);
   }
@@ -87,5 +92,9 @@ export function createAudio() {
     /** going under water */
     splash() { if (!on) return; burst(0.5, 2600, 300, 0.6, 0.13, 'lowpass'); for (let k = 0; k < 7; k++) { const f = 300 + Math.random() * 700; tone(f, f * 2, 0.11, 0.035, 'sine', 0.12 + k * 0.07); } },
     blip() { this.click(); },
+    /** the drone's rotors: on or off */
+    drone(v) { if (!ctx) return; ramp(L.drone.gain, v ? 0.085 : 0, v ? 0.5 : 0.35); },
+    /** how hard the rotors are working, 0 to 1: the note rises and the air gets louder */
+    droneSet(k) { if (!ctx || !on) return; const t = ctx.currentTime, f = 92 + 96 * k; for (const [o, mul] of L.droneO) o.frequency.setTargetAtTime(f * mul, t, 0.09); L.droneN.gain.setTargetAtTime(0.35 + 0.9 * k, t, 0.12); L.droneF.frequency.setTargetAtTime(1200 + 1500 * k, t, 0.12); },
   };
 }

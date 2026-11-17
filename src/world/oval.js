@@ -4,7 +4,7 @@
 // Everything is in the park frame (metres); the outlines and their ellipse parameter t come from OVAL in layout.js.
 import * as THREE from 'three';
 import { C, TAU, DEG, canvasTex } from './kit.js';
-import { CUT } from './shell.js';
+import { CUT, noteWall, doorLeaf } from './shell.js';
 import { OVAL, facade, podium, ovalPt, ovalT, ovalN, ovalRate } from './layout.js';
 
 const O = OVAL, YP = O.yp, TOP = O.top;
@@ -93,6 +93,10 @@ export function buildOval(lo, hi, { RO, pol }) {
     const p = facade(t), q = ovalN(facade, t), ry = -Math.atan2(-q[0], q[1]), x = p[0] + q[0] * 0.07, z = p[1] + q[1] * 0.07;
     lo.use('satin').box(0xd9dee1, 0.12, CUT - YP, 0.2, x, YP, z, ry); hi.use('satin').box(0xd9dee1, 0.12, TOP - CUT, 0.2, x, CUT, z, ry);
   }
+  // the glass front is a wall for the drone and the walk-in camera (the doors are a closed door: they slide apart for the drone)
+  { const TDl = TD - 2.25 / ovalRate(facade, TD), TDr = TD + 2.25 / ovalRate(facade, TD), ts = spaced(facade, T0, T1, 2.4);
+    for (let i = 1; i < ts.length; i++) { let a = ts[i - 1], b = ts[i]; if (b <= TDl || a >= TDr) { const p = facade(a), q = facade(b); noteWall(lo, p[0], p[1], q[0], q[1], TOP); continue; }
+      if (a < TDl) { const p = facade(a), q = facade(TDl); noteWall(lo, p[0], p[1], q[0], q[1], TOP); } if (b > TDr) { const p = facade(TDr), q = facade(b); noteWall(lo, p[0], p[1], q[0], q[1], TOP); } } }
   // the ends: a white return against the office wing, a pier where the glass meets the link to the lab wing
   { const e = facade(T0); lo.use('matte').box(0xf1efe9, 1.9, CUT - YP, 0.45, e[0] + 0.85, YP, e[1]); hi.use('matte').box(0xf1efe9, 1.9, TOP - CUT, 0.45, e[0] + 0.85, CUT, e[1]);
     const w = facade(T1); lo.use('matte').box(0xf1efe9, 0.7, CUT - YP, 0.7, w[0], YP, w[1]); hi.use('matte').box(0xf1efe9, 0.7, TOP - CUT, 0.7, w[0], CUT, w[1]); }
@@ -100,7 +104,11 @@ export function buildOval(lo, hi, { RO, pol }) {
   {
     const p = facade(TD), q = ovalN(facade, TD), ry = -Math.atan2(-q[0], q[1]), tx = -q[1], tz = q[0], at = (s, o) => [p[0] + tx * s + q[0] * o, p[1] + tz * s + q[1] * o];
     for (const s of [-4.3, -2.15, 0, 2.15, 4.3]) { const [x, z] = at(s, 0.16); lo.use('satin').box(0xe3e7ea, 0.16, CUT - YP, 0.3, x, YP, z, ry); hi.use('satin').box(0xe3e7ea, 0.16, 3.6 - CUT, 0.3, x, CUT, z, ry); }
-    { const [x, z] = at(0, 0.16); hi.use('satin').box(0xe3e7ea, 8.9, 0.3, 0.34, x, 3.6, z, ry); lo.use('window').box(null, 8.5, CUT - YP - 0.05, 0.08, x, YP + 0.02, z, ry); hi.use('window').box(null, 8.5, 3.6 - CUT, 0.08, x, CUT, z, ry); }
+    { const [x, z] = at(0, 0.16); hi.use('satin').box(0xe3e7ea, 8.9, 0.3, 0.34, x, 3.6, z, ry);
+      // the two outer leaves are fixed; the middle pair slides apart (doorLeaf 'part'), in front of them, when someone (the drone) comes
+      for (const sg of [-1, 1]) { const [fx, fz] = at(sg * 3.2, 0.16); lo.use('window').box(null, 2.12, CUT - YP - 0.05, 0.08, fx, YP + 0.02, fz, ry); hi.use('window').box(null, 2.12, 3.6 - CUT, 0.08, fx, CUT, fz, ry); }
+      const a = at(-2.15, 0.36), b = at(2.15, 0.36), leaf = doorLeaf(hi, a[0], a[1], b[0], b[1], YP + 0.02, 3.6, { t: 0.06, key: 'window', kind: 'part' });
+      const wa = at(-2.15, 0), wb = at(2.15, 0); noteWall(lo, wa[0], wa[1], wb[0], wb[1], 3.6, 1, leaf, 3.6, TOP); }
     { const [x, z] = at(0, 1.8); lo.use('matte').box(0x2e3338, 8.6, 0.02, 2.6, x, YP, z, ry); }
   }
 

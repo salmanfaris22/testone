@@ -17,15 +17,16 @@ function flagTex() {
 }
 
 /**
- * list: [{ x, z, h, s }] pole positions (ground y = 0), heights and the size of the flag (1 = 2.8 m long). `wind` is the direction the flags stream towards (radians, three.js rotation.y).
+ * list: [{ x, z, h, s, pole }] pole positions (ground y = 0), heights and the size of the flag (1 = 2.8 m long); `pole: false`
+ * hangs the flag on something that is already there (a street light), its top edge 0.25 m under `h`. `wind` is the direction the flags stream towards (radians, three.js rotation.y).
  * Returns { group, update(dt, t) }.
  */
 export function createFlags(mats, list, { wind = -2.36 } = {}) {
   const group = new THREE.Group(); group.name = 'flags';
   // poles and finials: one merged mesh
   const b = new Builder();
-  for (const f of list) { const h = f.h || 11, k = f.s || 1; b.use('satin').cyl(0xe6e9eb, 0.09 * k, h, f.x, 0, f.z, 10, 0.05 * k); b.ball(0xd9b25a, 0.14 * k, f.x, h + 0.1 * k, f.z, 10, 8); b.use('satin').cyl(0xcfd4d7, 0.28 * k, 0.35, f.x, 0, f.z, 12); b.use('concrete').cyl(0xd8d4cb, 0.62 * k, 0.16, f.x, 0, f.z, 16); }
-  group.add(b.build(mats, { cast: true }));
+  for (const f of list) { if (f.pole === false) continue; const h = f.h || 11, k = f.s || 1; b.use('satin').cyl(0xe6e9eb, 0.09 * k, h, f.x, 0, f.z, 10, 0.05 * k); b.ball(0xd9b25a, 0.14 * k, f.x, h + 0.1 * k, f.z, 10, 8); b.use('satin').cyl(0xcfd4d7, 0.28 * k, 0.35, f.x, 0, f.z, 12); b.use('concrete').cyl(0xd8d4cb, 0.62 * k, 0.16, f.x, 0, f.z, 16); }
+  if (list.some((f) => f.pole !== false)) group.add(b.build(mats, { cast: true }));
 
   const U = { uT: { value: 0 } };
   const mat = new THREE.MeshStandardMaterial({ map: flagTex(), side: THREE.DoubleSide, roughness: 0.78, metalness: 0 });

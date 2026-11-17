@@ -6,7 +6,7 @@ import { clamp, damp, rng, TAU, canvasTex } from './kit.js';
 import { lengthAt, weightAt, ageAtWeight, maxAge } from '../data/growth.js';
 import { MIX } from './fish.js';
 
-const TINT = { cage: 0x0c6f92, tank: 0x1650a8, glass: 0x1287b0 };
+const TINT = { cage: 0x1f93b2, tank: 0x1f62b4, glass: 0x1c97be };      // lighter, clearer water than before, lit by a white sun
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _v = new THREE.Vector3(), _ray = new THREE.Ray(), _rc = new THREE.Raycaster(), _ndc = new THREE.Vector2();
 
 export function createDive(world) {
@@ -20,9 +20,9 @@ export function createDive(world) {
   scene.add(new THREE.Mesh(new THREE.SphereGeometry(420, 32, 20), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { uT, uTint },
     vertexShader: 'varying vec3 v; void main(){ v = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: `varying vec3 v; uniform float uT; uniform vec3 uTint; void main(){ vec3 d = normalize(v); float h = d.y;
-      vec3 deep = uTint * 0.28, top = mix(uTint, vec3(0.62, 0.93, 0.96), 0.7);
-      vec3 c = mix(deep, uTint, smoothstep(-0.75, 0.08, h)); c = mix(c, top, smoothstep(0.04, 0.9, h));
-      float a = atan(d.z, d.x); float ray = pow(max(0.0, sin(a * 7.0 + uT * 0.1 + sin(a * 3.0 + uT * 0.05) * 2.0) * 0.5 + 0.5), 5.0) * smoothstep(-0.25, 0.8, h) * 0.17; c += vec3(0.55, 0.92, 1.0) * ray;
+      vec3 deep = uTint * 0.5, top = mix(uTint, vec3(0.9, 0.98, 1.0), 0.6);
+      vec3 c = mix(deep, uTint * 1.08, smoothstep(-0.8, 0.12, h)); c = mix(c, top, smoothstep(0.18, 0.98, h));
+      float a = atan(d.z, d.x); float ray = pow(max(0.0, sin(a * 7.0 + uT * 0.1 + sin(a * 3.0 + uT * 0.05) * 2.0) * 0.5 + 0.5), 5.0) * smoothstep(-0.25, 0.8, h) * 0.2; c += vec3(1.0, 0.99, 0.94) * ray;
       gl_FragColor = vec4(c, 1.0);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
@@ -35,14 +35,14 @@ export function createDive(world) {
         vec4 a = texture2D(uN, p * 0.035 + uT * vec2(0.02, 0.013)), b = texture2D(uN, p * 0.09 - uT * vec2(0.03, -0.018)), c = texture2D(uN, p * 0.012 + uT * vec2(-0.006, 0.009));
         float l1 = 1.0 - smoothstep(0.0, 0.05, abs(a.a - b.a)), l2 = 1.0 - smoothstep(0.0, 0.028, abs(c.a - a.a));
         float d = length(cameraPosition.xz - p), win = smoothstep(52.0, 5.0, d);
-        vec3 col = mix(uTint, vec3(0.62, 0.93, 0.97), 0.66) * (0.7 + 0.5 * win) + vec3(1.0) * (l1 * 0.5 + l2 * 0.4) * (0.35 + 0.65 * win);
+        vec3 col = mix(uTint, vec3(0.9, 0.98, 1.0), 0.6) * (0.78 + 0.4 * win) + vec3(1.0) * (l1 * 0.45 + l2 * 0.35) * (0.35 + 0.65 * win);
         float fog = 1.0 - exp(-pow(0.011 * length(cameraPosition - vW), 2.0)); col = mix(col, uTint * 0.95, clamp(fog, 0.0, 1.0));
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }` }));
   surf.scale.set(1400, 1, 1400); surf.frustumCulled = false; scene.add(surf);
-  const hemi = new THREE.HemisphereLight(0xc8f2ff, 0x0b4666, 1.7), key = new THREE.DirectionalLight(0xffffff, 2.5), rim = new THREE.DirectionalLight(0x7fe0ff, 0.9);
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x2b6f8c, 1.9), key = new THREE.DirectionalLight(0xfffaf0, 2.9), rim = new THREE.DirectionalLight(0xd8f4ff, 0.8);
   key.position.set(0.6, 5, 1.2); rim.position.set(-3, 0.6, -4); scene.add(hemi, key, rim);
   // shafts of light
   const shaftTex = canvasTex(64, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(255,255,255,.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); const gx = g.createLinearGradient(0, 0, w, 0); gx.addColorStop(0, 'rgba(0,0,0,1)'); gx.addColorStop(0.5, 'rgba(0,0,0,0)'); gx.addColorStop(1, 'rgba(0,0,0,1)'); g.globalCompositeOperation = 'destination-out'; g.fillStyle = gx; g.fillRect(0, 0, w, h); }, { repeat: false });
@@ -56,7 +56,7 @@ export function createDive(world) {
     const pts = new THREE.Points(g, m); pts.frustumCulled = false; scene.add(pts); world.addScaled(m.uniforms.uS); return m; })();
 
   /* ───── what holds the fish: net, tank wall or glass ───── */
-  const netTex = canvasTex(64, 64, (g, w) => { g.clearRect(0, 0, w, w); g.strokeStyle = 'rgba(210,235,245,.95)'; g.lineWidth = 2.4; g.beginPath(); g.moveTo(0, 0); g.lineTo(w, w); g.moveTo(w, 0); g.lineTo(0, w); g.stroke(); });
+  const netTex = canvasTex(64, 64, (g, w) => { g.clearRect(0, 0, w, w); g.strokeStyle = 'rgba(26,44,54,.92)'; g.lineWidth = 2.2; g.beginPath(); g.moveTo(0, 0); g.lineTo(w, w); g.moveTo(w, 0); g.lineTo(0, w); g.stroke(); });
   const holder = new THREE.Group(); scene.add(holder);
   const fishGroup = new THREE.Group(); scene.add(fishGroup);
   // the selected group: a soft ring round every fish of the same school, a brighter one round the fish you clicked
@@ -64,14 +64,26 @@ export function createDive(world) {
   const hGeo = new THREE.BufferGeometry(); hGeo.setAttribute('position', new THREE.BufferAttribute(hPos, 3)); hGeo.setAttribute('aSize', new THREE.BufferAttribute(hSize, 1)); hGeo.setAttribute('aHot', new THREE.BufferAttribute(hHot, 1));
   const hMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { uS: { value: 1 }, uT, uA: { value: 0 } },
     vertexShader: 'attribute float aSize, aHot; uniform float uS, uT; varying float vHot, vA; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; float pulse = 1.0 + 0.08 * sin(uT * 3.0 + position.x * 2.0); gl_PointSize = clamp(aSize * uS * pulse / -mv.z, 6.0, 260.0); vHot = aHot; vA = smoothstep(0.15, 0.9, -mv.z); }',
-    fragmentShader: 'uniform float uA; varying float vHot, vA; void main(){ float d = length(gl_PointCoord - 0.5) * 2.0; float ring = smoothstep(0.7, 0.86, d) * (1.0 - smoothstep(0.9, 1.0, d)); float glow = (1.0 - smoothstep(0.0, 1.0, d)) * 0.12; float a = (ring * (0.55 + 0.45 * vHot) + glow) * uA * vA; if (a < 0.004) discard; vec3 c = mix(vec3(0.62, 0.95, 1.0), vec3(1.0), vHot); gl_FragColor = vec4(c * a, a); }' });
+    fragmentShader: 'uniform float uA; varying float vHot, vA; void main(){ float d = length(gl_PointCoord - 0.5) * 2.0; float ring = smoothstep(0.86, 0.91, d) * (1.0 - smoothstep(0.95, 1.0, d)); float a = ring * 0.3 * (1.0 - vHot) * uA * vA; if (a < 0.004) discard; vec3 c = vec3(1.0); gl_FragColor = vec4(c * a, a); }' });      // (the fish you clicked glows instead of wearing a ring)
   const halos = new THREE.Points(hGeo, hMat); halos.frustumCulled = false; halos.renderOrder = 4; scene.add(halos); world.addScaled(hMat.uniforms.uS);
+  // the fish you clicked glows: a skin of light over it (fish.js) and a soft halo of light in the water round it
+  const glowGroup = new THREE.Group(); scene.add(glowGroup);
+  const aura = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, uniforms: { uA: { value: 0 }, uT },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform float uA, uT; varying vec2 vUv; void main(){ vec2 p = (vUv - 0.5) * 2.0; float d = dot(p, p);
+      float g = exp(-d * 3.2) * 0.5 + exp(-d * 13.0) * 0.22; g *= 1.0 - smoothstep(0.7, 1.0, d);
+      float a = g * uA * (0.9 + 0.1 * sin(uT * 2.4)); if (a < 0.003) discard;
+      gl_FragColor = vec4(vec3(0.6, 0.94, 1.0) * a, a); }` }));
+  aura.renderOrder = 3; aura.visible = false; aura.frustumCulled = false; scene.add(aura);
+  const _qz = new THREE.Quaternion(), _zAxis = new THREE.Vector3(0, 0, 1), _qi = new THREE.Quaternion();
+  let glow = null, glowOf = null, glowK = 0;
   const S = { active: false, kind: 'cage', r: 19.5, depth: 9, fish: [], sel: null, mix: 0, yaw: 0, gy: 0, pitch: -0.02, gp: -0.02, ang: 0, rc: 4, yc: -3.5, zoom: 1, gz: 1, orb: 0.5, gorb: 0.5, lift: 0.1, glift: 0.1, D: 3, idle: 0, look: new THREE.Vector3(), ready: false, meshes: [] };
 
   function clear() {
     for (const o of [...holder.children]) { holder.remove(o); o.geometry && o.geometry.dispose(); if (o.material && o.material.dispose && !o.material.userData.keep) o.material.dispose(); }
     for (const o of [...fishGroup.children]) { fishGroup.remove(o); o.geometry.dispose(); }
     for (const o of [...shafts.children]) { shafts.remove(o); o.geometry.dispose(); o.material.dispose(); }
+    for (const o of [...glowGroup.children]) { glowGroup.remove(o); o.geometry.dispose(); } glow = glowOf = null; glowK = 0; aura.visible = false;
     S.fish = []; S.meshes = []; S.sel = null; S.mix = 0; S.only = null; S.group = null; hMat.uniforms.uA.value = 0; hGeo.setDrawRange(0, 0);
   }
   /** opts: { kind: 'cage' | 'tank' | 'glass', r, depth, sp (id or 'mix'), n, grams } */
@@ -79,10 +91,10 @@ export function createDive(world) {
     clear();
     const kind = o.kind || 'cage', r = o.r || 19.5, depth = o.depth || 9, R = rng(Math.round(r * 13 + depth * 7) + (o.seed || 1));
     Object.assign(S, { kind, r, depth, active: true, yaw: 0.35, gy: 0.35, pitch: -0.03, gp: -0.03, ang: R() * TAU, zoom: 1, gz: 1, idle: 0, ready: false });
-    uTint.value.setHex(TINT[kind]); scene.fog.color.setHex(TINT[kind]); scene.fog.density = kind === 'cage' ? 0.021 : kind === 'tank' ? 0.05 : 0.07;
-    hemi.color.setHex(kind === 'tank' ? 0x9fc0ff : 0xc8f2ff); hemi.groundColor.setHex(kind === 'tank' ? 0x0a1c5c : 0x0b4666); key.color.setHex(kind === 'tank' ? 0xcfe0ff : 0xffffff);
+    uTint.value.setHex(TINT[kind]); scene.fog.color.setHex(TINT[kind]); scene.fog.density = kind === 'cage' ? 0.0135 : kind === 'tank' ? 0.04 : 0.05;
+    hemi.color.setHex(kind === 'tank' ? 0xdfe9ff : 0xffffff); hemi.groundColor.setHex(kind === 'tank' ? 0x1f3f86 : 0x2b6f8c); key.color.setHex(kind === 'tank' ? 0xf2f6ff : 0xfffaf0);
     if (kind === 'cage') {
-      const mat = new THREE.MeshBasicMaterial({ map: netTex.clone(), transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false, color: 0xbfe4f0, fog: true });
+      const mat = new THREE.MeshBasicMaterial({ map: netTex.clone(), transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false, color: 0x5d7480, fog: true });
       mat.map.wrapS = mat.map.wrapT = THREE.RepeatWrapping; mat.map.repeat.set(Math.round((TAU * r) / 0.55), Math.round(depth / 0.55)); mat.map.needsUpdate = true;
       const wall = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.96, depth, 72, 1, true), mat); wall.position.y = -depth / 2; wall.renderOrder = 2; holder.add(wall);
       const fm = mat.clone(); fm.map = netTex.clone(); fm.map.wrapS = fm.map.wrapT = THREE.RepeatWrapping; fm.map.repeat.set(Math.round((r * 2) / 0.55), Math.round((r * 2) / 0.55)); fm.map.needsUpdate = true;
@@ -129,6 +141,20 @@ export function createDive(world) {
       const pitch = Math.cos(t * 0.17 + f.ph * 3.1) * f.dy * 0.17 * 0.12;
       _m.compose(f.pos, _q.setFromEuler(_e.set(0, Math.atan2(-f.hz, f.hx), pitch, 'YXZ')), _s.setScalar(f.len));
       f.mesh.setMatrixAt(f.i, _m);
+      if (f === glowOf && glow) { glow.setMatrixAt(0, _m); glow.instanceMatrix.needsUpdate = true; }
+    }
+    // the glow follows the fish you clicked, breathes a little, and fades when you let it go
+    glowK = damp(glowK, S.sel && S.sel === glowOf ? 1 : 0, 4.5, dt);
+    if (glowOf) {
+      const f = glowOf, on = glowK > 0.01 && (!S.only || S.only === f.sp);
+      if (glow) glow.visible = on; aura.visible = on;
+      if (on) {
+        world.fish.glowLevel.value = glowK * (0.85 + 0.15 * Math.sin(t * 2.4));
+        // the halo faces the camera and is stretched along the fish as the camera sees it
+        _v.set(f.hx, 0, f.hz).applyQuaternion(_qi.copy(camera.quaternion).invert()); const along = Math.hypot(_v.x, _v.y);
+        aura.position.copy(f.pos); aura.quaternion.copy(camera.quaternion).multiply(_qz.setFromAxisAngle(_zAxis, Math.atan2(_v.y, _v.x)));
+        aura.scale.set(f.len * (1.25 + 1.75 * along), f.len * 1.35, 1); aura.material.uniforms.uA.value = glowK;
+      } else if (!S.sel) { if (glow) { glowGroup.remove(glow); glow.geometry.dispose(); glow = null; } glowOf = null; }
     }
     for (const m of S.meshes) m.instanceMatrix.needsUpdate = true;
     // halos follow the selected group
@@ -177,6 +203,7 @@ export function createDive(world) {
     select(f) {
       S.sel = f || null; S.idle = 0; S.group = f ? ((S.per || []).find((g) => g.sp === f.sp) || { list: [f] }).list : null;
       if (f) { S.gorb = 0.5; S.glift = 0.1; S.gz = 1; S.zoom = 1; api.frame(); }
+      if (f && f !== glowOf) { if (glow) { glowGroup.remove(glow); glow.geometry.dispose(); } glow = world.fish.glow(f.sp, f.gait); glow.visible = false; glowGroup.add(glow); glowOf = f; glowK = 0; }
       api.onSelect && api.onSelect(S.sel);
     },
     /** follow distance for the selected fish: closer for small fish, but never so close that growth cannot be seen */

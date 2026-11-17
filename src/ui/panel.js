@@ -16,6 +16,7 @@ const ICON = {
   top: '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 2 14 5.2 8 8.4 2 5.2z"/><path d="M2 8.4 8 11.6l6-3.2M2 11.2 8 14.4l6-3.2" stroke-linecap="round"/></svg>',
   plan: '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2.2" y="2.2" width="11.6" height="11.6" rx="1"/><path d="M2.2 7h5.4v6.8M7.6 2.2v2.4M10.4 7h3.4"/></svg>',
   dive: '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.8 4.2c1.6-1.4 3.2-1.4 4.8 0s3.2 1.4 4.8 0 2.2-1 2.8-.6"/><path d="M3 10.4c2-2.6 6.4-2.6 8.4 0-2 2.6-6.4 2.6-8.4 0zM11.4 10.4l2.4-1.8v3.6z"/></svg>',
+  screen: '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.8" y="2.6" width="12.4" height="8.4" rx="1.4"/><path d="M5.6 13.6h4.8M8 11v2.6M4.2 8.2l2.2-2.4 2 1.6 3.2-3"/></svg>',
 };
 const STAGE_AREA = { broodstock: 'broodstock', hatchery: 'hatchery', nursery: 'nursery', seacages: 'seacages' };
 const U_POW = 2.4;                                    // the slider gives the first weeks of life room to breathe
@@ -54,7 +55,7 @@ export function createPanel(el, { onAct, thumb = () => '' }) {
           ? `<button type="button" data-act="item" data-arg="${esc(it.id)}" title="${esc(it.name)}"><b>${esc(it.code)}</b></button>`
           : `<button type="button" data-act="item" data-arg="${esc(it.id)}">${itemIcon(it)}<span><b>${esc(tileName(it))}</b><em>${esc(it.code || '')}</em></span></button>`)).join('')}</div></section>`;
       }).join('');
-      el.innerHTML = head(`<span>Phase ${d.phase}</span><span>Area ${d.n} of 10</span>`, d.n, d.line) + `<div class="p-body">
+      el.innerHTML = head(`<span>Phase ${d.phase}</span><span>Area ${d.n} of ${AREAS.length}</span>`, d.n, d.line) + `<div class="p-body">
         <p class="p-tag">${esc(d.tag)}</p><h2>${esc(d.name)}</h2>
         ${views(view, a.id === 'seacages')}
         <div class="p-sub is-top"><h3>What is here</h3><span>${items.length} things to open</span></div>
@@ -65,7 +66,7 @@ export function createPanel(el, { onAct, thumb = () => '' }) {
         <ul class="p-bul">${d.bullets.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
         <div class="p-stats">${d.stats.map(([v, l]) => `<div><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('')}</div>
         <div class="p-actions"><button class="btn btn-ink" data-act="orbit" type="button">Look around</button><button class="btn btn-ink" data-act="tourhere" type="button">Tour from here</button></div></div>
-        <div class="p-foot"><button data-act="prev" type="button">${ICON.back} Previous area</button><span>${i + 1} / 10</span><button data-act="next" type="button">Next area ${ICON.next}</button></div>`;
+        <div class="p-foot"><button data-act="prev" type="button">${ICON.back} Previous area</button><span>${i + 1} / ${AREAS.length}</span><button data-act="next" type="button">Next area ${ICON.next}</button></div>`;
       el.scrollTop = 0; el.classList.remove('is-min');
     },
     item(it, list, { view = 'walk' } = {}) {
@@ -81,6 +82,7 @@ export function createPanel(el, { onAct, thumb = () => '' }) {
         <div class="p-titlerow">${itemIcon(it)}<h2>${esc(it.name)}</h2></div><p class="p-desc">${esc(it.desc)}</p>
         ${it.specs ? `<div class="p-tiles">${it.specs.map(([v, l]) => `<div><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('')}</div>` : ''}
         ${it.swim ? `<div class="p-cta"><button class="btn btn-solid p-dive" data-act="dive" data-arg="${esc(it.id)}" type="button">${ICON.dive}<span>See the fish under water</span></button></div>` : ''}
+        ${it.control ? `<div class="p-cta"><button class="btn btn-solid p-dive" data-act="control" data-arg="${esc(it.id)}" type="button">${ICON.screen}<span>Open the control screen</span></button><p class="p-ctanote">Every system, tank and machine, live on one big screen.</p></div>` : ''}
         ${figure(ITEM_PHOTO[it.id])}
         ${it.card ? `<div class="tagcard is-rows"><h3>Details</h3><dl>${it.card.map(([a, b]) => `<dt>${esc(a)}</dt><dd>${esc(b)}</dd>`).join('')}</dl></div>` : ''}
         ${liveBlock(it)}${links.length ? `<div class="p-links">${links.join('')}</div>` : ''}
@@ -154,6 +156,6 @@ export function createPanel(el, { onAct, thumb = () => '' }) {
 const NAMED = /^(EX|AC|OF|MDC|LAB|A|GR|FC|PK|WQ|OX|SF-I|BF-L|UV-L|P1-OF|P1-PL|P1-G|EC|GW|FS|BIO|HO|EK|OZ|DG|HX|PS|RMU|P1-[A-Z]{2,})\b/;
 const chipLabel = (it) => (/\d/.test(it.code || '') && !NAMED.test(it.code) ? `<b>${esc(it.code)}</b>` : esc(shortName(it)));
 const tileName = (it) => shortName(it).replace(/^\d+ (?=\D)/, '');
-function shortName(it) {
-  return it.name.replace(/^(Exhibition panel|Fish screen): /, '').replace(/^Laboratory (\d+): (.*)$/, '$1 $2').replace(/^Photobioreactors, /, '').replace(/^Phase 1 /, '').replace(/^Marine Discovery Corner/, 'Discovery Corner');
+export function shortName(it) {
+  return it.name.replace(/^(Exhibition panel|Exhibition wall|Fish screen): /, '').replace(/^Laboratory (\d+): (.*)$/, '$1 $2').replace(/^Photobioreactors, /, '').replace(/^Phase 1 /, '').replace(/^Marine Discovery Corner/, 'Discovery Corner');
 }

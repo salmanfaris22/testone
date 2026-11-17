@@ -5,6 +5,7 @@ import { Builder, C, rng, TAU, DEG } from './kit.js';
 import { plantTrees, streetLights, car, bus, glowPointsMat } from './props.js';
 import { createFlags } from './flags.js';
 import { createBoards } from './boards.js';
+import { buildEntrance, lagoons, inPolygon } from './entrance.js';
 import { createPeople, createTraffic, wearFor } from './people.js';
 import { hall } from './shell.js';
 import { fromFrame, resample } from './land.js';
@@ -23,7 +24,7 @@ export function buildSite(world) {
   /* ───── planting ───── */
   // palms down the west road, along the way in and along the avenue (none on the beach side: the shore is kept open to the sea)
   for (let z = -51; z <= 136; z += 18) palm(RB_W.x - 10.5, z);
-  for (let x = -520; x <= -268; x += 18) { if (x > -344 && x < -280) continue; palm(x, RB_W.z - 10.5); palm(x, RB_W.z + 10.5); }     // (the name wall and the host stand in the gap)
+  // (the road in has no palms: as on site, it is walls, solar street lights and, inside the gate, a UAE flag on every light)
   for (let x = -214; x < 140; x += 19.5) palm(x, 41.7, 1, 0.3);
   // palms on the plaza round the podium of the oval hall, leaving the steps and the foot of the ramp open, and a pair at the steps
   { const tS = ovalT(podium, OVAL.door), rS = ovalRate(podium, tS), out = (t, o) => { const p = podium(t), q = ovalN(podium, t); return pf(p[0] + q[0] * o, p[1] + q[1] * o); };
@@ -38,14 +39,14 @@ export function buildSite(world) {
   // shade trees on the lawns, beach palms, desert scrub inland
   // (on the lawns as fitted round the roads: a tree is only planted well inside its lawn)
   for (const { x0, z0, x1, z1, poly } of land.lawns) { const n = Math.max(3, Math.round(((x1 - x0) * (z1 - z0)) / 330)); for (let k = 0, g = 0; k < n && g < n * 12; g++) { const x = x0 + 4 + R() * (x1 - x0 - 8), z = z0 + 4 + R() * (z1 - z0 - 8); if (!inPoly(poly, x, z) || edgeDist(poly, x, z) < 3.5) continue; tree(x, z, 1.2, 0.3); k++; } }
-  for (let k = 0; k < 150; k++) { const x = -1000 + R() * 720, z = -520 + R() * 660; if (z > 150 || Math.abs(z - RB_W.z) < 16 || (x + 76.5) * COAST.nx + (z + 243) * COAST.nz > -30) continue; shrub(x, z, 1.3 + R(), 0.15); }
+  { const lag = lagoons(); for (let k = 0; k < 150; k++) { const x = -1000 + R() * 720, z = -520 + R() * 660; if (z > 150 || Math.abs(z - RB_W.z) < 16 || Math.abs(x - GATE.x) < 3 || (x + 76.5) * COAST.nx + (z + 243) * COAST.nz > -30 || lag.some((p) => inPolygon(p, x, z))) continue; shrub(x, z, 1.3 + R(), 0.15); } }
   tree(RB_E.x, RB_E.z, 1.5, 0.4); for (const [x, z] of [[160, 46], [186, 100], [172, 124], [-254, 60], [-254, 120]]) tree(x, z, 1.1, 0.3);
   plantTrees(scene, mats, { palms, trees, shrubs });
 
   /* ───── solar street lights along every road ───── */
   const lamp = (pts, w, every = 30) => { const p = resample(pts, every); p.forEach((q, i) => { if (i === 0 || i === p.length - 1) return; const a = p[i - 1], c = p[i + 1], l = Math.hypot(c[0] - a[0], c[1] - a[1]) || 1, nx = -(c[1] - a[1]) / l, nz = (c[0] - a[0]) / l, s = i % 2 ? 1 : -1, x = q[0] + nx * s * (w / 2 + 1.7), z = q[1] + nz * s * (w / 2 + 1.7); lights.push({ x, z, ry: Math.atan2(nz * s, -nx * s) }); }); };
   lamp(land.roads.north, ROADS.w); lamp(land.roads.shore, ROADS.w); lamp(land.roads.avenue, ROADS.w); lamp(land.roads.south, ROADS.w, 34); lamp(land.roads.west, ROADS.w); lamp(land.roads.cross, 9); lamp(land.roads.drive, 9, 24);
-  lamp([[-560, RB_W.z], [RB_W.x - RB_W.r - 4, RB_W.z]], ROADS.w, 34);
+  const entrance = buildEntrance(world, { lights }); world.entrance = entrance;          // the road in, the gate, the wheel bath, the flag road (and their lights)
   for (const [x, z] of [[-122, -108], [-104, -96], [-112, -86], [-92, -86]]) lights.push({ x, z, ry: 0.6 });
   streetLights(scene, mats, env, lights);
 
@@ -66,23 +67,11 @@ export function buildSite(world) {
     for (let i = 0; i < 14; i++) if (R() < 0.22) car(b, -125.4 + i * 3.2, -85.2, Math.PI / 2 + (R() - 0.5) * 0.06, paint[Math.floor(R() * paint.length)]); }
   bus(b, DROP.x - 9, DROP.z - 9.6, 0.62);                                         // the staff coach at the drop-off
   for (const [x, z, ry, hex] of [[84, 20.6, 0, 0xf4f4f2], [150, 96, Math.PI / 2, 0x33414c], [-2, -58, 0.7, 0xf4f4f2]]) car(b, x, z, ry, hex);
-  // the golden shell on the west roundabout and the entrance arch over the north road (the flags fly on their own, below)
-  b.use('satin').cyl(0xe6dfd0, 3.2, 0.9, RB_W.x, 0.4, RB_W.z, 28); b.use('metal').ico(0xd9a441, 4.6, RB_W.x, 5.0, RB_W.z, 0.86, 0.4, 1); b.use('metal').cyl(0xb98a34, 0.5, 1.4, RB_W.x, 1.3, RB_W.z, 10);
+  // the entrance arch over the north road (the gold shell on the west roundabout is part of the entrance now: entrance.js)
   { const a = [-195, -90], c = [-196, -57], n = 16, pts = [], pts2 = [];
     for (let i = 0; i <= n; i++) { const t = i / n, x = a[0] + (c[0] - a[0]) * t - Math.sin(Math.PI * t) * 3.6, z = a[1] + (c[1] - a[1]) * t, y = Math.sin(Math.PI * t) ** 0.85 * 19.5; pts.push([x, y, z]); pts2.push([x + 2.4, y * 0.94, z]); }
     b.use('metal').pipe(0xc5ccd1, 0.62, pts, 12); b.use('satin').pipe(0xf6f6f2, 0.3, pts2, 10); for (let i = 3; i <= n - 3; i += 2) b.use('satin').rod(0xdfe4e7, 0.06, pts[i], pts2[i], 5);
     for (const p of [a, c]) b.use('satin').cyl(0xe6dfd0, 1.6, 0.7, p[0], 0.05, p[1], 16); }
-  // gatehouse and barrier on the way in: their own group, because the intro starts here before anything else is built
-  const gb = new Builder();
-  gb.use('matte').box(C.clay, 5, 3.2, 4, -330, 0, RB_W.z - 9.5); gb.box(C.roof, 8, 0.3, 21, -330, 3.3, RB_W.z); gb.use('window').box(null, 5.04, 1.1, 2.6, -330, 1.3, RB_W.z - 9.5);
-  for (const s of [-1, 1]) gb.use('satin').cyl(C.steelDark, 0.14, 3.3, -330, 0, RB_W.z + s * 9.6, 8);
-  gb.use('matte').box(C.red, 0.14, 0.14, 7, -326, 1.1, RB_W.z - 3.6); gb.box(C.white, 0.15, 0.15, 1.2, -326, 1.1, RB_W.z - 1.2); gb.box(C.white, 0.15, 0.15, 1.2, -326, 1.1, RB_W.z - 4.4);
-  // the name of the centre on a stone wall just inside the gate, in Arabic and English
-  { const sx = GATE.sign[0], sz = GATE.sign[1]; gb.use('matte').box(0xe2d6bf, 0.9, 2.5, 9.4, sx, 0, sz); gb.box(0xcdbfa4, 1.1, 0.3, 9.8, sx, 2.5, sz); gb.box(0xcdbfa4, 1.2, 0.35, 10, sx, 0, sz);
-    for (const dz of [-3.2, 0, 3.2]) gb.use('glow').box(0xfff1d0, 0.3, 0.12, 0.3, sx - 1.3, 0.06, sz + dz); }
-  const gate = gb.build(mats, { cast: true }); gate.name = 'gate'; scene.add(gate);
-  { const sign = new THREE.Mesh(new THREE.PlaneGeometry(8.6, 1.9), new THREE.MeshBasicMaterial({ map: gateSignTex(), transparent: true, toneMapped: false }));
-    sign.position.set(GATE.sign[0] - 0.47, 1.35, GATE.sign[1]); sign.rotation.y = -Math.PI / 2; sign.name = 'gate-sign'; gate.add(sign); }
   // gatehouse and the workshop by the east lawn
   hall(b, b, { ...SMALL[0], seed: 21, doors: { w: [{ at: 6.5, w: 1.4, h: 2.4 }] }, windows: { w: { n: 2, y: 2.2, h: 1.4, w: 3 }, s: { n: 2, y: 2.2, h: 1.4, w: 3 } }, strip: false, fit: false });
   hall(b, b, { ...SMALL[1], seed: 22, doors: { w: [{ at: 8.4, w: 4 }] }, windows: { s: { n: 3 }, n: { n: 3 } }, strip: false, fit: false });
@@ -101,12 +90,10 @@ export function buildSite(world) {
   for (const [x, z, w, d, h] of [[-640, -260, 90, 36, 9], [-760, -40, 60, 30, 8], [-700, 60, 80, 28, 10], [-900, -180, 110, 40, 12], [-560, 80, 46, 24, 7]]) { b.use('matte').box(0xe9e6df, w, h, d, x, 0, z); b.box(0x2a5c7d, w, 0.7, 0.2, x, h - 1.4, z - d / 2 - 0.06); }
   const g = b.build(mats, { cast: true }); g.name = 'site'; scene.add(g);
 
-  /* ───── the UAE flag: one tall mast behind the name wall at the gate and one by the drop-off, streaming in the breeze ───── */
-  const flagsGate = createFlags(mats, [{ x: GATE.sign[0] - 4, z: GATE.sign[1] + 6.2, h: 13, s: 1.5 }]);
+  /* ───── the UAE flag on a tall mast by the drop-off, streaming in the breeze (on the road in, one flies from every street light) ───── */
   // on the plaza to the left of the steps of the oval hall, facing the drop-off
   const flagsDrop = createFlags(mats, [(() => { const t = ovalT(podium, OVAL.door) + 19 / ovalRate(podium, ovalT(podium, OVAL.door)), p = podium(t), q = ovalN(podium, t), w = pf(p[0] + q[0] * 7.5, p[1] + q[1] * 7.5); return { x: w[0], z: w[1], h: 13, s: 1.5 }; })()]);
-  flagsGate.group.name = 'flags-gate'; flagsDrop.group.name = 'flags-drop';
-  for (const f of [flagsGate, flagsDrop]) { scene.add(f.group); world.updaters.push(f.update); }
+  flagsDrop.group.name = 'flags-drop'; scene.add(flagsDrop.group); world.updaters.push(flagsDrop.update);
 
   /* ───── a big LED screen at every area: on the facade that faces the road, or on a pylon where there is room ───── */
   { const hs = HATCH_FRAME.z + HATCH.z1 + 0.12;
@@ -143,8 +130,8 @@ export function buildSite(world) {
     along([south(J.u + 0.8, J.f0 + 7), south(J.u + 0.8, J.f1 - 2)], 'hivis', 1, { y: J.y + 0.02, speed: 1.0, pause: 4 });
     const st = south(J.u + 0.7, J.foot + 6.5); who(st[0], st[1], 'overall', { y: SEA_Y + 0.44, mode: 'work', ry: Math.PI / 2 }); }
   const people = createPeople(mats, ppl, { y: 0.09, seed: 17 }); scene.add(people.group); world.updaters.push(people.update);
-  // at the gate, where the intro begins: the guard in his booth and the Emirati host who welcomes you, in front of the name wall
-  const host = createPeople(mats, [{ x: GATE.host[0], z: GATE.host[1], ry: GATE.hostRy, hex: wearFor('emirati', R), kind: 'emirati', cast: 'host', mode: 'present' }, { x: -331.5, z: RB_W.z - 6, ry: 1.2, hex: wearFor('hivis', R), kind: 'hivis', cast: 'guard', mode: 'idle' }], { y: 0.09, seed: 29 });
+  // at the gate, where the opening film drives in: the Emirati host who welcomes you just inside, and the guard at his cabin
+  const host = createPeople(mats, [{ x: GATE.host[0], z: GATE.host[1], ry: GATE.hostRy, hex: wearFor('emirati', R), kind: 'emirati', cast: 'host', mode: 'present' }, { x: GATE.guard[0], z: GATE.guard[1], ry: GATE.guardRy, hex: wearFor('hivis', R), kind: 'hivis', cast: 'guard', mode: 'idle' }], { y: 0.09, seed: 29 });
   host.group.name = 'host'; scene.add(host.group); world.updaters.push(host.update);
 
   /* ───── traffic ───── */
@@ -190,15 +177,6 @@ function createBirds(n, [cx, cz], env) {
   return { mesh, update: (dt, t) => { U.uT.value = t; } };
 }
 
-/** the name of the centre for the wall at the gate (Arabic above English) */
-function gateSignTex() {
-  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 226; const g = cv.getContext('2d');
-  g.clearRect(0, 0, cv.width, cv.height);
-  g.fillStyle = '#b8892f'; g.textAlign = 'center'; g.direction = 'rtl'; g.font = '600 76px "Geeza Pro", "Noto Naskh Arabic", "Arial", sans-serif'; g.fillText('مركز الشيخ خليفة للأبحاث البحرية', 512, 88);
-  g.direction = 'ltr'; g.fillStyle = '#0b2b3c'; g.font = '600 50px "IBM Plex Sans Condensed", "Arial Narrow", sans-serif'; g.fillText('SHEIKH KHALIFA MARINE RESEARCH CENTRE', 512, 168);
-  g.fillStyle = '#b8892f'; g.fillRect(392, 192, 240, 4);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
-}
 /** point in polygon (even-odd) and distance to its outline */
 function inPoly(p, x, z) { let c = false; for (let i = 0, j = p.length - 1; i < p.length; j = i++) { const a = p[i], b = p[j]; if ((a[1] > z) !== (b[1] > z) && x < ((b[0] - a[0]) * (z - a[1])) / (b[1] - a[1]) + a[0]) c = !c; } return c; }
 function edgeDist(p, x, z) { let m = Infinity; for (let i = 0, j = p.length - 1; i < p.length; j = i++) { const a = p[j], b = p[i], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)); m = Math.min(m, Math.hypot(a[0] + dx * t - x, a[1] + dz * t - z)); } return m; }

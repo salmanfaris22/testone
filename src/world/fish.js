@@ -210,7 +210,11 @@ export function createFish(world) {
     const m = PHOTO[id]
       ? new THREE.MeshStandardMaterial({ map: photoTex(id), roughness: 0.42, metalness: 0.06, side: THREE.DoubleSide, envMapIntensity: 0.8, alphaTest: 0.5, alphaToCoverage: true })
       : new THREE.MeshStandardMaterial({ map: fishTexture(id, world.engine.tier === 'low' ? 512 : 1024), roughness: 0.46, metalness: 0.1, side: THREE.DoubleSide, envMapIntensity: 0.9 });
-    m.onBeforeCompile = (sh) => {
+    m.onBeforeCompile = swim;
+    mat[id] = m; return m;
+  };
+  /** the fish swims in the vertex shader; ripples of sunlight play over its back in the fragment shader */
+  function swim(sh) {
       sh.uniforms.uTime = uTime; sh.uniforms.uRip = uRip;
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', `#include <common>
@@ -258,8 +262,25 @@ export function createFish(world) {
             float fUp = smoothstep(-0.1, 0.75, vFishUp);
             diffuseColor.rgb *= (1.0 + 0.6 * fCaus * fUp) * mix(0.8, 1.0, smoothstep(-0.9, 0.15, vFishUp));
           }`);
+  }
+  /* the selected fish glows: a second skin of light drawn over it, strongest along its edges */
+  const glowMat = {}, glowU = { value: 0 };
+  const getGlow = (id) => {
+    if (glowMat[id]) return glowMat[id];
+    const m = getMat(id).clone();
+    m.transparent = true; m.blending = THREE.AdditiveBlending; m.depthWrite = false; m.alphaToCoverage = false; m.fog = false; m.envMapIntensity = 0;
+    m.onBeforeCompile = (sh) => {
+      swim(sh); sh.uniforms.uGlow = glowU;
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\n          uniform float uGlow;')
+        .replace('#include <opaque_fragment>', `{
+            float fEdge = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 2.0);
+            outgoingLight = (outgoingLight * 0.1 + vec3(0.55, 0.93, 1.0) * (0.035 + 0.5 * fEdge)) * uGlow;
+          }
+          #include <opaque_fragment>`);
     };
-    mat[id] = m; return m;
+    m.customProgramCacheKey = () => 'fish-glow';
+    glowMat[id] = m; return m;
   };
   world.updaters.push((dt, t) => { uTime.value = t; });
 
@@ -305,6 +326,15 @@ export function createFish(world) {
       if (n > 1) { const Q = rng(n * 31 + id.length * 7), col = new THREE.Color(); for (let i = 0; i < n; i++) { const v = 0.84 + Q() * 0.2, w = (Q() - 0.5) * 0.07; m.setColorAt(i, col.setRGB(v * (1 + w), v, v * (1 - w))); } m.instanceColor.needsUpdate = true; }
       return m;
     },
+    /** one fish drawn in light over the real one (place it with setMatrixAt(0, m); `gait` is that fish's own clock so the tails beat together) */
+    glow(id, gait = 0) {
+      const g = (hiGeo[id] || (hiGeo[id] = PHOTO[id] ? photoGeometry(id, 46, 20) : fishGeometry(id, 56, 20))).clone();
+      g.setAttribute('aPath', new THREE.InstancedBufferAttribute(new Float32Array(4), 4)); g.setAttribute('aMove', new THREE.InstancedBufferAttribute(new Float32Array([0, gait, 0, 1]), 4)); g.setAttribute('aMode', new THREE.InstancedBufferAttribute(new Float32Array([1]), 1));
+      const m = new THREE.InstancedMesh(g, getGlow(id), 1); m.frustumCulled = false; m.castShadow = false; m.receiveShadow = false; m.renderOrder = 5; m.name = 'fish-glow';
+      return m;
+    },
+    /** how strongly the glow shows, 0 to 1 */
+    glowLevel: glowU,
     setScale(v) { speckU.uScale.value = v; },
     /** a small side-on picture of a drawn species, for lists (the photographed ones have their own cut-outs) */
     thumb(id, w = 368, h = 176) {

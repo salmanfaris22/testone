@@ -54,7 +54,7 @@ export function createLabels(world, root) {
     clearDoors() { for (const t of doors) t.el.remove(); doors = []; },
     setRooms(items) {
       api.clearRooms();
-      rooms = items.map((it) => { const el = document.createElement('div'); el.className = 'room'; el.textContent = it.short || it.name.replace(/^Laboratory (\d+).*/, 'Lab $1').replace(/^(Exhibition panel|Fish screen): /, ''); el.style.display = 'none'; el._on = false; root.appendChild(el); return { el, it }; });
+      rooms = items.map((it) => { const el = document.createElement('div'); el.className = 'room'; el.textContent = it.short || it.name.replace(/^Laboratory (\d+).*/, 'Lab $1').replace(/^(Exhibition panel|Exhibition wall|Fish screen): /, ''); el.style.display = 'none'; el._on = false; root.appendChild(el); return { el, it }; });
     },
     clearRooms() { for (const r of rooms) r.el.remove(); rooms = []; },
     /** loose tags placed by screen position (fish under water): list of { name, kind, ref } */
@@ -67,6 +67,7 @@ export function createLabels(world, root) {
     clearFree() { for (const f of free) f.el.remove(); free = []; },
     hideTags(v) { for (const t of tags) t.el.style.visibility = v ? 'hidden' : ''; },
     occl: null,                                  // the area whose walls hide labels (walk-in view), or null
+    pinClear: null,
     /** the name and key figures of the selected thing, pinned to it in the model */
     focus(it) {
       focusAt = it || null; focus.classList.remove('is-on');
@@ -81,7 +82,8 @@ export function createLabels(world, root) {
       tip.innerHTML = `<b>${it.name}</b><em>${it.kind || ''}</em>`; tip.classList.add('is-on');
     },
     update() {
-      if (pinsOn) for (const q of pins) if (!q.hide) place(q.el, q.a.pin[0], q.a.pin[1], q.a.pin[2]);
+      // (pinClear(x, y) may keep pins off part of the screen: under the menu bar, or behind the words of the hero)
+      if (pinsOn) for (const q of pins) if (!q.hide && place(q.el, q.a.pin[0], q.a.pin[1], q.a.pin[2]) && api.pinClear && !api.pinClear(p.x, p.y)) { q.el.style.display = 'none'; q.el._on = false; }
       frame++;
       tags.forEach((t, i) => {
         const a = t.it.anchor;

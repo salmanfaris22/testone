@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0b2b3c">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Sheikh Khalifa Marine Research Centre in 3D">
-<meta property="og:description" content="Ten areas, every tank and machine, and the native Gulf species raised there.">
+<meta property="og:description" content="Eleven areas, every tank and machine, and the native Gulf species raised there.">
 <meta property="og:image" content="./poster.jpg">
 <link rel="icon" href="./favicon.svg" type="image/svg+xml">
 <style>
@@ -57,7 +57,7 @@
       </div>
     </div>
     <ul class="hero-facts" aria-label="Key figures">
-      <li><b>3</b><span>phases, 10 areas to open</span></li>
+      <li><b>3</b><span>phases, 11 areas to open</span></li>
       <li><b id="fact-items">200+</b><span>tanks, machines and rooms to inspect</span></li>
       <li><b>6</b><span>native species</span></li>
     </ul>
@@ -65,7 +65,7 @@
   </section>
 
   <!-- ───────── scroll tour: steps are filled from data ───────── -->
-  <section class="tour" id="masterplan" aria-label="Tour of the ten areas">
+  <section class="tour" id="masterplan" aria-label="Tour of the eleven areas">
     <div class="tour-rail" id="tour-rail" aria-hidden="true"></div>
     <div id="tour-steps"></div>
   </section>
@@ -106,21 +106,24 @@
     </div>
   </section>
 
-  <!-- ───────── the company's own film (YouTube, loaded only when someone presses play) ───────── -->
+  <!-- ───────── the company's own film: the video itself, right under the heading (YouTube, loaded only when someone presses play) ───────── -->
   <section class="movie" id="movie" aria-labelledby="movie-h">
-    <div class="wrap movie-band">
-      <div class="movie-copy">
+    <div class="wrap">
+      <div class="movie-head">
         <p class="movie-eye">Gulf Aquaculture on film</p>
         <h2 id="movie-h">See the centre at work</h2>
-        <p>The company's own introduction: the sea cages, the hatchery, the laboratories and the team who run them. It plays here, over the page.</p>
-        <button class="btn btn-solid btn-lg movie-cta" type="button" data-movie="QwZ2BvfbzRg" aria-haspopup="dialog">Watch the film</button>
-        <p class="movie-credit">Film: Gulf Aquaculture, on YouTube</p>
       </div>
-      <button class="movie-play" type="button" data-movie="QwZ2BvfbzRg" aria-haspopup="dialog" aria-label="Play the Gulf Aquaculture film">
-        <img src="./photos/visitor.webp" alt="" loading="lazy" decoding="async" width="960" height="561">
-        <span class="movie-btn" aria-hidden="true"></span>
-        <span class="movie-txt" aria-hidden="true">Play the film</span>
-      </button>
+      <div class="movie-player" id="movie-player">
+        <button class="movie-play" type="button" data-movie="QwZ2BvfbzRg" aria-label="Play the Gulf Aquaculture film">
+          <img src="./photos/film-poster.webp" alt="" loading="lazy" decoding="async" width="1280" height="640">
+          <span class="movie-btn" aria-hidden="true"></span>
+          <span class="movie-txt" aria-hidden="true"><b>An introduction to Gulf Aquaculture</b><small>The company's film · 7 min</small></span>
+        </button>
+      </div>
+      <div class="movie-foot">
+        <p>The company's own introduction: the sea cages, the hatchery, the laboratories and the team who run them. Press play and it runs here, on the page.</p>
+        <p class="movie-credit">Film: Gulf Aquaculture. <a href="https://www.youtube.com/watch?v=QwZ2BvfbzRg" target="_blank" rel="noopener">Open it on YouTube</a></p>
+      </div>
     </div>
   </section>
 
@@ -189,11 +192,6 @@
   </footer>
 </main>
 
-<div class="movie-modal" id="movie-modal" role="dialog" aria-modal="true" aria-label="Gulf Aquaculture film" hidden>
-  <div class="movie-frame"></div>
-  <button class="movie-x" type="button" aria-label="Close the film">&times;</button>
-</div>
-
 <!-- ───────── explore mode ───────── -->
 <div id="app" class="app" hidden>
   <div class="app-top">
@@ -201,17 +199,19 @@
     <div class="app-ctrl" id="app-ctrl" role="toolbar" aria-label="View controls"></div>
   </div>
   <aside class="panel" id="panel" aria-live="polite" data-lenis-prevent></aside>
-  <nav class="dock" id="dock" aria-label="The ten areas"></nav>
+  <nav class="dock" id="dock" aria-label="The eleven areas"></nav>
   <p class="hint" id="hint"></p>
   <div class="film" id="film" hidden><i></i><i></i><div class="film-cap" id="film-cap"><small></small><b></b></div><button class="pill" id="film-stop" type="button">Stop</button></div>
   <div class="hud" id="hud" hidden>
-    <div class="hud-top"><span data-hud="hdg">N 000°</span></div>
+    <div class="hud-top"><span class="hud-rec"><i></i>REC <b data-hud="time">00:00</b></span><span class="hud-hdg" data-hud="hdg">N 000°</span><span class="hud-sat">GPS 14 <i></i> <b data-hud="bat">100%</b></span></div>
     <div class="hud-l"><small>Altitude</small><b data-hud="alt">0 m</b></div>
     <div class="hud-r"><small>Speed</small><b data-hud="spd">0 km/h</b></div>
-    <div class="hud-cross" aria-hidden="true"></div>
-    <p class="hud-help"><span class="only-mouse">W A S D to fly, Q and E for height, drag to look, Shift for speed, Esc to leave</span><span class="only-touch">Drag to look. Hold the pads to fly.</span></p>
-    <div class="hud-pads only-touch"><button data-pad="f" type="button" aria-label="Forward">▲</button><button data-pad="b" type="button" aria-label="Back">▼</button><button data-pad="u" type="button" aria-label="Up">Up</button><button data-pad="d" type="button" aria-label="Down">Down</button></div>
-    <button class="pill" id="hud-exit" type="button">Land the drone</button>
+    <div class="hud-speed" role="group" aria-label="How fast the drone flies"><button type="button" data-speed="0">Slow</button><button type="button" data-speed="1" aria-pressed="true">Cruise</button><button type="button" data-speed="2">Fast</button><button type="button" data-speed="3">Sport</button></div>
+    <p class="hud-status" data-hud="status" hidden></p>
+    <p class="hud-help"><span class="only-mouse">W A S D to fly · Q and E for height · drag to turn · 1 to 4 or the wheel for speed · fly up to a door and it opens · Esc to land in the dock</span><span class="only-touch">Left stick to fly · drag to turn · arrows for height · doors open as you come</span></p>
+    <div class="hud-stick only-touch" id="hud-stick" role="application" aria-label="Fly: drag in the direction you want to go"><svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 13l7 9H43zM50 87l7-9H43zM13 50l9-7v14zM87 50l-9-7v14z" fill="currentColor"/></svg><b></b></div>
+    <div class="hud-lift only-touch"><button data-pad="u" type="button" aria-label="Up"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 10 8 5.5l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button data-pad="d" type="button" aria-label="Down"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6 8 10.5 12.5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+    <div class="hud-btns"><button class="pill" id="hud-snd" type="button" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.2h2.2L8 3.5v9L4.7 9.8H2.5z"/><path d="M10.3 6a3 3 0 0 1 0 4M12 4.3a5.3 5.3 0 0 1 0 7.4"/></svg><span>Sound</span></button><button class="pill pill-hero" id="hud-exit" type="button">Land the drone</button></div>
   </div>
 </div>
 

@@ -6,7 +6,7 @@ import { Builder, C, shade, rng, TAU, DEG, sectorPts, arcPts, canvasTex } from '
 import { wallRun, noteWall, roofGear, aoSkirts, CUT } from './shell.js';
 import * as E from './equip.js';
 import { WEAR, wearFor } from './people.js';
-import { PARK, PARK_FRAME } from './layout.js';
+import { PARK, PARK_FRAME, OVAL } from './layout.js';
 import { buildOval } from './oval.js';
 import { P } from './rig.js';
 
@@ -52,7 +52,8 @@ function arcRun(lo, hi, r, a0, a1, { t = 0.3, h = 7.5, hex = C.clay, doors = [],
     }
   }
   if (hi) for (const [d0, d1] of ds) hi.use('matte').arcWall(hex, r, d0 * DEG, d1 * DEG, t, Math.max(cut, 2.6), h);
-  for (const [d0, d1] of ds) if (d1 - d0 < 12) { const p = pol(r, d0), q = pol(r, d1); noteWall(lo, p[0], p[1], q[0], q[1], 0, 2); }        // doorways (the wide openings of the hall are not doors)
+  // doorways (the wide openings of the hall are not doors: 4, an opening the drone may fly through under its head)
+  for (const [d0, d1] of ds) { const p = pol(r, d0), q = pol(r, d1); noteWall(lo, p[0], p[1], q[0], q[1], 0, d1 - d0 < 12 ? 2 : 4, null, hi ? Math.max(cut, 2.6) : 99, hi ? h : cut); }
 }
 const radial = (lo, hi, deg, r0, r1, o = {}) => { const a = pol(r0, deg), b = pol(r1, deg); wallRun(lo, hi, a[0], a[1], b[0], b[1], { t: 0.25, h: 7.5, ...o }); };
 
@@ -198,6 +199,8 @@ export function buildPark(world) {
     id: 'visitor', frame: PARK_FRAME, low: lo1.build(mats), high: high1, roofMats: roof1, lift: 11, hit: hitA, pin: [px, 17, pz],
     pose: P(px + 6, 2, pz + 2, -0.82, 1.0, 150), inside: P(px + 3, 1, pz - 3, -0.7, 0.66, 104), plan: P(px + 42, 0, pz - 8, 0, 0.1, 252), planWith: 'research',
     walk: P(px, 2.4, pz, 2.25, 1.44, 9.6), walls: parkWalls,
+    // (for the drone: the foyer inside the oval glass is indoors too, under the shell roof)
+    envelope: [{ ellipse: true, x: px, z: pz + OVAL.cz, a: OVAL.fa - 0.3, b: OVAL.fb - 0.3, h: OVAL.top - 0.2 }],
     rooms: [{ circle: true, x: 0, z: 0, r: RH - 0.9, h: 8.6, inner: 4.5 }, { circle: true, x: 0, z: 0, r: RO - 0.8, h: 6.6 }, { x0: WING.x0, x1: WING.split, z0: WING.z0, z1: WING.zc, h: WING.h }, { x0: WING.x0, x1: 29.1, z0: WING.zc, z1: -18.6, h: 5.2 }, { x0: 26, x1: 47.6, z0: WING.zc, z1: -5, h: 5.5 }],
     makeInterior(b0, ctx) {
       const b = b0; b.push(px, 0, pz); const R = rng(101);
@@ -218,14 +221,14 @@ export function buildPark(world) {
         card: [['On show', 'Hamour, Shaari, red snappers, seabream'], ['Raised', 'In this hatchery'], ['Water', 'Filtered Gulf sea water']],
         specs: [['360°', 'View'], ['6.3 m', 'Tall'], ['210 m³', 'Volume']], live: [{ k: 'Temperature', u: '°C', v: 26.0, d: 0.15, lo: 24, hi: 28, p: 1 }, { k: 'Salinity', u: 'ppt', v: 39.0, d: 0.2, lo: 36, hi: 42, p: 1 }, { k: 'Visitors today', u: '', v: 184, d: 0, lo: 0, hi: 600, p: 0, rise: true }] , swim: { sp: 'mix', n: 70, glass: true, tank: 3.3, depth: 6.1, age: 1.6 } });
       const topics = [['Hamour', C.orange], ['Shaari', 0x3a9ec4], ['Red snappers', 0xc9503c], ['Seabream', 0x7f97a8], ['From egg to sea', C.teal], ['Live feed', 0x69a95a], ['Clean water', 0x2f86ab], ['Restocking the Gulf', 0x2a5c7d]];
-      topics.forEach(([t], k) => { const d = 20 + k * 45, [x, z] = pol(9.5, d), az = -(d * DEG) - Math.PI / 2;
-        const box = E.exhibitTV(b, x, z, { ry: az, tile: 200 + k });
-        ctx.item({ code: `EX-${k + 1}`, group: 'Exhibition hall', name: `Fish screen: ${t}`, kind: 'Widescreen marine-life display', isDisplay: true, box: [px + box[0], box[1], pz + box[2], px + box[3], box[4], pz + box[5]], label: k === 0, faceAz: az,
-          view: P(px + x, F + 1.85, pz + z, az, 1.5, 4.8),
+      topics.forEach(([t, hex], k) => { const d = 20 + k * 45, [x, z] = pol(9.5, d), az = -(d * DEG) - Math.PI / 2;
+        const { box, tvY } = E.exhibitWall(b, x, z, { ry: az, hex, panel: 100 + k, tile: 200 + k });
+        ctx.item({ code: `EX-${k + 1}`, group: 'Exhibition hall', name: `Exhibition wall: ${t}`, kind: 'Printed panel with a TV set in it', isDisplay: true, box: [px + box[0], box[1], pz + box[2], px + box[3], box[4], pz + box[5]], label: k === 0, faceAz: az,
+          view: P(px + x, tvY, pz + z, az, 1.5, 5.2),
           species: { Hamour: 'hamour', Shaari: 'shaari', 'Red snappers': 'hamra', Seabream: 'seabream' }[t], link: { 'From egg to sea': 'hatchery', 'Live feed': 'livefeed', 'Clean water': 'plantroom', 'Restocking the Gulf': 'seacages' }[t],
-          card: [['Station', `${k + 1} of 8`], ['Topic', t], ['Display', '16:9, edge-to-edge picture'], ['On screen', 'Looping fish animation'], ['Languages', 'Arabic and English']],
-          desc: `One of eight TV displays around the living aquarium. Swimming fish, softly moving light and underwater scenery fill the widescreen picture. This exhibit introduces ${t.toLowerCase()}; the animation uses photographs of native fish.`,
-          specs: [['16:9', 'Widescreen'], ['Animated', 'Marine life'], ['8', 'Displays']] }); });
+          card: [['Station', `${k + 1} of 8`], ['Topic', t], ['Wall', 'Printed panel, Arabic and English'], ['Screen', '16:9 TV set into the wall'], ['On screen', 'Looping fish animation']],
+          desc: `One of eight exhibition walls round the living aquarium. The printed panel carries the title in English and Arabic, and a widescreen TV is set into the wall: swimming fish, softly moving light and underwater scenery. This one introduces ${t.toLowerCase()}; the animation uses photographs of native fish.`,
+          specs: [['16:9', 'TV in the wall'], ['EN + AR', 'Printed panel'], ['8', 'Walls']] }); });
       for (let k = 0; k < 6; k++) { const d = 42 + k * 60, [x, z] = pol(6.3, d); E.kiosk(b, x, z, { ry: -(d * DEG) - Math.PI / 2 }); }
       b.use('matte'); for (let d = 196; d <= 250; d += 6) { const [x, z] = pol(5.4, d); b.box(C.wood, 0.55, 0.45, 0.9, x, F, z, -(d * DEG)); }
       b.use('satin').sector(C.ink, 7.7, 8.5, 306 * DEG, 334 * DEG, F, F + 1.05);

@@ -1,17 +1,22 @@
 // Explore mode: the full-screen interactive model with its controls.
 // Three ways to look at an area: walk in at eye level (the roof stays on), from above (the roof lifts off),
 // or as a plan. Tanks with fish can be entered under water, where every fish can be followed and aged.
-import { AREAS, areaById } from '../data/areas.js';
+import { AREAS, TOUR, areaById } from '../data/areas.js';
 import { speciesById, OTHER_FISH } from '../data/species.js';
 import { OVERVIEW, CAM_BOX } from '../world/layout.js';
 import { pickArea, pickItem, pickFloor } from '../world/areas.js';
-import { P } from '../world/rig.js';
+import { P, DRONE_SPEED } from '../world/rig.js';
+import { makeDrone } from '../world/drone.js';
+import { makeDock } from '../world/dock.js';
+import { createAirspace } from '../world/airspace.js';
+import { SEA_Y, landSDF } from '../world/terrain-fn.js';
 import { clamp } from '../world/kit.js';
 import { createLabels } from './labels.js';
 import { createPanel } from './panel.js';
 import { createSelect } from '../world/select.js';
 import { createAudio } from './audio.js';
 import { createDive } from '../world/dive.js';
+import { createControl } from './control.js';
 
 const I = (d) => `<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const ICON = {
@@ -22,7 +27,7 @@ const ICON = {
   sound: I('<path d="M2.5 6.2h2.2L8 3.5v9L4.7 9.8H2.5z"/><path d="M10.3 6a3 3 0 0 1 0 4M12 4.3a5.3 5.3 0 0 1 0 7.4"/>'),
   home: I('<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/>'),
 };
-const SOUND = { visitor: 'visitor', research: 'lab', nursery: 'hall', hatchery: 'hall', livefeed: 'hall', broodstock: 'hall', plantroom: 'machines', genroom: 'machines', phase1: 'hall', seacages: 'sea' };
+const SOUND = { visitor: 'visitor', research: 'lab', nursery: 'hall', hatchery: 'hall', livefeed: 'hall', broodstock: 'hall', plantroom: 'machines', genroom: 'machines', phase1: 'hall', seacages: 'sea', lfc: 'sea' };
 const NICE = [[0.001, '1 mm'], [0.002, '2 mm'], [0.005, '5 mm'], [0.01, '1 cm'], [0.02, '2 cm'], [0.05, '5 cm'], [0.1, '10 cm'], [0.2, '20 cm'], [0.5, '50 cm'], [1, '1 m']];
 
 export function createApp(world, hooks) {
@@ -35,7 +40,7 @@ export function createApp(world, hooks) {
   const veil = document.createElement('div'); veil.className = 'dive-veil'; appEl.appendChild(veil);
   const scaleEl = document.createElement('div'); scaleEl.className = 'fishscale'; scaleEl.innerHTML = '<i></i><span></span>'; scaleEl.hidden = true; $('#labels').appendChild(scaleEl);
   const FILM = [{ p: { ...OVERVIEW, az: OVERVIEW.az - 0.5, dist: OVERVIEW.dist * 1.1 }, t: 0, cap: ['Umm Al Quwain, United Arab Emirates', 'Sheikh Khalifa Marine Research Centre'] },
-    ...AREAS.map((a, i) => { const q = areas.byId[a.id].pose; return { p: { ...q, y: 3, az: q.az + (i % 2 ? 0.5 : -0.4), pol: 1.16, dist: q.dist * 0.72 }, t: i === 0 ? 9 : 7, cap: [a.name, a.line] }; }),
+    ...TOUR.map((a, i) => { const q = areas.byId[a.id].pose; return { p: { ...q, y: 3, az: q.az + (i % 2 ? 0.5 : -0.4), pol: 1.16, dist: q.dist * 0.72 }, t: i === 0 ? 9 : 7, cap: [a.name, a.line] }; }),
     { p: { ...OVERVIEW, az: OVERVIEW.az + Math.PI * 2 }, t: 10, cap: null }];
   const S = { exploring: false, area: null, item: null, view: 'walk', night: false, tour: null, film: false, drone: false, dive: null, fish: null, arrived: false };
   const coarse = () => innerWidth <= 760, touch = matchMedia('(pointer: coarse)').matches;
@@ -66,10 +71,11 @@ export function createApp(world, hooks) {
       else if (a === 'up') upToArea();
       else if (a === 'view') setView(arg);
       else if (a === 'orbit') { rig.drift = 0.07; rig.idle = 99; setTimeout(() => { rig.drift = 0; }, 14000); }
-      else if (a === 'tourhere') runTour(Math.max(0, AREAS.findIndex((x) => x.id === S.area)));
+      else if (a === 'tourhere') runTour(Math.max(0, TOUR.findIndex((x) => x.id === S.area)));
       else if (a === 'area' || a === 'fisharea') { if (S.dive) leaveDive(true); goArea(arg); }
       else if (a === 'species') { exit(); hooks.goSpecies(arg); }
       else if (a === 'dive') { const it = world.items.get(arg); if (it) diveInto(it); }
+      else if (a === 'control') { const it = world.items.get(arg); if (it) control.open(it); }
       else if (a === 'surface') leaveDive();
       else if (a === 'filter') setFilter(arg || null);
       else if (a === 'fishback') selectFish(null);
@@ -79,6 +85,10 @@ export function createApp(world, hooks) {
     },
   });
   panelEl.addEventListener('click', (e) => { if (coarse() && e.target.closest('.p-head') && !e.target.closest('button')) { panelEl.classList.toggle('is-min'); setShift(); } });
+
+  // the control rooms: their screen opens over the page (control.js); from it, any system or tank can be shown in the model
+  let ctlT = null;
+  const control = createControl(world, { onGo: (area, iid) => { stopTour(); if (iid) goItem(iid); else goArea(area); } });
 
   /* ───── walking stick (touch screens) ───── */
   const stick = document.createElement('div'); stick.className = 'stick'; stick.setAttribute('role', 'application'); stick.setAttribute('aria-label', 'Walk: drag in the direction you want to go');
@@ -219,6 +229,8 @@ export function createApp(world, hooks) {
     }
     body.classList.add('has-panel'); panel.item(it, a.items, { view: S.view });
     panelEl.classList.toggle('is-min', coarse() && !!it.isDisplay); setShift(); setBack(); audio.select();
+    // a control room: once the camera is in front of the console, its screen comes up
+    clearTimeout(ctlT); if (it.control && !S.tour) ctlT = setTimeout(() => { if (S.item === iid && S.exploring && !S.tour && !S.drone && !S.film) control.open(it); }, 1900);
   }
   function upToArea() {
     if (!S.area) return overview(); S.item = null; select.hide(); labels.focus(null); const a = areas.byId[S.area];
@@ -292,8 +304,8 @@ export function createApp(world, hooks) {
       rig.playPath([{ p: { ...rig.cur } }, { p: { ...OVERVIEW, az: OVERVIEW.az - 0.1, dist: OVERVIEW.dist * 0.95, pol: 1.0 }, t: 4.5 }, { p: { ...OVERVIEW, az: OVERVIEW.az + 0.3, dist: OVERVIEW.dist * 0.72, pol: 1.12 }, t: 4 }]);
       await sleep(8.2);
     }
-    for (let i = from; i < AREAS.length && ok(); i++) {
-      const d = AREAS[i], a = areas.byId[d.id];
+    for (let i = from; i < TOUR.length && ok(); i++) {
+      const d = TOUR[i], a = areas.byId[d.id];
       setCap([`${d.n}  ${d.name}`, d.line]); for (const b of dock.children) b.classList.toggle('is-on', b.dataset.id === d.id);
       // come down low past the building
       if (S.dive) leaveDive(true); S.item = null; select.hide(); labels.clearTags(); labels.clearDoors(); labels.clearRooms(); body.classList.remove('has-panel'); setShift(); outdoors(); areas.closeAll();
@@ -327,11 +339,48 @@ export function createApp(world, hooks) {
     audio.scene('outside');
   }
   function stopFilm() { if (!S.film) return; S.film = false; rig.stopPath(); body.classList.remove('filming'); filmEl.hidden = true; rig.user = S.exploring; if (S.exploring) overview(); }
+  // the drone: the craft itself (drone.js), its dock by the drop-off of the Innovation Park (dock.js), how it flies (rig.js),
+  // the space it flies in (airspace.js: walls, doors, roofs, ceilings, the insides of the buildings), its sound and its controls
+  const droneCraft = makeDrone(world); let droneT0 = 0, droneSnd = false, droneThr = -1, droneOn = false, droneStatus = '';
+  const droneDock = makeDock(world, { x: -207, z: -126, ry: -2.11 }); droneDock.out = 1.03;           // it faces the drop-off; the drone takes off towards the site
+  const air = createAirspace(world); world.dock = droneDock; world.air = air;
+  const _g = {};
+  /** the height of whatever is under a point (ground, sea, a roof, a tank, or the floor of the hall the drone is in) */
+  const floorAt = (x, y, z) => air.space(x, y, z, _g).floor - 0.55;
+  const hudSpeed = hud.querySelector('.hud-speed'), hudSnd = $('#hud-snd'), hudStatus = hud.querySelector('[data-hud=status]'), hudExit = $('#hud-exit');
+  const setStatus = (t) => { if (t === droneStatus) return; droneStatus = t; hudStatus.textContent = t; hudStatus.hidden = !t; };
+  const setSpeed = (i) => { const d = rig.drone; if (!d) return; d.level = clamp(i, 0, DRONE_SPEED.length - 1); d.boost = 1; for (const b of hudSpeed.children) b.setAttribute('aria-pressed', String(+b.dataset.speed === d.level)); };
+  hudSpeed.addEventListener('click', (e) => { const b = e.target.closest('[data-speed]'); if (b) setSpeed(+b.dataset.speed); });
+  const syncSnd = () => { pills.sound.setAttribute('aria-pressed', String(audio.on)); hudSnd.setAttribute('aria-pressed', String(audio.on)); };
+  hudSnd.addEventListener('click', () => { droneSnd = false; audio.toggle().then(() => { syncSnd(); if (audio.on) { audio.scene('outside'); droneOn = false; } }); });
   function startDrone() {
-    stopTour(); stopFilm(); if (S.area || S.dive) overview(false); labels.showPins(false); S.drone = true; body.classList.add('droning'); hud.hidden = false; rig.enterDrone();
+    stopTour(); stopFilm(); if (S.area || S.dive) overview(false); labels.showPins(false); select.hide(); labels.tip(null);
+    S.drone = true; body.classList.add('droning'); hud.hidden = false; droneT0 = performance.now(); droneThr = -1; droneOn = false;
+    rig.enterDrone(droneDock, air); setSpeed(1); setStatus('Taking off from the dock'); hudExit.textContent = 'Land the drone'; droneDock.setBusy(true);
+    // a drone is heard as well as seen: its rotors come on with it (the Sound button in the corner turns them off)
+    if (audio.on) { audio.scene('outside'); syncSnd(); }
+    else { droneSnd = true; audio.toggle(true).then((v) => { syncSnd(); if (v && S.drone) { audio.scene('outside'); droneOn = false; } }); }
     engine.canvas.focus && engine.canvas.focus();
   }
-  function stopDrone() { if (!S.drone) return; S.drone = false; rig.exitDrone(); body.classList.remove('droning'); hud.hidden = true; if (S.exploring) { labels.showPins(true); rig.limits.distMin = 30; } }
+  /** Esc or "Land the drone": it flies itself home and lands in the dock (from inside a building it is brought out first);
+   *  pressed again while it does that, it is put straight in */
+  function landDrone() {
+    const d = rig.drone; if (!S.drone || !d) return;
+    if (d.phase !== 'fly') { rig.droneHome(true); return; }
+    if (d.inside) { setStatus('Back out to the dock'); fade(() => rig.droneOverDock()); }
+    else { rig.droneHome(); setStatus('Flying home to the dock'); }
+    hudExit.textContent = 'Land now';
+  }
+  /** straight back in the dock and out of drone mode (leaving the model, starting the tour or the film) */
+  function stopDrone() { if (!S.drone) return; rig.droneHome(true); finishDrone(); }
+  function finishDrone() {
+    if (!S.drone) return; S.drone = false; const d = rig.drone;
+    if (d) { d.motor = 0; d.thr = 0; d.bob = 0; d.size = 1; d.tiltX = d.tiltZ = 0; droneCraft.update(d, 0, engine.t, null); }      // it stays parked in the dock
+    droneCraft.hideShadow(); air.reset(); droneDock.setOpen(0); droneDock.setBusy(false);
+    const at = droneDock.rest.clone(); at.y += 1; rig.exitDrone(at); body.classList.remove('droning'); hud.hidden = true; setStatus('');
+    audio.drone(false); droneOn = false; if (droneSnd && audio.on) audio.toggle(false).then(syncSnd); droneSnd = false;
+    if (S.exploring) { labels.showPins(true); rig.limits.distMin = 30; setHint(touch ? 'Drag to orbit. Pinch to zoom. Tap a pin.' : 'Drag to orbit. Scroll to zoom. Click a pin or a building.'); }
+  }
   function act(k) {
     if (k === 'film') startFilm();
     else if (k === 'drone') startDrone();
@@ -343,7 +392,8 @@ export function createApp(world, hooks) {
   function setNight(v) { S.night = v; env.setNight(v); body.classList.toggle('night', v); pills.night.setAttribute('aria-pressed', String(v)); pills.night.querySelector('span').textContent = v ? 'Day' : 'Night'; if (!S.area) audio.scene(v ? 'night' : 'outside'); }
 
   /* ───── enter / leave ───── */
-  function enter(areaId) {
+  function enter(areaId, view) {
+    if (view) S.view = view;
     if (S.exploring) { if (areaId) goArea(areaId); return; }
     S.exploring = true; appEl.hidden = false; void appEl.offsetWidth; body.classList.add('exploring');
     rig.user = true; rig.wheelZoom = true; rig.drift = 0; rig.lambda = 6.5; hooks.lock(true);
@@ -352,27 +402,43 @@ export function createApp(world, hooks) {
   }
   function exit() {
     if (!S.exploring) return;
-    stopTour(); stopFilm(); stopDrone(); if (S.dive) leaveDive(true); const last = S.area || S.last; S.last = null;
-    S.exploring = false; S.area = null; S.item = null; select.hide(); labels.focus(null); labels.occl = null; areas.closeAll(); outdoors(); labels.clearTags(); labels.clearDoors(); labels.clearRooms(); labels.tip(null);
+    stopTour(); stopFilm(); stopDrone(); clearTimeout(ctlT); control.close(); if (S.dive) leaveDive(true); const last = S.area || S.last; S.last = null;
+    S.exploring = false; S.area = null; S.item = null; S.view = 'walk'; select.hide(); labels.focus(null); labels.occl = null; areas.closeAll(); outdoors(); labels.clearTags(); labels.clearDoors(); labels.clearRooms(); labels.tip(null);
     body.classList.remove('exploring', 'has-panel', 'pointing'); panel.clear(); rig.setShift(0, 0); rig.user = false; rig.wheelZoom = false;
     rig.limits.distMin = 9; rig.limits.distMax = 1250; rig.limits.box = CAM_BOX.slice(); rig.limits.polMax = 1.4;
     if (S.night) setNight(false);
     setTimeout(() => { if (!S.exploring) appEl.hidden = true; }, 400);
     hooks.lock(false); hooks.onExit(last);
   }
+  /** from the page (a chip on a tour card, or a click on the model while scrolling): open the model straight at one thing,
+   *  seen from above with the roof off, the way the scroll tour was showing it, so the move is short */
+  function enterItem(iid) {
+    const it = world.items.get(iid); if (!it) return false;
+    if (!S.exploring) hooks.enter(it.area, 'top');
+    goItem(iid); return true;
+  }
   const stepBack = () => { if (S.fish) selectFish(null); else if (S.dive) leaveDive(); else if (S.item) upToArea(); else if (S.area) overview(); else exit(); };
   backBtn.addEventListener('click', () => { stopTour(); stepBack(); });
-  $('#film-stop').addEventListener('click', () => { if (S.tour) stopTour(); else stopFilm(); }); $('#hud-exit').addEventListener('click', stopDrone);
+  $('#film-stop').addEventListener('click', () => { if (S.tour) stopTour(); else stopFilm(); }); $('#hud-exit').addEventListener('click', landDrone);
   for (const b of hud.querySelectorAll('[data-pad]')) {
-    const k = b.dataset.pad, set = (v) => { const d = rig.drone; if (!d) return; if (k === 'f') d.touch.f = v; else if (k === 'b') d.touch.f = -v; else if (k === 'u') d.touch.u = v; else d.touch.u = -v; };
-    b.addEventListener('pointerdown', (e) => { e.preventDefault(); set(1); }); for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => set(0));
+    const k = b.dataset.pad, set = (v) => { const d = rig.drone; if (d) d.touch.u = k === 'u' ? v : -v; };
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); set(1); }); for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => set(0)); b.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+  { // the drone's stick (touch screens): forward and back, left and right
+    const st = $('#hud-stick'), knob = st.querySelector('b'), Rr = 44; let id = null, cx = 0, cy = 0;
+    const set = (x, y) => { const d = Math.hypot(x, y), k = d > Rr ? Rr / d : 1; x *= k; y *= k; knob.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`; const dr = rig.drone; if (!dr) return; const dead = d < 7 ? 0 : 1; dr.touch.s = (x / Rr) * dead; dr.touch.f = (-y / Rr) * dead; };
+    st.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); id = e.pointerId; try { st.setPointerCapture(id); } catch {} const r = st.getBoundingClientRect(); cx = r.left + r.width / 2; cy = r.top + r.height / 2; st.classList.add('is-on'); set(e.clientX - cx, e.clientY - cy); });
+    st.addEventListener('pointermove', (e) => { if (e.pointerId === id) set(e.clientX - cx, e.clientY - cy); });
+    const end = (e) => { if (e.pointerId !== id) return; id = null; st.classList.remove('is-on'); knob.style.transform = ''; if (rig.drone) rig.drone.touch.f = rig.drone.touch.s = 0; };
+    st.addEventListener('pointerup', end); st.addEventListener('pointercancel', end); st.addEventListener('contextmenu', (e) => e.preventDefault());
   }
   addEventListener('keydown', (e) => {
     if (!S.exploring || (e.target.closest && e.target.closest('input,textarea'))) return;
-    if (e.key === 'Escape') { stopTour(); if (S.film) stopFilm(); else if (S.drone) stopDrone(); else stepBack(); }
-    else if (S.drone || S.film || S.dive) return;
+    if (e.key === 'Escape') { stopTour(); if (S.film) stopFilm(); else if (S.drone) landDrone(); else stepBack(); }
+    else if (S.drone) { if (/^Digit[1-4]$/.test(e.code)) setSpeed(+e.code.slice(5) - 1); return; }
+    else if (S.film || S.dive) return;
     else if (e.key === 'ArrowRight') { stopTour(); S.item ? stepItem(1) : S.area ? stepArea(1) : goArea(AREAS[0].id); }
-    else if (e.key === 'ArrowLeft') { stopTour(); S.item ? stepItem(-1) : S.area ? stepArea(-1) : goArea(AREAS[9].id); }
+    else if (e.key === 'ArrowLeft') { stopTour(); S.item ? stepItem(-1) : S.area ? stepArea(-1) : goArea(AREAS[AREAS.length - 1].id); }
   });
 
   /* ───── pointer on the model ───── */
@@ -380,11 +446,18 @@ export function createApp(world, hooks) {
   rig.onHover = (x, y) => { hoverXY = [x, y]; };
   rig.onTap = (x, y) => {
     if (S.film) return stopFilm(); if (S.drone) return;
-    if (!S.exploring) { const a = pickArea(world, x, y); if (a) hooks.enter(a.id); return; }
+    if (!S.exploring) {
+      if (hooks.busy && hooks.busy()) return;
+      // on the page: a thing under the lifted roof goes straight to that thing, a building opens its area
+      const open = hooks.storyOpen && hooks.storyOpen(), oa = open && areas.byId[open], it = oa && oa.items.length ? pickItem(world, oa.items, x, y) : null;
+      if (it) { enterItem(it.id); return; }
+      const a = pickArea(world, x, y); if (a) hooks.enter(a.id); return;
+    }
     stopTour();
     if (S.dive) { const f = dive.pick(x, y); if (f) selectFish(f); else if (S.fish) selectFish(null); return; }
     if (S.area) {
       const a = areas.byId[S.area], it = pickItem(world, itemsOf(a), x, y);
+      if (it && it.control && it.id === S.item) { clearTimeout(ctlT); control.open(it); return; }      // the console you are standing at: its screen
       if (it) return goItem(it.id);
       if (S.view === 'walk' && rig.room === a) { const f = pickFloor(world, x, y, 0.1); if (f && inRooms(a, f[0], f[1])) { if (S.item) { S.item = null; select.hide(); labels.focus(null); panel.area(a, a.items, { view: S.view }); setBack(); } rig.flyTo({ ...rig.goal, x: f[0], z: f[1], y: 1.5, dist: clamp(rig.goal.dist, 6, 14) }, { dur: 1.1, hop: 0 }); } return; }
       const o = pickArea(world, x, y);
@@ -408,17 +481,38 @@ export function createApp(world, hooks) {
     if (hoverXY && !S.film && !S.drone && !rig.pointers.size) {
       const [x, y] = hoverXY; hoverXY = null; let hit = null;
       if (S.exploring && S.area) { hit = pickItem(world, itemsOf(areas.byId[S.area]), x, y); if (hit !== lastHover) { lastHover = hit; labels.tip(hit && hit.id !== S.item ? hit : null); panel.hover(hit ? hit.id : ''); const cur = S.item && world.items.get(S.item), walkZone = (q) => S.view === 'walk' && q && q.zone; if (hit && !walkZone(hit)) select.show(hit); else if (cur && !walkZone(cur)) select.show(cur); else select.hide(); } }
-      else { hit = pickArea(world, x, y); if (hit !== lastHover) { lastHover = hit; labels.markPin(hit ? hit.id : null); } }
+      else {
+        // on the page, under the roof the scroll tour has lifted: name the thing under the pointer and ring it
+        const open = !S.exploring && hooks.storyOpen && !(hooks.busy && hooks.busy()) ? hooks.storyOpen() : null, oa = open && areas.byId[open];
+        hit = oa && oa.items.length ? pickItem(world, oa.items, x, y) : null;
+        if (hit) { if (hit !== lastHover) { lastHover = hit; labels.tip(hit); select.show(hit); labels.markPin(null); } }
+        else { if (lastHover && lastHover.box) { labels.tip(null); select.hide(); } hit = pickArea(world, x, y); if (hit !== lastHover) { lastHover = hit; labels.markPin(hit ? hit.id : null); } }
+      }
       body.classList.toggle('pointing', !!hit);
     }
+    // a tip left on something whose roof has since closed (the page scrolled on)
+    if (!S.exploring && lastHover && lastHover.box && !(hooks.storyOpen && hooks.storyOpen() === lastHover.area)) { lastHover = null; labels.tip(null); select.hide(); body.classList.remove('pointing'); }
     if (S.drone && rig.drone) {
-      const d = rig.drone, deg = ((Math.atan2(Math.sin(d.yaw), -Math.cos(d.yaw)) * 180) / Math.PI + 360) % 360;
+      const d = rig.drone, deg = ((Math.atan2(Math.sin(d.yaw), -Math.cos(d.yaw)) * 180) / Math.PI + 360) % 360, sec = (performance.now() - droneT0) / 1000;
+      droneCraft.update(d, dt, engine.t, floorAt);
+      // the dock's lid: open for the take-off, shut again behind it, open for the landing; doors open as the drone comes;
+      // the inside of a building it is near shows, and the one it is in is lit as indoors
+      if (d.phase === 'fly' && d.pt > 1.0) d.lid = Math.max(0, d.lid - dt / 1.1);
+      if (Math.abs(droneDock.open - d.lid) > 1e-3) droneDock.setOpen(d.lid);
+      air.doors(d.pos, dt); air.look(d.pos, d.phase === 'fly' && d.sp ? d.sp.zone : null);
+      const on = (d.motor ?? 1) > 0.04; if (on !== droneOn) { droneOn = on; audio.drone(on); }
+      if (d.phase === 'fly') setStatus(d.inside ? `Inside ${areaById[d.inside.id] ? `${areaById[d.inside.id].n} · ${areaById[d.inside.id].name}` : ''}` : '');
+      else if (d.phase === 'land') setStatus('Landing in the dock');
       hud.querySelector('[data-hud=hdg]').textContent = `${dirs[Math.round(deg / 45) % 8]} ${String(Math.round(deg)).padStart(3, '0')}°`;
-      hud.querySelector('[data-hud=alt]').textContent = `${Math.max(0, Math.round(d.pos.y))} m`;
-      hud.querySelector('[data-hud=spd]').textContent = `${Math.round(d.vel.length() * 3.6)} km/h`;
+      hud.querySelector('[data-hud=alt]').textContent = `${Math.max(0, Math.round(d.pos.y - Math.max(0, floorAt(d.pos.x, d.pos.y, d.pos.z))))} m`;
+      hud.querySelector('[data-hud=spd]').textContent = `${Math.round(d.kmh)} km/h`;
+      hud.querySelector('[data-hud=time]').textContent = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+      hud.querySelector('[data-hud=bat]').textContent = `${Math.max(5, 100 - Math.floor(sec / 22))}%`;
+      if (Math.abs(d.thr - droneThr) > 0.015) { droneThr = d.thr; audio.droneSet(d.thr); }
+      if (d.phase === 'done') finishDrone();
     }
   });
   addEventListener('resize', () => { if (S.exploring) setShift(); if (S.dive) dive.resize(); });
 
-  return { S, enter, exit, goArea, goItem, overview, setView, diveInto, leaveDive, selectFish, runTour, stopTour, labels, audio, setNight, dive };
+  return { S, enter, enterItem, exit, control, goArea, goItem, overview, setView, diveInto, leaveDive, selectFish, runTour, stopTour, labels, audio, setNight, dive };
 }

@@ -108,10 +108,13 @@ export function createExhibitTVs(list, engine) {
     tex.needsUpdate = true; dirty = false;
   };
   draw(0);
+  // when a fish picture or the fonts arrive, draw the screens again straight away and send the picture to the graphics card now,
+  // rather than leaving it for the first frame the screens are seen in (that frame would stall)
+  const settle = () => { draw(Math.max(0, last)); try { engine.renderer.initTexture(tex); } catch (e) { /* drawn on first use instead */ } };
   for (const id of new Set(PROGRAMMES.map(p => p[3]))) {
-    const img = new Image(); img.onload = () => { images[id] = img; dirty = true; }; img.src = FISH_CUT[id];
+    const img = new Image(); img.onload = () => { images[id] = img; settle(); }; img.src = FISH_CUT[id];
   }
-  document.fonts.ready.then(() => { dirty = true; });
+  document.fonts.ready.then(settle);
 
   const pos = [], uv = [], indices = [];
   list.forEach((q, i) => {

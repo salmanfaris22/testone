@@ -84,7 +84,7 @@ export class Rig {
     this.air = air; this.dock = dock;
     const c = this.cam.position.clone(), t = this.target.clone();
     const d = this.drone = { pos: c.clone(), vel: new THREE.Vector3(), cam: c.clone(), look: t.clone(), yaw: 0, cy: 0, pitch: -0.1, gy: 0, gp: -0.1, boost: 1, level: 1,
-      tiltX: 0, tiltZ: 0, thr: 0.3, motor: 1, size: 1, inK: 0, age: 0, kmh: 0, touch: { f: 0, s: 0, u: 0 }, phase: 'fly', pt: 0, lid: 0, bob: 1, sp: {}, inside: null };
+      tiltX: 0, tiltZ: 0, thr: 0.3, motor: 1, size: 1, inK: 0, age: 0, kmh: 0, touch: { f: 0, s: 0, u: 0, yaw: 0 }, phase: 'fly', pt: 0, lid: 0, bob: 1, sp: {}, inside: null };
     if (dock) {
       d.pos.copy(dock.rest); d.pos.y += DRONE_LEG; d.yaw = d.cy = d.gy = dock.yaw; d.thr = 0; d.motor = 0; d.bob = 0; d.phase = 'launch';
       // where the camera watches the take-off from: in front of the dock and to one side, a little above it
@@ -107,7 +107,7 @@ export class Rig {
     const k = this.dock, p0 = d.pos.clone(), p3 = k.rest.clone(); p3.y += DRONE_LEG + 6.5;
     const h = Math.max(p0.y + 6, Math.min(70, 40 + p0.distanceTo(p3) * 0.03));
     const p1 = new THREE.Vector3(p0.x, h, p0.z), p2 = new THREE.Vector3(p3.x, h, p3.z), len = p0.distanceTo(p1) + p1.distanceTo(p2) + p2.distanceTo(p3);
-    d.H = { p0, p1, p2, p3, T: clamp(len / 24, 2.6, 9) }; d.phase = 'home'; d.pt = 0; d.touch.f = d.touch.s = d.touch.u = 0;
+    d.H = { p0, p1, p2, p3, T: clamp(len / 24, 2.6, 9) }; d.phase = 'home'; d.pt = 0; d.touch.f = d.touch.s = d.touch.u = d.touch.yaw = 0;
   }
   /** put the drone above the dock at once (it was shut in a building: the screen has been faded out by the caller) */
   droneOverDock() {
@@ -295,6 +295,7 @@ export class Rig {
       const u = (K.has('KeyE') || K.has('Space') ? 1 : 0) - (K.has('KeyQ') ? 1 : 0) + d.touch.u;
       let sp = DRONE_SPEED[d.level] * d.boost * (K.has('ShiftLeft') || K.has('ShiftRight') ? 1.8 : 1);
       sp = lerp(sp, Math.min(sp, 6.5), d.inK);                                                  // indoors it goes carefully
+      if (d.touch.yaw) d.gy -= d.touch.yaw * 1.45 * dt;                                         // the turn buttons on a phone
       d.yaw = dampAngle(d.yaw, d.gy, 6.5, dt); d.cy = dampAngle(d.cy, d.yaw, 3.6, dt); d.pitch = damp(d.pitch, d.gp, 8, dt);
       const fx = Math.sin(d.yaw), fz = Math.cos(d.yaw);
       _t.set((fx * f - fz * s) * sp, u * sp * 0.6 + Math.sin(d.pitch) * f * sp * 0.5, (fz * f + fx * s) * sp);
@@ -364,7 +365,8 @@ export class Rig {
     d.inK = damp(d.inK, d.inside ? 1 : 0, 3.2, dt); d.size = lerp(1, 0.62, d.inK);
     if (!camSet) {
       this._chaseCam(d, _t);
-      if (air) { const g = air.space(_t.x, Math.min(_t.y, d.pos.y), _t.z, _sp); _t.y = clamp(_t.y, g.floor - 0.2, Math.max(g.floor - 0.2, g.ceil + 0.2)); }
+      // flying low, the camera stays at about eye height over the ground (not down on the floor) and looks over the drone
+      if (air) { const g = air.space(_t.x, Math.min(_t.y, d.pos.y), _t.z, _sp), lo = g.floor + lerp(1.05, 0.55, d.inK); _t.y = clamp(_t.y, lo, Math.max(lo, g.ceil + 0.2)); }
       d.cam.lerp(_t, 1 - Math.exp(-(d.age < 1.2 && d.phase === 'fly' && !this.dock ? 4 : 13) * dt));
       // never behind a wall: the camera comes in front of it, towards the drone
       if (air) { const f = air.sight(d.pos, d.cam); if (f < 1) { const L = d.pos.distanceTo(d.cam); d.cam.sub(d.pos).multiplyScalar(Math.max(0.06, f - 0.14 / Math.max(L, 0.01))).add(d.pos); } }

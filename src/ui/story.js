@@ -1,5 +1,5 @@
 // The scroll tour: scrolling flies the camera from area to area and lifts each roof in turn.
-// It starts where a visitor does (08, 09), goes through the hatcheries (01 to 07) and ends at sea (10, 11): TOUR in data/areas.js.
+// It starts where a visitor does (08, 09), goes through the new hatchery (02 to 07), then the original one (01), and ends at sea (10, 11): TOUR in data/areas.js.
 import { TOUR, CHAPTERS, PHASES } from '../data/areas.js';
 import { P } from '../world/rig.js';
 import { clamp, lerp, smooth, TAU } from '../world/kit.js';

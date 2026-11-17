@@ -24,9 +24,11 @@ const withWorldPos = (sh) => { sh.vertexShader = sh.vertexShader.replace('#inclu
  * When each bit of the hardscape appears, in seconds after paving starts.
  * Roads: distance along the road network from the gate, at a speed that paves the farthest road in `roadDur`.
  * Everything else (apron, pads, plazas, lawns, parking): flows out from the nearest paved road at `flowSpeed` m/s.
- * West of the gate (the public road) is there from the start, and so is anything `pre(x, z)` says is (the drive in).
+ * West of the gate (the public road) is there from the start, and so is the road `pre(x, z)` says is (the drive in: only its road,
+ * not the sand beside it). `island` ({ x, z, r }) is ground built before the rest (round area 08): the paving spreads out from it and
+ * from the drive in as well as from the gate, so no road ever stands cut off at its edge.
  */
-export function revealMap(world, { gateX, roadDur = 2.8, flowSpeed = 64, flowDelay = 0.2, cell = 2, pre = null } = {}) {
+export function revealMap(world, { gateX, roadDur = 2.8, flowSpeed = 64, flowDelay = 0.2, cell = 2, pre = null, island = null } = {}) {
   const box = new THREE.Box3().setFromObject(world.land.hardscape);
   const x0 = Math.max(box.min.x - 4, gateX - 14), z0 = box.min.z - 4;
   const W = Math.ceil((box.max.x + 4 - x0) / cell) + 1, H = Math.ceil((box.max.z + 4 - z0) / cell) + 1, N = W * H;
@@ -49,7 +51,9 @@ export function revealMap(world, { gateX, roadDur = 2.8, flowSpeed = 64, flowDel
 
   // distance along the roads from the gate (repeated chamfer sweeps, restricted to road cells)
   const d = new Float32Array(N).fill(INF), co = cell, cd = cell * SQRT2;
-  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const k = j * W + i; if (mask[k] && x0 + i * cell < gateX + 2) d[k] = 0; }
+  const inIsland = (x, z) => !!island && Math.hypot(x - island.x, z - island.z) < island.r;
+  const built = (x, z) => x < gateX + 2 || (pre && pre(x, z)) || inIsland(x, z);           // road there before the paving starts: it spreads from here
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const k = j * W + i; if (mask[k] && built(x0 + i * cell, z0 + j * cell)) d[k] = 0; }
   const fwd = [[-1, 0, co], [-1, -1, cd], [0, -1, co], [1, -1, cd]], bwd = [[1, 0, co], [1, 1, cd], [0, 1, co], [-1, 1, cd]];
   for (let it = 0; it < 60; it++) {
     let changed = false;
@@ -63,6 +67,7 @@ export function revealMap(world, { gateX, roadDur = 2.8, flowSpeed = 64, flowDel
   // the paving flows out from the roads (two chamfer sweeps, no obstacles)
   const f = new Float32Array(N).fill(INF);
   for (let k = 0; k < N; k++) if (d[k] < INF) f[k] = d[k] / roadSpeed + flowDelay;
+  if (island) for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (inIsland(x0 + i * cell, z0 + j * cell)) f[j * W + i] = 0;
   const fo = cell / flowSpeed, fdg = (cell * SQRT2) / flowSpeed;
   const ffwd = [[-1, 0, fo], [-1, -1, fdg], [0, -1, fo], [1, -1, fdg]], fbwd = [[1, 0, fo], [1, 1, fdg], [0, 1, fo], [-1, 1, fdg]];
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const k = j * W + i; let v = f[k]; for (const [di, dj, c] of ffwd) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= W || jj >= H) continue; const q = jj * W + ii; if (f[q] + c < v) v = f[q] + c; } f[k] = v; }
@@ -72,7 +77,7 @@ export function revealMap(world, { gateX, roadDur = 2.8, flowSpeed = 64, flowDel
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
     const k = j * W + i, x = x0 + i * cell, z = z0 + j * cell;
     let v = d[k] < INF ? d[k] / roadSpeed : f[k];
-    if (pre && pre(x, z)) v = -4;                                    // the way in that the film drives: built from the first frame, no blueprint over it
+    if (pre && mask[k] && pre(x, z)) v = -4;                         // the way in that the film drives: its road built from the first frame, no blueprint over it
     if (x < gateX - 2) v = -10;                                      // outside the gate: the public road is already there
     rv[k] = Math.min(60, v); half[k] = THREE.DataUtils.toHalfFloat(rv[k]);
   }
@@ -113,8 +118,10 @@ const GROUND_FRAG_DECL = '#include <common>\nvarying vec3 vRvW;\nuniform sampler
 const RV_AT = `vec2 rvUV = ( vRvW.xz - uRvBox.xy ) * uRvBox.zw;
   float rvAt = ( rvUV.x < 0.0 || rvUV.y < 0.0 || rvUV.x > 1.0 || rvUV.y > 1.0 ) ? -10.0 : texture2D( uRvMap, rvUV ).r;
   float rvAge = uRvP - rvAt;
-  // the island that stands from the first frame (centre x, z and radius): built long ago
-  if ( distance( vRvW.xz, uRvPre.xy ) < uRvPre.z ) { rvAge = 9.0; rvAt = max( rvAt, -4.0 ); }`;
+  // the island built first (centre x, z, radius, and w: 1 once it has finished spreading): built long ago, or, while it spreads,
+  // just built at its edge (so its edge glows and rises like every other paving front)
+  float rvIs = distance( vRvW.xz, uRvPre.xy );
+  if ( rvIs < uRvPre.z ) { rvAge = uRvPre.w < 0.999 ? ( uRvPre.z - rvIs ) / 10.0 : 9.0; rvAt = max( rvAt, -4.0 ); }`;
 export function groundMat(src, G) {
   const m = src.clone();
   m.onBeforeCompile = (sh) => {

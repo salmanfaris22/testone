@@ -362,6 +362,16 @@ export function createApp(world, hooks) {
     else { droneSnd = true; audio.toggle(true).then((v) => { syncSnd(); if (v && S.drone) { audio.scene('outside'); droneOn = false; } }); }
     engine.canvas.focus && engine.canvas.focus();
   }
+  /* the mouse lock: the pointer disappears and the mouse steers the drone (L or the button; Esc gives the pointer back) */
+  const lockBtn = $('#hud-lock'); let unlockedAt = -1e9;
+  const locked = () => document.pointerLockElement === engine.canvas;
+  const toggleLock = () => { if (locked()) document.exitPointerLock(); else if (S.drone && engine.canvas.requestPointerLock) { try { const r = engine.canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* not allowed here */ } } };
+  lockBtn.addEventListener('click', toggleLock);
+  document.addEventListener('pointerlockchange', () => {
+    const on = locked(); lockBtn.setAttribute('aria-pressed', String(on)); lockBtn.querySelector('span').textContent = on ? 'Unlock mouse' : 'Lock mouse';
+    body.classList.toggle('mouse-locked', on); if (!on) unlockedAt = performance.now();
+  });
+  document.addEventListener('mousemove', (e) => { const d = rig.drone; if (!locked() || !d || d.phase !== 'fly') return; d.gy -= e.movementX * 0.0024; d.gp = clamp(d.gp - e.movementY * 0.002, -1.2, 0.3); });
   /** Esc or "Land the drone": it flies itself home and lands in the dock (from inside a building it is brought out first);
    *  pressed again while it does that, it is put straight in */
   function landDrone() {
@@ -374,7 +384,7 @@ export function createApp(world, hooks) {
   /** straight back in the dock and out of drone mode (leaving the model, starting the tour or the film) */
   function stopDrone() { if (!S.drone) return; rig.droneHome(true); finishDrone(); }
   function finishDrone() {
-    if (!S.drone) return; S.drone = false; const d = rig.drone;
+    if (!S.drone) return; S.drone = false; const d = rig.drone; if (locked()) document.exitPointerLock();
     if (d) { d.motor = 0; d.thr = 0; d.bob = 0; d.size = 1; d.tiltX = d.tiltZ = 0; droneCraft.update(d, 0, engine.t, null); }      // it stays parked in the dock
     droneCraft.hideShadow(); air.reset(); droneDock.setOpen(0); droneDock.setBusy(false);
     const at = droneDock.rest.clone(); at.y += 1; rig.exitDrone(at); body.classList.remove('droning'); hud.hidden = true; setStatus('');
@@ -421,7 +431,7 @@ export function createApp(world, hooks) {
   backBtn.addEventListener('click', () => { stopTour(); stepBack(); });
   $('#film-stop').addEventListener('click', () => { if (S.tour) stopTour(); else stopFilm(); }); $('#hud-exit').addEventListener('click', landDrone);
   for (const b of hud.querySelectorAll('[data-pad]')) {
-    const k = b.dataset.pad, set = (v) => { const d = rig.drone; if (d) d.touch.u = k === 'u' ? v : -v; };
+    const k = b.dataset.pad, set = (v) => { const d = rig.drone; if (!d) return; if (k === 'u' || k === 'd') d.touch.u = k === 'u' ? v : -v; else d.touch.yaw = k === 'r' ? v : -v; };
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); set(1); }); for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => set(0)); b.addEventListener('contextmenu', (e) => e.preventDefault());
   }
   { // the drone's stick (touch screens): forward and back, left and right
@@ -434,8 +444,9 @@ export function createApp(world, hooks) {
   }
   addEventListener('keydown', (e) => {
     if (!S.exploring || (e.target.closest && e.target.closest('input,textarea'))) return;
-    if (e.key === 'Escape') { stopTour(); if (S.film) stopFilm(); else if (S.drone) landDrone(); else stepBack(); }
-    else if (S.drone) { if (/^Digit[1-4]$/.test(e.code)) setSpeed(+e.code.slice(5) - 1); return; }
+    if (e.key === 'Escape') { if (S.drone && (locked() || performance.now() - unlockedAt < 450)) return;       // that Esc gave the mouse back
+      stopTour(); if (S.film) stopFilm(); else if (S.drone) landDrone(); else stepBack(); }
+    else if (S.drone) { if (/^Digit[1-4]$/.test(e.code)) setSpeed(+e.code.slice(5) - 1); else if (e.code === 'KeyL') toggleLock(); return; }
     else if (S.film || S.dive) return;
     else if (e.key === 'ArrowRight') { stopTour(); S.item ? stepItem(1) : S.area ? stepArea(1) : goArea(AREAS[0].id); }
     else if (e.key === 'ArrowLeft') { stopTour(); S.item ? stepItem(-1) : S.area ? stepArea(-1) : goArea(AREAS[AREAS.length - 1].id); }

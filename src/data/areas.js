@@ -88,8 +88,8 @@ export const AREAS = [
 export const areaById = Object.fromEntries(AREAS.map((a) => [a.id, a]));
 export const phaseOf = (a) => PHASES[(typeof a === 'string' ? areaById[a] : a).phase - 1];
 
-/** The scroll tour, the guided tour and the fly-through start where a visitor does, at the Innovation Park (08, 09),
- *  then go through the hatcheries in the order they were built (01 to 07) and end at sea (10, 11). */
-export const TOUR = ['visitor', 'research', 'phase1', 'nursery', 'hatchery', 'livefeed', 'broodstock', 'plantroom', 'genroom', 'lfc', 'seacages'].map((id) => areaById[id]);
+/** The scroll tour, the guided tour and the fly-through start where a visitor does, at the Innovation Park (08, 09), then go
+ *  through the new hatchery (02 to 07), then the original one (01), and end at sea (10, 11): the order Jeffry asked for. */
+export const TOUR = ['visitor', 'research', 'nursery', 'hatchery', 'livefeed', 'broodstock', 'plantroom', 'genroom', 'phase1', 'lfc', 'seacages'].map((id) => areaById[id]);
 /** the chapter banner that opens over the model at these steps of the tour: [big, small] */
-export const CHAPTERS = { visitor: ['Phase 3', 'Marine Innovation Park'], phase1: ['Phase 1', 'The original hatchery'], nursery: ['Phase 2', 'The new hatchery'], lfc: ['Phase 3', 'Out to sea'] };
+export const CHAPTERS = { visitor: ['Phase 3', 'Marine Innovation Park'], nursery: ['Phase 2', 'The new hatchery'], phase1: ['Phase 1', 'The original hatchery'], lfc: ['Phase 3', 'Out to sea'] };

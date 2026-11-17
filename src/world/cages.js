@@ -131,7 +131,17 @@ export function buildCages(world) {
   const bb = new Builder(); workBoat(bb, 0, 0, 0, Y); const boat = bb.build(mats, { cast: true });
   const wake = new THREE.Mesh(new THREE.PlaneGeometry(22, 5).rotateX(-Math.PI / 2).translate(-14, Y + 0.06, 0), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, depthWrite: false })); boat.add(wake);
   const bc = at(-64.5, 222);
-  const path = (t) => { const a = t * 0.04; return [bc[0] + Math.cos(a) * 118, bc[1] + Math.sin(a) * 90]; };
+  // its round: a lane with rounded corners right round the outside of the nine cages, clear of every net (it used to cross three)
+  const lane = (() => {
+    const xs = cages.map((c) => c.x), zs = cages.map((c) => c.z), r = Math.max(...cages.map((c) => c.r)), m = r + 15;
+    const x0 = Math.min(...xs) - m, x1 = Math.max(...xs) + m, z0 = Math.min(...zs) - m, z1 = Math.max(...zs) + m, rr = 32;
+    const segs = [], line = (a, b) => segs.push({ a, b, len: Math.hypot(b[0] - a[0], b[1] - a[1]) }), arc = (cx, cz, a0) => segs.push({ cx, cz, a0, len: (Math.PI / 2) * rr });
+    line([x0 + rr, z0], [x1 - rr, z0]); arc(x1 - rr, z0 + rr, -Math.PI / 2); line([x1, z0 + rr], [x1, z1 - rr]); arc(x1 - rr, z1 - rr, 0);
+    line([x1 - rr, z1], [x0 + rr, z1]); arc(x0 + rr, z1 - rr, Math.PI / 2); line([x0, z1 - rr], [x0, z0 + rr]); arc(x0 + rr, z0 + rr, Math.PI);
+    const total = segs.reduce((q, g) => q + g.len, 0);
+    return (s) => { s = ((s % total) + total) % total; for (const g of segs) { if (s > g.len) { s -= g.len; continue; } const k = s / g.len; if (g.a) return [g.a[0] + (g.b[0] - g.a[0]) * k, g.a[1] + (g.b[1] - g.a[1]) * k]; const a = g.a0 + (Math.PI / 2) * k; return [g.cx + Math.cos(a) * rr, g.cz + Math.sin(a) * rr]; } return [x0, z0]; };
+  })();
+  const path = (t) => lane(t * 4.6 + 60);
   world.updaters.push((dt, t) => { const p = path(t), n = path(t + 0.5); boat.position.set(p[0], Math.sin(t * 1.1) * 0.09, p[1]); boat.rotation.set(Math.sin(t * 0.9) * 0.025, Math.atan2(-(n[1] - p[1]), n[0] - p[0]), Math.sin(t * 0.7) * 0.02); });
   low.add(boat);
 

@@ -84,12 +84,17 @@ export function buildOval(lo, hi, { RO, pol }) {
 
   /* ───── the glass front ───── */
   const fts = spaced(facade, T0, T1, 1.2);
-  lo.use('matte'); band(lo, facade, fts, YP, YP + 0.18, 0.02, 0x3c4349);                     // dark base rail
-  lo.use('window'); band(lo, facade, fts, YP + 0.18, CUT, 0, null);
-  hi.use('window'); band(hi, facade, fts, CUT, TOP - 0.28, 0, null);
+  // the doorway (the door frame is 8.9 m wide on the axis of the doors): the glass of the front stops either side of it and over
+  // its head, so the doors fill it and, open, show the foyer behind (they used to stand behind a band of glass that never opened)
+  const rate = ovalRate(facade, TD), G0 = TD - 4.45 / rate, G1 = TD + 4.45 / rate;
+  const tsL = spaced(facade, T0, G0, 1.2), tsR = spaced(facade, G1, T1, 1.2), tsD = spaced(facade, G0, G1, 0.6);
+  lo.use('matte'); band(lo, facade, fts, YP, YP + 0.18, 0.02, 0x3c4349);                     // dark base rail (the threshold across the doorway)
+  lo.use('window'); for (const ts of [tsL, tsR]) band(lo, facade, ts, YP + 0.18, CUT, 0, null);
+  hi.use('window'); for (const ts of [tsL, tsR]) band(hi, facade, ts, CUT, TOP - 0.28, 0, null); band(hi, facade, tsD, 3.75, TOP - 0.28, 0, null);
   hi.use('satin'); band(hi, facade, fts, TOP - 0.28, TOP, 0.04, 0xd6dbde);                    // head of the glass
   for (const y of [3.55, 6.3]) band(hi, facade, fts, y, y + 0.11, 0.07, 0xd9dee1);            // two transoms, as in the render
-  for (const t of spaced(facade, T0, T1, 2.75)) {                                             // mullions
+  for (const t of spaced(facade, T0, T1, 2.75)) {                                             // mullions (none in the doorway: it has its own frame)
+    if (t > G0 - 0.4 / rate && t < G1 + 0.4 / rate) continue;
     const p = facade(t), q = ovalN(facade, t), ry = -Math.atan2(-q[0], q[1]), x = p[0] + q[0] * 0.07, z = p[1] + q[1] * 0.07;
     lo.use('satin').box(0xd9dee1, 0.12, CUT - YP, 0.2, x, YP, z, ry); hi.use('satin').box(0xd9dee1, 0.12, TOP - CUT, 0.2, x, CUT, z, ry);
   }
@@ -103,7 +108,7 @@ export function buildOval(lo, hi, { RO, pol }) {
   // the doors: a bright alu frame round four dark glass leaves, a mat outside
   {
     const p = facade(TD), q = ovalN(facade, TD), ry = -Math.atan2(-q[0], q[1]), tx = -q[1], tz = q[0], at = (s, o) => [p[0] + tx * s + q[0] * o, p[1] + tz * s + q[1] * o];
-    for (const s of [-4.3, -2.15, 0, 2.15, 4.3]) { const [x, z] = at(s, 0.16); lo.use('satin').box(0xe3e7ea, 0.16, CUT - YP, 0.3, x, YP, z, ry); hi.use('satin').box(0xe3e7ea, 0.16, 3.6 - CUT, 0.3, x, CUT, z, ry); }
+    for (const s of [-4.3, -2.15, 2.15, 4.3]) { const [x, z] = at(s, 0.16); lo.use('satin').box(0xe3e7ea, 0.16, CUT - YP, 0.3, x, YP, z, ry); hi.use('satin').box(0xe3e7ea, 0.16, 3.6 - CUT, 0.3, x, CUT, z, ry); }
     { const [x, z] = at(0, 0.16); hi.use('satin').box(0xe3e7ea, 8.9, 0.3, 0.34, x, 3.6, z, ry);
       // the two outer leaves are fixed; the middle pair slides apart (doorLeaf 'part'), in front of them, when someone (the drone) comes
       for (const sg of [-1, 1]) { const [fx, fz] = at(sg * 3.2, 0.16); lo.use('window').box(null, 2.12, CUT - YP - 0.05, 0.08, fx, YP + 0.02, fz, ry); hi.use('window').box(null, 2.12, 3.6 - CUT, 0.08, fx, CUT, fz, ry); }

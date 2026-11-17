@@ -30,7 +30,7 @@ const T = {
   b08: 10.0,                                 // 08 goes up first (its slab, then the walls over B08_RISE s)
   bp: 10.6, draw0: 10.9, draw1: 14.6,        // the blueprint: the paper, then every line drawn on it
   util0: 12.6, util1: 15.2,                  // sea water and power drawn in
-  infra: 13.8, pace: 1.3,                    // the roads paved from the gate inward, the paving flowing out behind them
+  infra: 11.9, pace: 1.3,                    // the roads paved outward from the gate, the drive in and 08's ground, the paving flowing out behind them
   p1: 16.2, p2: 18.0, p3: 20.0,              // the buildings, phase by phase
   sea: 21.0, boat: 21.3, life: 22.4,         // the cages, LFC Hamour, then the trees, people and traffic
   settle: 23.0, end: 28.4,                   // the camera comes down into the hero view
@@ -113,7 +113,7 @@ export function createIntro(world, { hero }) {
   const cages = (world.cages && world.cages.cages) || [];
 
   /* ───── where and when the ground gets built ───── */
-  const map = revealMap(world, { gateX: GX, pre: onRoute });
+  const map = revealMap(world, { gateX: GX, pre: onRoute, island: { x: vc[0], z: vc[1], r: ISLAND } });
   const G = { map: { value: map.tex }, box: { value: map.uBox }, p: { value: -1 }, rise: { value: 3.2 }, pre: { value: new THREE.Vector4(vc[0], vc[1], ISLAND, 0) } };
   const hard = world.land.hardscape;
   const helpers = new THREE.Group(); helpers.name = 'intro-helpers'; helpers.visible = false;
@@ -355,7 +355,7 @@ export function createIntro(world, { hero }) {
       rig.jump(poseFrom(c, l)); rig._apply();
     } else if (flying) setFov(fovAt(t));
     // 08's ground is paved and planted outwards from it as it goes up
-    G.pre.value.z = ISLAND * smooth(win(t, T.b08 + 0.2, 1.6));
+    G.pre.value.z = ISLAND * smooth(win(t, T.b08 + 0.2, 1.6)); G.pre.value.w = win(t, T.b08 + 0.2, 1.6);
     if (flagDrop) { const r = remember(flagDrop), k = win(t, T.b08 + 1.4, 1.0); flagDrop.visible = k > 0 && r.v; flagDrop.scale.y = Math.max(TINY, backOut(k)) * r.s.y; }
     // the blueprint: paper, linework, services
     const inn = smooth(win(t, T.bp, 1.1));
@@ -408,7 +408,7 @@ export function createIntro(world, { hero }) {
     for (const w of warmObj) scene.remove(w); warmObj = [];
     if (V.interior) V.interior.visible = false;
     warm(0); if (warmOn) env.apply();
-    if (E) { E.setGate(1); E.setBoom(1); E.wash.reset(); } driving = false; car.group.visible = false; G.pre.value.z = ISLAND;
+    if (E) { E.setGate(1); E.setBoom(1); E.wash.reset(); } driving = false; car.group.visible = false; G.pre.value.z = ISLAND; G.pre.value.w = 1;
     const h = hero(); rig.fitOverride = null; rig.floorOverride = null; rig.fovGoal = h.fov; rig.limits.distMin = distMin;
     sheet.visible = false; craneG.visible = false; engine.shadowDirty = true;
   }

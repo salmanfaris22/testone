@@ -233,6 +233,14 @@ export function buildHalls(world) {
     });
   }
 
+  /* ══════════ 04 · RAS control room (in the larval hall's building, at its east end) ══════════ */
+  {
+    const hatch = areas.byId.hatchery, rr = { x0: 81, x1: 91.8, z0: 14.4, z1: 23, h: HATCH.h };
+    const st = stops([rr], HATCH_FRAME, { az: -0.62, k: 2.2, walk: P(86, 1.3, 20.2, -2.42, 1.33, 5.4) });
+    areas.add({ ...st, rooms: hatch.rooms, walls: hatch.walls, host: 'hatchery', claim: (it) => it.code === 'RAS',
+      id: 'rascontrol', frame: HATCH_FRAME, low: null, high: null, pin: [86.4, HATCH.h + 6.5, 18.7], hit: [[rr.x0, 0, rr.z0, rr.x1, 2.8, rr.z1]] });
+  }
+
   /* ══════════ 05 · Live Feed and Algae ══════════ */
   {
     const r = { x0: HATCH.larvalX1, x1: HATCH.x1, z0: HATCH.z0, z1: HATCH.z1, h: HATCH.h }, ax = { x0: HATCH.larvalX1, x1: HATCH.x1, z0: HATCH.z1, z1: HATCH.annexZ1, h: HATCH.annexH };

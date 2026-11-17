@@ -79,8 +79,16 @@ const secs = ['masterplan', 'species', 'cycle', 'contact'].map((id) => document.
 let world = null, app = null, story = null, species = null, intro = null;
 const ldPct = $('#ld-pct'), ldMsg = $('#ld-msg');
 let shown = 0, target = 0.04;
-const ldTick = setInterval(() => { shown += (target - shown) * 0.2; ldPct.textContent = Math.round(shown * 100); }, 50);
-const done = () => { clearInterval(ldTick); ldPct.textContent = '100'; body.classList.remove('is-loading'); };
+// the loading screen: the plan draws itself with the progress (--p), the words say what is being built, a fact comes up now and then
+const loaderEl = $('#loader'), ldFact = $('#ld-fact');
+const LD_FACTS = NUMBERS.map((n) => `${n.v}${n.unit ? ` ${n.unit}` : ''} · ${n.l}`).concat(['Built in three phases, from the original hatchery to the Innovation Park', 'Native Gulf species, raised from egg to sea cage']);
+let ldFactI = -1, ldFactT = 0;
+const ldTick = setInterval(() => {
+  shown += (target - shown) * 0.2; ldPct.textContent = Math.round(shown * 100); loaderEl.style.setProperty('--p', shown.toFixed(3));
+  if (target < 0.9) ldMsg.textContent = shown < 0.3 ? 'Drawing the site' : shown < 0.62 ? 'Building the halls' : 'Filling the tanks';
+  if ((ldFactT -= 50) <= 0) { ldFactT = 2600; ldFact.classList.add('is-out'); setTimeout(() => { ldFactI = (ldFactI + 1) % LD_FACTS.length; ldFact.textContent = LD_FACTS[ldFactI]; ldFact.classList.remove('is-out'); }, 420); }
+}, 50);
+const done = () => { clearInterval(ldTick); ldPct.textContent = '100'; loaderEl.style.setProperty('--p', '1'); setTimeout(() => body.classList.remove('is-loading'), 380); };
 
 async function boot() {
   if (!hasWebGL() || new URLSearchParams(location.search).has('nogl')) { body.classList.add('no-gl'); fallbackSteps(); done(); return; }

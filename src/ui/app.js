@@ -27,7 +27,7 @@ const ICON = {
   sound: I('<path d="M2.5 6.2h2.2L8 3.5v9L4.7 9.8H2.5z"/><path d="M10.3 6a3 3 0 0 1 0 4M12 4.3a5.3 5.3 0 0 1 0 7.4"/>'),
   home: I('<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/>'),
 };
-const SOUND = { visitor: 'visitor', research: 'lab', nursery: 'hall', hatchery: 'hall', livefeed: 'hall', broodstock: 'hall', plantroom: 'machines', genroom: 'machines', phase1: 'hall', seacages: 'sea', lfc: 'sea' };
+const SOUND = { visitor: 'visitor', research: 'lab', nursery: 'hall', hatchery: 'hall', rascontrol: 'machines', livefeed: 'hall', broodstock: 'hall', plantroom: 'machines', genroom: 'machines', phase1: 'hall', seacages: 'sea', lfc: 'sea' };
 const NICE = [[0.001, '1 mm'], [0.002, '2 mm'], [0.005, '5 mm'], [0.01, '1 cm'], [0.02, '2 cm'], [0.05, '5 cm'], [0.1, '10 cm'], [0.2, '20 cm'], [0.5, '50 cm'], [1, '1 m']];
 
 export function createApp(world, hooks) {

@@ -154,9 +154,13 @@ export function buildCages(world) {
   const wakeL = new THREE.Mesh(new THREE.PlaneGeometry(46, 13).rotateX(-Math.PI / 2).translate(-38, 0.07, 0), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
   wakeL.visible = false; lfc.add(wakeL);
   let sailK = 0, sailV = 0;
-  /** put LFC Hamour k of the way along its trip (0 = at the berth); the wake follows its speed */
+  /** put LFC Hamour k of the way along its trip (0 = at the berth); the wake follows its speed. It only ever goes forward, bow
+   *  first: scrolled back, it stays where it is, and it is back at its berth once k is 0 again (the tour has left its step) */
   const sail = (k) => {
-    k = Math.min(1, Math.max(0, k)); sailV = Math.max(sailV * 0.9, Math.abs(k - sailK) * 60); sailK = k;
+    k = Math.min(1, Math.max(0, k));
+    if (k < sailK && k > 0.001) return;
+    if (k > sailK) sailV = Math.max(sailV * 0.9, (k - sailK) * 60);
+    sailK = k;
     const p = trip.getPointAt(k), d = trip.getTangentAt(k); lfc.position.set(p.x, Y, p.z); lfc.rotation.y = Math.atan2(-d.z, d.x);
   };
   world.updaters.push(() => { sailV *= 0.96; wakeL.material.opacity = Math.min(0.42, sailV * 0.5); wakeL.visible = wakeL.material.opacity > 0.01; });
@@ -212,5 +216,5 @@ export function buildCages(world) {
     walk: P(LFC_BERTH.x, Y + 5, LFC_BERTH.z, -0.62, 1.32, 46),
     makeInterior(_b, ctx) { ctx.item({ ...LFC_ITEM, box: lfcWorldBox(), label: true, prio: 1 }); },
   });
-  return { cages, lfc, sail };
+  return { cages, lfc, sail, kick: (v) => { sailV = Math.max(sailV, v); } };
 }

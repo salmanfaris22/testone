@@ -46,7 +46,7 @@ export function makeMaterials(ripples, env) {
     leaf: std({ roughness: 0.85, metalness: 0, side: THREE.DoubleSide }),
     cloth: std({ roughness: 0.8, metalness: 0 }),
     glass: std({ roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide, envMapIntensity: 1.5 }),
-    window: new THREE.MeshStandardMaterial({ color: 0x3f6278, roughness: 0.12, metalness: 0.55, emissive: 0xffd49a, emissiveIntensity: 0, envMapIntensity: 1.3 }),
+    window: new THREE.MeshStandardMaterial({ color: 0x3f6278, roughness: 0.12, metalness: 0.55, emissive: 0xeef6ff, emissiveIntensity: 0, envMapIntensity: 1.3 }),     // lit windows at night: cool white light (was warm yellow)
     water: std({ roughness: 0.07, metalness: 0, transparent: true, opacity: 0.6, depthWrite: false, normalMap: ripples, normalScale: new THREE.Vector2(0.28, 0.28), emissive: 0x2fa9c7, emissiveIntensity: 0, envMapIntensity: 1.3 }),
     glow: new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }),
     decal: new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),

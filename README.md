@@ -1,7 +1,7 @@
 # SKMRC interactive 3D masterplan
 
 Website for the Sheikh Khalifa Marine Research Centre (Gulf Aquaculture, Umm Al Quwain).
-The whole centre is a real-time 3D model: eleven areas you can walk into (the eleventh is LFC Hamour, the boat), about 270 things to click, real people at work in every room, an underwater view where every fish can be followed and aged, and a 3D viewer for six native species.
+The whole centre is a real-time 3D model: twelve areas you can walk into (04 is the RAS control room, 11 LFC Hamour, the boat), about 270 things to click, real people at work in every room, an underwater view where every fish can be followed and aged, and a 3D viewer for six native species.
 
 Reference the client asked us to match and beat: `https://kriswa.ae/demos/gulfaquaculture/` (its `3d/` page).
 Version 2 (14 November 2026) follows that reference's site plan. Version 1 is kept in `_backup/`.
@@ -15,6 +15,8 @@ Version 9 smoothness: shaders the wheel bath's mirror needs, every shape and pic
 Version 10 (17 November 2026, night): the opening film starts on the name wall at the gate (the camera slides along the brushed-steel plaque, then turns to the gate as its leaves swing open), the black Defender drives in past the camera, the camera lifts off behind it like a drone over the gate, the boom and the wheel bath and cranes up over the flag road; from there 08 goes up first, the blueprint is drawn, services and roads go in, phases 1, 2 and 3 rise, the cages and LFC Hamour arrive, and the camera comes down over 08's drop-off into the view Jeffry picked from the drone (34 m up, across the shell roof of 08 and the arch to the halls, the beach and the sea cages). 28.4 s; the 08 call-outs are no longer in the film (the scroll tour still opens 08). Every frame at 16.7 ms on the laptop size in headless Chrome. The hero page is that same view (`HERO` in `src/ui/story.js`, a 50° lens, found by fitting the camera to his screenshot); narrower windows step back along the same line (`heroPose`), the picture is no longer pushed to the right, and the area pins keep clear of the menu bar and the headline. The scroll cards are short: number, name, three figures, two things to go straight to, Walk in and Read more (the line and the description open only with Read more). The drone now lives in a dock by the drop-off of 08 (`src/world/dock.js`): pressing Drone brings the camera down to it, the lid opens in two halves, the rotors spin up and the drone lifts out and turns towards the site; Esc or "Land the drone" flies it home along an arc and lands it in the dock (pressed again, it goes straight in; from inside a building it is brought out first). It may go anywhere on the coast (`BOUNDS` in `src/world/airspace.js`), as low as half a metre and up to 600 m, and into the buildings: walls, roofs, ceilings and tall machines stop it, it flies over low tanks, doors open as it comes (wide shutters roll up, smaller doors slide into the wall, 08's glass doors part) and close behind it, the inside of a building it is near shows through its doors and windows, and inside the camera comes closer, the drone looks smaller, it slows to 6.5 m/s and the screen says which area it is in. Checked in Chrome: take-off, flying in through a hall shutter (02) and through 08's glass doors to the reception and the aquarium; phone (390 × 844) and tablet (768 × 1024) hero, cards, film and drone controls. On the emulated phone the film had a few 50 to 117 ms frames while the picture quality stepped down. Not checked: Safari, a real phone.
 
 Version 10, later (17 November, morning): the scroll tour (and the guided tour and the fly-through) now runs 08, 09, then 02 to 07, then 01, then 10 and 11 (`TOUR` and `CHAPTERS` in `src/data/areas.js`). In the film the roads no longer stand cut off at the edge of 08's paved circle: only the real road of the drive in is there before the paving starts (not the strip of sand beside it, which showed as grey bands on the blueprint), and the paving now spreads out from the gate, the drive in and 08's circle as soon as that is down, with its glowing front (`revealMap` in `src/world/intro-build.js`, `island`). The work boat does its rounds in a lane right round the outside of the nine cages (it used to cross three of them; `lane` in `src/world/cages.js`). Drone: "Lock mouse" (or L) hides the pointer and the mouse steers, Esc gives it back; on a phone there are buttons to climb, sink and turn left and right beside the stick; flying low, the camera stays at about eye height and looks over the drone; the satellite and battery readout sits under REC, clear of the buttons. 08's glass front now stops either side of the doors and over their head, so its middle pair of doors, sliding apart for the drone, opens onto the foyer (before, a band of the front's glass stayed across the doorway).
+
+Version 10, the morning after (17 November): the client's own logo (from gulfaquaculture.com, cut out in a light and a dark version, `public/brand/`) in the header, footer, loader and tab icon; the accent is a light sky blue (`--signal` in `src/styles/base.css`, navy lettering on it) instead of orange; area 08's hall has a 4.4 m Earth globe (NASA Blue Marble, `public/photos/earth.webp`) turning in a glass shell over a walk-on aquarium under a glass floor, made to look like the hall's underwater screens (the ground and the paving open under the glass while 08's inside shows: `groundHole` in `src/world/materials.js`); under water the whole selected group of fish glows; the exhibition boards no longer flicker; at night the lights are cool white. The opening film now starts on the car coming up the road, then the name board, then the camera lifts over the gate as it opens, the car drives through at it, the drone follows it in, and the site is built (33.9 s). The loading screen draws the masterplan (coast, roads, every building, the cages) as the model loads. The RAS control room is area 04 and every area after it moved up one (12 areas). The work boat does its rounds outside the nine cages, and LFC Hamour never sails backwards (bow first into its berth in the film; in the tour it only sails forward).
 
 Version 8 checks: production build and `tools/check-camera-path.mjs` pass. The whole film was captured frame by frame in headless Chrome at 1280×720 and 390×844; skip during the drive restores the page (no car, gates open, normal camera) with no browser errors; the scroll tour shows step 10 (9 cages) and step 11 (the boat sailing). Not checked: Safari, a physical phone, the mirror's cost on a slow phone.
 
@@ -68,21 +70,22 @@ Handy links while working: `/#explore` opens straight into the 3D model, `/?noin
 | People and traffic | Real rigged figures: lab staff in gowns and hair nets, technicians in overalls and hi-vis, office staff seated at their desks, school children in the amphitheatre. Most visitors are Emirati: men in white kandura with a white ghutra and black agal, women in black abaya. The Emirati host greets you at the gate and at the visitor centre reception. The visitor centre is kept calm (fewer people). They walk with planted feet, check clipboards, work at tanks, talk and sit. Far away they turn into simple figures. A few cars drive the roads (fewer than before); gulls circle the fish farm. UAE flags fly at the gate and the drop-off |
 | Species, cycle, company, contact | Normal page sections. The form opens WhatsApp or email with the message written |
 
-## The eleven areas, by phase
+## The twelve areas, by phase
 
-| No | Phase | Area | Items | Notes |
-|---|---|---|---|---|
-| 01 | 1 | Phase 1 Hatchery | 71 | Six buildings: nursery, hatchery, broodstock, offices and stores, plant, power |
-| 02 | 2 | Weaning and Nursery | 27 | Six raceways, feed store, biosecure entry |
-| 03 | 2 | Larval Rearing Hall | 43 | Thirty tanks, plus the annex: hatchery office and enrichment kitchen |
-| 04 | 2 | Live Feed and Algae | 22 | Algae hall, rotifer bay, annex for Artemia and copepods |
-| 05 | 2 | Broodstock Building | 21 | Twelve tanks, intake room, pump station by the shore road |
-| 06 | 2 | Plant Room | 19 | Adds ozone, degassing tower, heat exchangers |
-| 07 | 2 | Generator Room | 9 | Substation kiosk, transformer yard, fire-water tanks |
-| 08 | 3 | Education and Visitor Centre | 22 | The client's floor plan inside, turned to run along the shore; outside built to the client's render (oval glass hall, shell roof, podium) |
-| 09 | 3 | Research and Administration Wing | 21 | The client's floor plan |
-| 10 | 3 | Sea Cage Grow-Out | 13 | Nine grow-out cages with bird nets, jetty, gangway and landing stage, feed barge, work boat, cameras |
-| 11 | 3 | LFC Hamour | 1 | The live fish carrier at its berth; in the scroll tour it sails out to the cages |
+| No | Phase | Area | Notes |
+|---|---|---|---|
+| 01 | 1 | Phase 1 Hatchery | Six buildings: nursery, hatchery, broodstock, offices and stores, plant, power |
+| 02 | 2 | Weaning and Nursery | Six raceways, feed store, biosecure entry |
+| 03 | 2 | Larval Rearing Hall | Thirty tanks, plus the annex: hatchery office and enrichment kitchen |
+| 04 | 2 | RAS Control Room | In the larval hall's building, at its east end (`host: 'hatchery'`): its own pin, card and tour step; it opens the hall's roof and takes the RAS console from it (its big screen shows every system) |
+| 05 | 2 | Live Feed and Algae | Algae hall, rotifer bay, annex for Artemia and copepods |
+| 06 | 2 | Broodstock Building | Twelve tanks, intake room, pump station by the shore road |
+| 07 | 2 | Plant Room | Adds ozone, degassing tower, heat exchangers |
+| 08 | 2 | Generator Room | Substation kiosk, transformer yard, fire-water tanks |
+| 09 | 3 | Education and Visitor Centre | The client's floor plan inside, the client's render outside; a turning Earth globe over a walk-on aquarium in the middle of the hall |
+| 10 | 3 | Research and Administration Wing | The client's floor plan |
+| 11 | 3 | LFC Hamour | The live fish carrier at its berth; in the scroll tour it sails out to the cages |
+| 12 | 3 | Sea Cage Grow-Out | Nine grow-out cages with bird nets, jetty, gangway and landing stage, feed barge, work boat, cameras |
 
 Numbers follow the tour order in `src/data/areas.js`; the roofs, pins, dock and cards all read them from there.
 

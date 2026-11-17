@@ -80,9 +80,9 @@ export function streetLights(scene, mats, env, list) {
   const n = list.length, pos = new Float32Array(n * 3);
   list.forEach((o, i) => { const c = Math.cos(o.ry || 0), s = Math.sin(o.ry || 0); pos[i * 3] = o.x + 1.75 * c; pos[i * 3 + 1] = 7.9; pos[i * 3 + 2] = o.z - 1.75 * s; });
   const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const halo = new THREE.Points(pg, glowPointsMat(env, 5.2, 0xffe2a8));
+  const halo = new THREE.Points(pg, glowPointsMat(env, 5.2, 0xf2f7ff));
   halo.frustumCulled = false; halo.renderOrder = 6; g.add(halo);
-  const pool = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: radialTex(), color: 0xffd9a0, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }), n);
+  const pool = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: radialTex(), color: 0xeaf3ff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }), n);
   list.forEach((o, i) => { _m.compose(_p.set(pos[i * 3], 0.16, pos[i * 3 + 2]), _q.identity(), _s.set(26, 1, 26)); pool.setMatrixAt(i, _m); });
   pool.renderOrder = 4; pool.visible = false; pool.matrixAutoUpdate = false; g.add(pool);
   env.onNight((v) => { pool.visible = v > 0.02; pool.material.opacity = v * 0.5; });

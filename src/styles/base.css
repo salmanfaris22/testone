@@ -5,8 +5,9 @@
   --ink-3: #1d4c63;
   --shoal: #0e6e7e;
   --lagoon: #35c4c0;
-  --signal: #0077b6;              /* the ocean blue of gulfaquaculture.com (was orange) */
-  --signal-d: #005b8c;
+  --signal: #5bc0eb;              /* light sky blue (Jeffry: "the light blue"; was orange, then ocean blue) */
+  --on-signal: #062b40;           /* navy lettering on it */
+  --signal-d: #1a7fb8;
   --paper: #fbfaf6;
   --mist: #eaf1f0;
   --sand: #efe7d6;
@@ -61,8 +62,8 @@ h3 { font-weight: 500; font-size: 21px; line-height: 1.25; letter-spacing: -0.00
 }
 .btn:active { transform: scale(0.98); }
 .btn.btn-lg { min-height: 52px; padding: 0 26px; font-size: 16px; }
-.btn.btn-solid { background: var(--signal); color: #fff; }
-.btn.btn-solid:hover { background: #1a8fd0; }
+.btn.btn-solid { background: var(--signal); color: var(--on-signal); }
+.btn.btn-solid:hover { background: #86d3f3; }
 .btn.btn-ghost { background: rgba(255, 255, 255, 0.14); color: #fff; border: 1px solid rgba(255, 255, 255, 0.42); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .btn.btn-ghost:hover { background: rgba(255, 255, 255, 0.24); }
 .btn.btn-line { border: 1px solid var(--line-ink); color: var(--on-ink); }

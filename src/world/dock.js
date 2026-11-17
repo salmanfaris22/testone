@@ -22,7 +22,7 @@ function slabTex() {
 function padTex() {
   return canvasTex(256, 256, (g, w) => {
     g.fillStyle = '#2b3136'; g.fillRect(0, 0, w, w);
-    g.strokeStyle = '#1b8fd6'; g.lineWidth = 10; g.strokeRect(14, 14, w - 28, w - 28);
+    g.strokeStyle = '#5bc0eb'; g.lineWidth = 10; g.strokeRect(14, 14, w - 28, w - 28);
     g.fillStyle = '#f4f4f2'; g.font = '700 150px "IBM Plex Sans Condensed", Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('H', w / 2, w / 2 + 8);
     g.fillStyle = 'rgba(255,255,255,.5)'; for (const [x, y] of [[34, 34], [w - 34, 34], [34, w - 34], [w - 34, w - 34]]) { g.beginPath(); g.arc(x, y, 7, 0, Math.PI * 2); g.fill(); }
   }, { repeat: false });

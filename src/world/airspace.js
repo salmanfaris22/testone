@@ -18,7 +18,7 @@ const OPEN = 0.8;                   // a door this far open lets it through
 export function createAirspace(world) {
   const { areas } = world;
   // each area: a world box round it (to skip it fast), and the top of its tallest part
-  const zones = areas.list.filter((a) => a.hit && a.hit.length).map((a) => {
+  const zones = areas.list.filter((a) => a.hit && a.hit.length && !a.host).map((a) => {      // (an area inside another's building is that building)
     let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9, top = 0;
     for (const b of a.hit) { for (const [x, z] of [[b[0], b[2]], [b[3], b[2]], [b[3], b[5]], [b[0], b[5]]]) { const w = a.toWorld(x, z); x0 = Math.min(x0, w[0]); x1 = Math.max(x1, w[0]); z0 = Math.min(z0, w[1]); z1 = Math.max(z1, w[1]); } top = Math.max(top, b[4]); }
     const rooms = (a.rooms || []).concat(a.envelope || []);

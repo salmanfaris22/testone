@@ -1,4 +1,4 @@
-// Area registry: each of the eleven areas owns a shell that opens, an interior that is
+// Area registry: each of the twelve areas owns a shell that opens, an interior that is
 // built the first time it is needed, and a list of things you can click.
 // An area may sit in its own frame (moved and turned), so everything it declares is in local metres:
 // boxes, poses, pins and people. World positions are worked out here.
@@ -58,8 +58,10 @@ export function createAreas(world) {
       list.push(a); byId[a.id] = a;
       return a;
     },
-    /** build the interior now (idempotent) */
+    /** build the interior now (idempotent). An area inside another's building (`host`, such as 04, the RAS control room in the
+     *  larval hall) is built with its host and takes the things it `claim`s from it */
     ensure(a) {
+      if (a.host) { api.ensure(byId[a.host]); return a; }
       if (a.built || !a.makeInterior) return a;
       a.built = true;
       const b = new Builder(), ctx = new AreaCtx(a, world);
@@ -89,21 +91,26 @@ export function createAreas(world) {
       a.upper = b.up.build(mats, { cast: false, receive: true }); a.upper.name = a.id + '-upper'; a.upper.visible = a.peek && a.open < 0.01; a.root.add(a.upper);
       a.interior = g; a.root.add(g); a.root.updateMatrixWorld(true);
       for (const it of a.items) world.items.set(it.id, it);
+      for (const g of list) if (g.host === a.id && g.claim) {
+        const mine = a.items.filter(g.claim); a.items = a.items.filter((it) => !g.claim(it));
+        for (const it of mine) { world.items.delete(it.id); it.area = g.id; it.id = `${g.id}/${it.code || 'x'}`; world.items.set(it.id, it); }
+        g.items = mine; g.built = true; g.walls = a.walls; g.updaters = [];
+      }
       engine.shadowDirty = true;
       return a;
     },
-    open(id, instant) { const a = byId[id]; if (!a) return; api.ensure(a); a.goal = 1; if (instant) { a.open = 0.999; } world.animating = true; return a; },
-    close(id, instant) { const a = byId[id]; if (!a) return; a.goal = 0; if (instant) a.open = 0.001; world.animating = true; return a; },
+    open(id, instant) { const a = byId[id]; if (!a) return; if (a.host) { a.goal = a.open = 1; return api.open(a.host, instant); } api.ensure(a); a.goal = 1; if (instant) { a.open = 0.999; } world.animating = true; return a; },
+    close(id, instant) { const a = byId[id]; if (!a) return; if (a.host) { a.goal = a.open = 0; return api.close(a.host, instant); } a.goal = 0; if (instant) a.open = 0.001; world.animating = true; return a; },
     closeAll(except) { for (const a of list) { if (a.id !== except && a.goal) api.close(a.id); if (a.id !== except && a.peek) api.peek(a.id, false); } },
     /** the drone is close by: its inside shows (through the doors and windows), with the roof on */
     near(id, v) {
-      const a = byId[id]; if (!a || !!a.near === v) return a; if (v) api.ensure(a);
+      const a = byId[id]; if (!a || !!a.near === v) return a; if (a.host) { a.near = v; return api.near(a.host, v); } if (v) api.ensure(a);
       a.near = v; if (a.interior) a.interior.visible = v || a.peek || a.open > 0.01 || !!a.alwaysOpen;
       engine.shadowDirty = true; world.animating = true; return a;
     },
     /** walk-in view: the roof stays on but stops casting shade, so the hall is lit like a skylit room */
     peek(id, v) {
-      const a = byId[id]; if (!a || a.peek === v) return a; if (v) api.ensure(a);
+      const a = byId[id]; if (!a || a.peek === v) return a; if (a.host) { a.peek = v; return api.peek(a.host, v); } if (v) api.ensure(a);
       a.peek = v; if (a.highMeshes) for (const m of a.highMeshes) m.castShadow = !v && !m.userData.noShadow && m.material !== a.roofMats.glass && m.material !== a.roofMats.glow && m.material !== a.roofMats.pane;
       if (a.interior) a.interior.visible = v || a.open > 0.01 || !!a.alwaysOpen || !!a.near;
       if (a.upper) a.upper.visible = v && a.open < 0.01;

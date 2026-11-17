@@ -7,7 +7,7 @@ import { PHASES, areaById } from '../data/areas.js';
 
 const TW = 512, TH = 288;
 const FONT = '"IBM Plex Sans", Arial, sans-serif', FONTC = '"IBM Plex Sans Condensed", "Arial Narrow", sans-serif';
-const TEAL = '#35c4c0', ORANGE = '#3aa6e8', WHITE = '#f4f8f8', MUTE = 'rgba(214,232,236,.72)';
+const TEAL = '#35c4c0', ORANGE = '#6ccdf2', WHITE = '#f4f8f8', MUTE = 'rgba(214,232,236,.72)';
 
 /** figures that tick on each screen (example data, labelled as such) */
 const LIVE = {
@@ -72,7 +72,7 @@ function makeScreen(id) {
     g.fillStyle = MUTE; g.font = `500 13px ${FONT}`; g.fillText('Last hour', x0, y0 - 8);
     // a small fish crosses now and then
     const fx = ((t * 38 + id.length * 90) % (TW + 200)) - 100, fy = 226 + Math.sin(t * 2.1) * 4;
-    if (fx > -60 && fx < TW + 60) { g.fillStyle = 'rgba(58,166,232,.9)'; g.beginPath(); g.ellipse(fx, fy, 15, 6.5, 0, 0, 7); g.fill(); g.beginPath(); g.moveTo(fx - 13, fy); g.lineTo(fx - 25, fy - 7); g.lineTo(fx - 25, fy + 7); g.closePath(); g.fill(); g.fillStyle = '#08283a'; g.beginPath(); g.arc(fx + 8, fy - 1.5, 1.6, 0, 7); g.fill(); }
+    if (fx > -60 && fx < TW + 60) { g.fillStyle = 'rgba(108,205,242,.9)'; g.beginPath(); g.ellipse(fx, fy, 15, 6.5, 0, 0, 7); g.fill(); g.beginPath(); g.moveTo(fx - 13, fy); g.lineTo(fx - 25, fy - 7); g.lineTo(fx - 25, fy + 7); g.closePath(); g.fill(); g.fillStyle = '#08283a'; g.beginPath(); g.arc(fx + 8, fy - 1.5, 1.6, 0, 7); g.fill(); }
     // ticker
     g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, TH - 38, TW, 38); g.fillStyle = ORANGE; g.fillRect(0, TH - 38, 6, 38);
     g.font = `500 17px ${FONT}`; if (!tw) tw = g.measureText(ticker).width;

@@ -5,7 +5,7 @@ import * as THREE from 'three';
 
 const TW = 512, TH = 320, COLS = 4, ROWS = 4;          // dashboards
 const PW = 512, PH = 640, PCOLS = 4, PROWS = 2;        // exhibition panels (tile ids 100 + k)
-const INK = '#0b2b3c', TEAL = '#35c4c0', ORANGE = '#0077b6', PAPER = '#f6f8f8', LINE = 'rgba(11,43,60,.14)', MUTE = '#5b7684';
+const INK = '#0b2b3c', TEAL = '#35c4c0', ORANGE = '#2b9fd8', PAPER = '#f6f8f8', LINE = 'rgba(11,43,60,.14)', MUTE = '#5b7684';
 const FONT = '"IBM Plex Sans", Helvetica, Arial, sans-serif', AR = '"Geeza Pro", "Noto Sans Arabic", Tahoma, sans-serif';
 export const TILE = { kpi: 0, trend: 1, sheet: 2, bars: 3, scada: 4, gauges: 5, plan: 6, gantt: 7, micro: 8, pcr: 9, doc: 10, cctv: 11, alarms: 12, orders: 13, growth: 14, brand: 15 };
 /** a sensible mix for a row of office monitors */

@@ -133,7 +133,7 @@ export function buildEntrance(world, { lights }) {
   const sMid = [(sA[0] + sB[0]) / 2, (sA[1] + sB[1]) / 2], sN = [-(sB[1] - sA[1]) / sLen, (sB[0] - sA[0]) / sLen];       // its face looks this way (south-west, at the road)
   b.use('concrete').box(STONE, sLen, 3.25, 0.85, sMid[0], 0, sMid[1], sRy); b.use('matte').box(0xa79f92, sLen + 0.2, 0.14, 1.0, sMid[0], 3.25, sMid[1], sRy); b.box(0x9d968a, sLen + 0.3, 0.22, 1.1, sMid[0], 0, sMid[1], sRy);
   b.use('metal').box(0xb9bec1, 5.32, 2.36, 0.06, sMid[0] + sN[0] * 0.44, 0.62, sMid[1] + sN[1] * 0.44, sRy);
-  for (const o of [-2.2, 0, 2.2]) { const u = [(sB[0] - sA[0]) / sLen, (sB[1] - sA[1]) / sLen]; b.use('glow').box(0xfff0cf, 0.3, 0.1, 0.24, sMid[0] + u[0] * o + sN[0] * 1.6, 0.05, sMid[1] + u[1] * o + sN[1] * 1.6, sRy); }
+  for (const o of [-2.2, 0, 2.2]) { const u = [(sB[0] - sA[0]) / sLen, (sB[1] - sA[1]) / sLen]; b.use('glow').box(0xf4f9ff, 0.3, 0.1, 0.24, sMid[0] + u[0] * o + sN[0] * 1.6, 0.05, sMid[1] + u[1] * o + sN[1] * 1.6, sRy); }
   const plaque = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 2.275), new THREE.MeshStandardMaterial({ map: plaqueTex(), metalness: 0.55, roughness: 0.32, envMapIntensity: 1.2 }));
   plaque.position.set(sMid[0] + sN[0] * 0.48, 0.62 + 1.18, sMid[1] + sN[1] * 0.48); plaque.rotation.y = Math.atan2(sN[0], sN[1]); plaque.name = 'gate-sign'; group.add(plaque);
 

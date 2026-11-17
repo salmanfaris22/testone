@@ -23,23 +23,27 @@ const TINY = 1e-4;
 const FIRST = 'visitor';                   // the area built first (08)
 const ISLAND = 96;                         // metres round it paved and planted as 08 goes up
 
-/** timeline, in seconds */
+/** timeline, in seconds: the car comes up the road; the name board; the camera lifts over the gate as it opens and comes down
+ *  inside, and the car drives through at it; the drone follows it in; then up, and the site is built */
 const T = {
-  b: 4.4,                                    // the camera leaves the name wall and lifts off behind the car as it comes through the gate
-  rise: 8.2, fly0: 11.6,                     // it cranes up over the flag road, then flies on the path
-  b08: 10.0,                                 // 08 goes up first (its slab, then the walls over B08_RISE s)
-  bp: 10.6, draw0: 10.9, draw1: 14.6,        // the blueprint: the paper, then every line drawn on it
-  util0: 12.6, util1: 15.2,                  // sea water and power drawn in
-  infra: 11.9, pace: 1.3,                    // the roads paved outward from the gate, the drive in and 08's ground, the paving flowing out behind them
-  p1: 16.2, p2: 18.0, p3: 20.0,              // the buildings, phase by phase
-  sea: 21.0, boat: 21.3, life: 22.4,         // the cages, LFC Hamour, then the trees, people and traffic
-  settle: 23.0, end: 28.4,                   // the camera comes down into the hero view
+  board: 3.4,                                // from the car to the name board (the car has stopped at the closed gate)
+  over: 6.6,                                 // the camera lifts over the gate as it opens and comes down inside, looking back at the car
+  chase: 12.6,                               // the car comes through at the camera and past it; the drone takes off behind it
+  rise: 15.4, fly0: 18.6,                    // it cranes up over the flag road, then flies on the path
+  b08: 17.4,                                 // 08 goes up first (its slab, then the walls over B08_RISE s)
+  bp: 18.0, draw0: 18.3, draw1: 21.6,        // the blueprint: the paper, then every line drawn on it
+  util0: 19.6, util1: 22.0,                  // sea water and power drawn in
+  infra: 19.2, pace: 1.35,                   // the roads paved outward from the gate, the drive in and 08's ground, the paving flowing out behind them
+  p1: 22.8, p2: 24.4, p3: 26.2,              // the buildings, phase by phase
+  sea: 27.2, boat: 27.4, life: 28.4,         // the cages, LFC Hamour, then the trees, people and traffic
+  settle: 29.2, end: 34.0,                   // the camera comes down into the hero view
 };
 const B08_RISE = 3.2;                      // 08 is the hero: it rises slowly enough to be watched
-/** the car: it starts 30 m out from the gate at CAR0 and its speed, [seconds after CAR0, metres per second], is straight-line between
- *  keys: up to the gate as it opens, slower through it and under the lifted boom, through the wheel bath at walking pace, then on */
-const CAR0 = 0.8;
-const SPEED = [[0, 8.0], [3.4, 6.0], [5.0, 4.6], [6.6, 4.4], [9.6, 4.4], [12.2, 12.0], [60, 12.0]];
+/** the car: it starts 34 m out from the gate and its speed, [seconds, metres per second], is straight-line between keys: it slows
+ *  to a stop at the closed gate, waits while the name board is shown and the gate opens, comes through, slow under the lifted boom
+ *  and through the wheel bath, then on up the flag road */
+const CAR0 = 0;
+const SPEED = [[0, 12.0], [4.4, 0], [8.0, 0], [9.2, 3.2], [10.6, 5.2], [11.6, 4.4], [17.6, 4.4], [20.0, 12.0], [60, 12.0]];
 const SLAB = 0.42, SLAB_T = 0.32, HOLD = 0.22;   // each building: its slab first, a breath, then the walls rise
 
 export function createIntro(world, { hero }) {
@@ -52,7 +56,7 @@ export function createIntro(world, { hero }) {
   const vc = V.toWorld(0, 0), inIsland = (x, z) => Math.hypot(x - vc[0], z - vc[1]) < ISLAND;
 
   /* ───── the drive in: the road from the gate to the roundabout and on up to 08's plot stands built from the first frame ───── */
-  const Z0 = L.RB_W.z, LANE = Z0 + L.GATE.lane, X0 = GX - 30;
+  const Z0 = L.RB_W.z, LANE = Z0 + L.GATE.lane, X0 = GX - 34;
   const segD = (x, z, a, b) => { const dx = b[0] - a[0], dz = b[1] - a[1], l = dx * dx + dz * dz || 1, u = clamp(((x - a[0]) * dx + (z - a[1]) * dz) / l, 0, 1); return Math.hypot(x - a[0] - dx * u, z - a[1] - dz * u); };
   const drive = L.ROADS.drive;
   const onRoute = (x, z) => (x > GX - 6 && x < L.RB_W.x && Math.abs(z - Z0) < 13) || Math.hypot(x - L.RB_W.x, z - Z0) < L.RB_W.r + 13 || drive.some((p, i) => i > 0 && segD(x, z, drive[i - 1], p) < 11.5);
@@ -79,25 +83,40 @@ export function createIntro(world, { hero }) {
   const plaque = scene.getObjectByName('gate-sign');
   const PC = plaque ? plaque.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(GX - 4.9, 1.8, Z0 - 10.3);
   const NRM = plaque ? [Math.sin(plaque.rotation.y), Math.cos(plaque.rotation.y)] : [-0.38, 0.92], RUN = [NRM[1], -NRM[0]];
+  const narrow = () => clamp(1.25 / Math.max(0.3, engine.w / Math.max(1, engine.h)), 1, 2.4);       // a phone held upright stands further off
   const onWall = (s, d, y) => [PC.x + NRM[0] * d + RUN[0] * s, y, PC.z + NRM[1] * d + RUN[1] * s];
-  /** shot 1, the name wall: the camera slides along it reading the plaque, then turns to the gate as the leaves open and the car comes */
-  const narrow = () => clamp(1.25 / Math.max(0.3, engine.w / Math.max(1, engine.h)), 1, 2.4);       // a phone held upright stands further off the wall
-  const wallCam = (t) => { const k = smooth(win(t, 0, T.b)); return onWall(-1.9 + 4.3 * k, (3.5 + 2.0 * k) * narrow(), 1.6 + 0.32 * k); };
-  const wallLook = (t) => {
-    const k = smooth(win(t, 0, T.b)), x = route.at(t), plq = onWall((-1.9 + 4.3 * k) * 0.3, 0, 1.78);
-    const gate = [GX + 7, 1.5, Z0 + 0.6], carAt = [x + 1.5, 1.1, LANE];
-    return mix3(plq, mix3(gate, carAt, 0.55 * smooth(win(t, 3.9, 1.6))), smooth(win(t, 2.5, 2.2)));
-  };
-  /** shot 2, the drone: it lifts off where the wall shot left it and settles in behind and above the car, over the gate and the boom */
-  const chase = (t, x) => { const k = smooth(win(t, T.b, T.rise - T.b + 1.2)); return [[x - 10 - 7 * k, 2.4 + 15 * k, LANE - 8 - 6 * k], [x + 3.5 + 6 * k, 0.9, LANE - 0.4]]; };
+  const carAt = (t) => { const x = route.at(t); return [x + 1.4, 1.0, LANE]; };
+  const bez = (p0, p1, p2, p3, u) => { const v = 1 - u; return [0, 1, 2].map((i) => v * v * v * p0[i] + 3 * v * v * u * p1[i] + 3 * v * u * u * p2[i] + u * u * u * p3[i]); };
+  // 1, the car: low on the verge ahead of it, its front coming at us as it slows for the gate
+  const carCam = (t) => { const k = smooth(win(t, 0, T.board)); return [GX - 15.5 + 2.2 * k, 1.15 + 0.2 * k, Z0 - 6.2 * narrow()]; };
+  // 2, the name board: the camera turns from the car to the plaque and slides along it, reading it
+  const boardCam = (t) => { const k = smooth(win(t, T.board + 0.3, T.over - T.board - 0.3)), n = narrow(); return onWall(-1.9 + 4.3 * k, (3.5 + 2.0 * k) * n, 1.6 + 0.32 * k); };
+  const boardLook = (t) => { const k = smooth(win(t, T.board + 0.3, T.over - T.board - 0.3)); return onWall((-1.9 + 4.3 * k) * 0.3, 0, 1.78); };
+  // 3, over the gate: the camera lifts off the end of the wall, turning to the car waiting at the gate, rises back over the
+  // opening gate and comes down low on the road inside it, looking back out at the car
+  const IN = [GX + 11.8, 0.86, Z0 - 0.75];
+  const overCam = (t) => { const p0 = boardCam(T.over), u = smooth(win(t, T.over + 0.3, 2.3)); return bez(p0, [p0[0] + 2.5, 7.2, p0[2] + 1.5], [GX + 6.5, 7.0, Z0 - 2.2], IN, u); };
+  const overLook = (t) => { const k = smooth(win(t, T.over - 0.1, 1.2)); return mix3(boardLook(T.over), mix3([GX - 2, 1.6, Z0 + 0.3], carAt(t), 0.55), k); };
+  // 4, inside: the car comes through the gate at the camera and past it on the left; the eye follows it
+  const inLook = (t) => { const x = route.at(t), k = smooth(win(x, GX - 12, 22)); return mix3([GX - 9, 1.5, Z0 + 0.4], [x + 0.6, 1.0, LANE], 0.3 + 0.62 * k); };
+  /** shot 5, the drone: it lifts off behind and above the car, over the guard cabin and the boom, as it drives through the bath */
+  const chase = (t, x) => { const k = smooth(win(t, T.chase, T.rise - T.chase + 1.2)); return [[x - 10 - 7 * k, 2.4 + 15 * k, LANE - 8 - 6 * k], [x + 3.5 + 6 * k, 0.9, LANE - 0.4]]; };
   // where the crane-up comes to rest: high over the flag road, looking along it past 08's plot to the sea
   const vantage = [[GX + 10, 128, Z0 - 132], [vc[0] - 26, 0, vc[1] + 66]], vantageP = poseFrom(...vantage);
-  /** the camera for film time t: [position, point looked at, how far the crane-up has come] */
+  /** the camera for film time t: [position, point looked at, how far the crane-up has come]; the shots glide into each other */
   const shotAt = (t) => {
     const x = route.at(t);
-    if (t < T.b) return [wallCam(t), wallLook(t), 0];
-    const e = easeIO(win(t, T.b, 2.3)), ch = chase(t, x);
-    const c = mix3(wallCam(T.b), ch[0], e), l = mix3(wallLook(t), ch[1], e);
+    if (t < T.over) {
+      const b = smooth(win(t, T.board - 0.4, 1.4));                                   // car → board
+      return [mix3(carCam(t), boardCam(t), b), mix3(carAt(t), boardLook(t), b), 0];
+    }
+    if (t < T.chase) {
+      const c = t < T.over + 2.6 ? overCam(t) : [IN[0] - 1.4 * smooth(win(t, T.over + 2.6, T.chase - T.over - 2.6)), IN[1], IN[2]];
+      const l = t < T.over + 2.6 ? mix3(overLook(t), inLook(t), smooth(win(t, T.over + 1.4, 1.2))) : inLook(t);
+      return [c, l, 0];
+    }
+    const e = easeIO(win(t, T.chase, 2.3)), ch = chase(t, x), c0 = [IN[0] - 1.4, IN[1], IN[2]];
+    const c = mix3(c0, ch[0], e), l = mix3(inLook(t), ch[1], e);
     if (t < T.rise) return [c, l, 0];
     const k = smooth(win(t, T.rise, T.fly0 - T.rise));                 // ...and up, from the moving drone into the still pose the path starts at
     return [mix3(c, vantage[0], k), mix3(l, vantage[1], k), k];
@@ -107,7 +126,7 @@ export function createIntro(world, { hero }) {
   const setFov = (f) => { if (Math.abs(rig.fov - f) < 0.01 && rig.fovGoal === f) return; rig.fov = rig.fovGoal = f; engine.camera.fov = f; engine.camera.updateProjectionMatrix(); if (rig.onFov) rig.onFov(f); };
   let wakeT = { f: -1, r: -1 }, splashed = { f: false, r: false, out: false }, lastX = X0;
   const ph = { 1: [], 2: [], 3: [] };
-  for (const d of AREAS) if (d.id !== 'seacages' && d.id !== 'lfc' && d.id !== FIRST && A[d.id]) ph[d.phase].push(A[d.id]);
+  for (const d of AREAS) if (d.id !== 'seacages' && d.id !== 'lfc' && d.id !== FIRST && A[d.id] && !A[d.id].host) ph[d.phase].push(A[d.id]);      // (an area inside another's building goes up with it)
   const builds = [...ph[1], ...ph[2], ...ph[3], V];
   const sea = A.seacages.root, lfc = world.cages && world.cages.lfc;
   const cages = (world.cages && world.cages.cages) || [];
@@ -203,7 +222,7 @@ export function createIntro(world, { hero }) {
   // footprints, phase by phase, then the cages
   const rect = (a, b) => { const [x0, , z0, x1, , z1] = b; return [[x0, z0], [x1, z0], [x1, z1], [x0, z1]].map(([x, z]) => a.toWorld(x, z)); };
   const lists = { 1: [], 2: [], 3: [] };
-  for (const d of AREAS) { const a = A[d.id]; if (!a || d.id === 'seacages' || d.id === 'lfc' || d.id === FIRST) continue; for (const b of a.hit || []) lists[d.phase].push(rect(a, b)); }
+  for (const d of AREAS) { const a = A[d.id]; if (!a || a.host || d.id === 'seacages' || d.id === 'lfc' || d.id === FIRST) continue; for (const b of a.hit || []) lists[d.phase].push(rect(a, b)); }
   (V.hit || []).forEach((b, i, all) => ribbon(rect(V, b), 0.01 + (0.08 * i) / all.length, 0.1));       // 08's outline first
   const span = { 1: [0.3, 0.5], 2: [0.5, 0.72], 3: [0.72, 0.86] };
   for (const k of [1, 2, 3]) { const l = lists[k], [s0, s1] = span[k]; l.forEach((pts, i) => { const a = s0 + ((s1 - s0) * i) / l.length, b = s0 + ((s1 - s0) * (i + 1.6)) / l.length; ribbon(pts, a, Math.min(s1, b)); }); }
@@ -294,9 +313,9 @@ export function createIntro(world, { hero }) {
   let avRange = 0, t = 0, playing = false, resolve = null, stop = null, polMax = 1.4, distMin = 9, warmObj = [], driving = false, flying = false, end = null;
   const keep = new Map(); const remember = (o) => { if (!keep.has(o)) keep.set(o, { s: o.scale.clone(), p: o.position.clone(), v: o.visible }); return keep.get(o); };
   const first = areaById[FIRST];
-  // (the first caption waits until the camera has read the plaque and turns to the gate: the plaque says the name already)
-  const capT = [[2.9, 'Umm Al Quwain, United Arab Emirates', 'Marhaba. Welcome to the Sheikh Khalifa Marine Research Centre'],
-    [5.6, 'Biosecurity starts at the gate', 'Every vehicle drives through the wheel bath'],
+  // (the welcome comes with the car; it goes while the name board is read, the plaque says it already)
+  const capT = [[0.5, 'Umm Al Quwain, United Arab Emirates', 'Marhaba. Welcome to the Sheikh Khalifa Marine Research Centre'], [T.board - 0.2, null, null],
+    [T.over + 1.0, 'Biosecurity starts at the gate', 'Every vehicle drives through the wheel bath'],
     [T.b08 + 0.4, `${first.n} · ${first.name}`, 'The visitor centre goes up first'],
     [T.util0 + 0.4, 'Then the whole centre fills in', 'Roads, sea water and power first'],
     [T.p1, `${PHASES[0].name}`, PHASES[0].title], [T.p2, `${PHASES[1].name}`, PHASES[1].title], [T.p3, `${PHASES[2].name}`, PHASES[2].title], [T.life, 'Today', 'One centre, from egg to sea']];
@@ -383,8 +402,10 @@ export function createIntro(world, { hero }) {
     craneG.visible = anyCrane;
     // the cages come up out of the sea
     { const k = easeOut(win(t, T.sea, 1.8)), r = remember(sea); sea.position.y = r.p.y - 16 * (1 - k); sea.visible = k > 0 || r.v; world.sea.uniforms.uCageN.value = k > 0.5 ? cages.length : 0; }
-    // LFC Hamour sails in from the open sea to the jetty
-    if (lfc) { const k = win(t, T.boat, 3.2), e = easeOut(k); lfc.visible = k > 0; lfc.position.x = L.LFC_BERTH.x; lfc.position.z = L.LFC_BERTH.z + 190 * (1 - e); }
+    // LFC Hamour sails in from the open sea to the jetty, bow first, its wake behind it (it lies bow-out once the film is over,
+    // turned round off camera)
+    if (lfc) { const k = win(t, T.boat, 3.2), e = easeOut(k); lfc.visible = k > 0; lfc.position.x = L.LFC_BERTH.x; lfc.position.z = L.LFC_BERTH.z + 190 * (1 - e); lfc.rotation.y = L.LFC_BERTH.ry + Math.PI;
+      if (k > 0 && k < 1 && world.cages.kick) world.cages.kick(0.85 * (1 - k)); }
     // street lights and trees
     for (const g of grows) applyGrow(g, t);
     // the rest grows, lights and screens go up, people and traffic come out
@@ -394,7 +415,7 @@ export function createIntro(world, { hero }) {
     if (warmObj.length && t > 0.6) { for (const w of warmObj) { scene.remove(w); w.geometry.dispose(); } warmObj = []; }
     // captions
     let ci = -1; capT.forEach((c, i) => { if (t >= c[0]) ci = i; });
-    if (ci !== capI) { capI = ci; if (ci >= 0 && api.onCaption) api.onCaption(capT[ci][1], capT[ci][2], ci); }
+    if (ci !== capI) { capI = ci; if (ci >= 0 && api.onCaption) api.onCaption(capT[ci][1], capT[ci][2], ci); }        // (a null caption hides it)
     if (api.onPhase) api.onPhase(t < T.p1 ? 0 : t < T.p2 ? 1 : t < T.p3 ? 2 : 3);
     engine.shadowDirty = true;
   }
@@ -404,7 +425,7 @@ export function createIntro(world, { hero }) {
     for (const g of grows) { g.im.instanceMatrix.array.set(g.o); g.im.instanceMatrix.needsUpdate = true; }
     for (const a of aos) a.o.material.opacity = a.op;
     for (const [o, r] of keep) { o.scale.copy(r.s); o.position.copy(r.p); o.visible = r.v; }
-    world.sea.uniforms.uCageN.value = cages.length; if (lfc) { lfc.visible = true; lfc.position.x = L.LFC_BERTH.x; lfc.position.z = L.LFC_BERTH.z; }
+    world.sea.uniforms.uCageN.value = cages.length; if (lfc) { lfc.visible = true; lfc.position.x = L.LFC_BERTH.x; lfc.position.z = L.LFC_BERTH.z; lfc.rotation.y = L.LFC_BERTH.ry; }
     for (const w of warmObj) scene.remove(w); warmObj = [];
     if (V.interior) V.interior.visible = false;
     warm(0); if (warmOn) env.apply();

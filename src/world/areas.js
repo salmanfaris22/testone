@@ -40,6 +40,11 @@ export class AreaCtx {
 export function createAreas(world) {
   const { scene, mats, engine } = world;
   const list = [], byId = {};
+  // An inside is shown only once the graphics driver has its shaders ready: they are compiled in the background
+  // (compileAsync, on the driver's own threads) the moment the inside is built, and until then a roof that lifts shows the
+  // empty shell for a frame or two rather than stopping the whole picture for a tenth of a second while they compile.
+  const wants = (a) => a.open > 0.01 || !!a.alwaysOpen || !!a.peek || !!a.near;
+  const show = (a, v) => { if (!a.interior) return; if (v && a.compiling) { a.held = true; a.interior.visible = false; return; } a.held = false; a.interior.visible = v; };
   const api = {
     list, byId,
     add(def) {
@@ -63,7 +68,7 @@ export function createAreas(world) {
     ensure(a) {
       if (a.host) { api.ensure(byId[a.host]); return a; }
       if (a.built || !a.makeInterior) return a;
-      a.built = true;
+      a.built = true; engine.hold(400);              // (a slow frame or two follows: the quality governor is not to judge by it)
       const b = new Builder(), ctx = new AreaCtx(a, world);
       b.scr = []; b.seats = [];
       b.up = new Builder(); b.upH = Math.min(...(a.rooms || [{ h: 5 }]).map((r) => r.h)) - 0.06;       // partitions rise to the ceiling in the walk-in view
@@ -87,9 +92,12 @@ export function createAreas(world) {
       const tvs = b.scr.filter(q => q.tile >= 200);
       if (tvs.length) { const tv = createExhibitTVs(tvs, engine); g.add(tv.mesh); a.updaters.push(tv.update); }
       if (world.fish && (ctx.schools.length || ctx.fry.length)) { const f = world.fish.populate(ctx.schools, ctx.fry); g.add(f.group); }
-      g.visible = a.open > 0.01 || a.alwaysOpen || a.peek || a.near;
       a.upper = b.up.build(mats, { cast: false, receive: true }); a.upper.name = a.id + '-upper'; a.upper.visible = a.peek && a.open < 0.01; a.root.add(a.upper);
       a.interior = g; a.root.add(g); a.root.updateMatrixWorld(true);
+      a.compiling = true; g.visible = false;
+      const ready = () => { a.compiling = false; if (a.held) show(a, wants(a)); };
+      try { engine.renderer.compileAsync(g, world.camera, scene).then(ready, ready); } catch (e) { ready(); }
+      show(a, wants(a));
       for (const it of a.items) world.items.set(it.id, it);
       for (const g of list) if (g.host === a.id && g.claim) {
         const mine = a.items.filter(g.claim); a.items = a.items.filter((it) => !g.claim(it));
@@ -105,14 +113,14 @@ export function createAreas(world) {
     /** the drone is close by: its inside shows (through the doors and windows), with the roof on */
     near(id, v) {
       const a = byId[id]; if (!a || !!a.near === v) return a; if (a.host) { a.near = v; return api.near(a.host, v); } if (v) api.ensure(a);
-      a.near = v; if (a.interior) a.interior.visible = v || a.peek || a.open > 0.01 || !!a.alwaysOpen;
+      a.near = v; show(a, wants(a));
       engine.shadowDirty = true; world.animating = true; return a;
     },
     /** walk-in view: the roof stays on but stops casting shade, so the hall is lit like a skylit room */
     peek(id, v) {
       const a = byId[id]; if (!a || a.peek === v) return a; if (a.host) { a.peek = v; return api.peek(a.host, v); } if (v) api.ensure(a);
       a.peek = v; if (a.highMeshes) for (const m of a.highMeshes) m.castShadow = !v && !m.userData.noShadow && m.material !== a.roofMats.glass && m.material !== a.roofMats.glow && m.material !== a.roofMats.pane;
-      if (a.interior) a.interior.visible = v || a.open > 0.01 || !!a.alwaysOpen || !!a.near;
+      show(a, wants(a));
       if (a.upper) a.upper.visible = v && a.open < 0.01;
       const wm = a.roofMats && a.roofMats.window;       // from indoors the glazing reads as daylight, not as dark glass
       if (wm) { if (!wm.userData.out) wm.userData.out = { c: wm.color.getHex(), r: wm.roughness, m: wm.metalness }; wm.color.setHex(v ? 0xcfe6f4 : wm.userData.out.c); wm.roughness = v ? 0.9 : wm.userData.out.r; wm.metalness = v ? 0 : wm.userData.out.m; wm.userData.inside = v; if (v) { wm.emissive.setHex(0xa9cfe6); wm.emissiveIntensity = 0.75 * (1 - 0.8 * world.env.night); } else { wm.emissive.setHex(0xffd49a); wm.emissiveIntensity = world.env.night * 1.5; } }
@@ -132,11 +140,11 @@ export function createAreas(world) {
             for (const m of a.highMeshes) m.castShadow = !a.peek && !m.userData.noShadow && k < 0.35 && m.material !== a.roofMats.glass && m.material !== a.roofMats.glow && m.material !== a.roofMats.pane;
             a.high.updateMatrixWorld(true);
           }
-          if (a.interior) a.interior.visible = k > 0.01 || !!a.alwaysOpen || a.peek || !!a.near;
+          show(a, k > 0.01 || !!a.alwaysOpen || !!a.peek || !!a.near);
           if (a.upper) a.upper.visible = a.peek && k < 0.01;
           a.onOpen && a.onOpen(k);
         }
-        if (a.updaters && a.interior && a.interior.visible) for (const u of a.updaters) u(dt, t);
+        if (a.interior && a.interior.visible) { a.drawn = true; if (a.updaters) for (const u of a.updaters) u(dt, t); }        // (drawn: it has been on screen, so it needs no drawing out of sight)
       }
       world.animating = moving;
     },

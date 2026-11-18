@@ -47,15 +47,18 @@ export class Rig {
     this.target = new THREE.Vector3();
     this.keys = new Set(); this.pointers = new Map(); this.walkIn = { f: 0, s: 0 };     // on-screen stick: forward and sideways, -1 to 1
     this.onUser = null; this.onTap = null; this.onHover = null; this.onDrag = null; this.onWheel = null;
+    this.vel = { x: 0, z: 0, az: 0, pol: 0 }; this.fling = null;      // how fast a hand was moving the view, and the glide after a flick
     this._bind();
     this._apply(0);
   }
   /* ───── scripted moves ───── */
-  jump(p) { this.flight = null; this.path = null; copy(this.goal, p); copy(this.cur, p); this.moved = true; }
+  jump(p) { this.flight = null; this.path = null; this.fling = null; copy(this.goal, p); copy(this.cur, p); this.moved = true; }
+  /** fly to a pose. The flight starts from where the camera is heading (its goal), not from where it is, so a new flight
+   *  picked mid-way through another carries the camera on without a stop and a restart */
   flyTo(p, { dur = 1.7, hop = 0.22, ease = easeIO, done } = {}) {
     if (this.engine.reduced) dur = Math.min(dur, 0.45);
-    this.path = null;
-    const from = copy({}, this.cur), to = copy({}, p); to.az = near(from.az, to.az);
+    this.path = null; this.fling = null;
+    const from = copy({}, this.goal), to = copy({}, p); to.az = near(from.az, to.az);
     const travel = Math.hypot(to.x - from.x, to.z - from.z);
     const bump = hop * Math.max(0, travel - Math.abs(to.dist - from.dist) * 0.4);
     this.flight = { from, to, t: 0, dur, ease, bump, done };
@@ -63,7 +66,7 @@ export class Rig {
   }
   /** continuous film move through key poses: [{p, t}] with t = seconds for the leg that ends at this key */
   playPath(keys, { loop = false, onLeg, done } = {}) {
-    this.flight = null; this.path = null;
+    this.flight = null; this.path = null; this.fling = null;
     if (!keys.length) return;
     const ks = keys.map((k) => ({ ...k, t: Math.max(1 / 240, k.t || 6), p: copy({}, k.p) }));
     for (let i = 1; i < ks.length; i++) ks[i].p.az = near(ks[i - 1].p.az, ks[i].p.az);
@@ -137,6 +140,12 @@ export class Rig {
       g.az = lerp(a.az, b.az, k); g.pol = lerp(a.pol, b.pol, k) - Math.sin(Math.PI * k) * Math.min(0.12, f.bump * 0.0006);
       g.dist = lerp(a.dist, b.dist, k) + Math.sin(Math.PI * k) * f.bump;
       if (f.t >= 1) { this.flight = null; f.done && f.done(); }
+    } else if (this.fling && !this.pointers.size) {
+      // the glide after a flick: the view runs on and slows to a stop
+      const f = this.fling, g = this.goal, k = Math.exp(-4.6 * dt);
+      g.az += f.az * dt; g.pol += f.pol * dt; g.x += f.x * dt; g.z += f.z * dt;
+      f.az *= k; f.pol *= k; f.x *= k; f.z *= k;
+      if (Math.abs(f.az) + Math.abs(f.pol) < 0.004 && Math.hypot(f.x, f.z) < 0.05 * Math.max(1, g.dist * 0.02)) this.fling = null;
     } else if (this.drift && !this.pointers.size) {
       this.idle += dt; if (this.idle > 3.5) this.goal.az += this.drift * dt * Math.min(1, (this.idle - 3.5) / 2);
     }
@@ -385,8 +394,10 @@ export class Rig {
     const el = this.dom;
     let downX = 0, downY = 0, downT = 0, moved = 0, pinch = 0, lastMid = null;
     const active = () => this.user || this.drone;
+    let moveT = 0;
     el.addEventListener('pointerdown', (e) => {
       if (e.button > 2) return;
+      this.fling = null; this.vel.x = this.vel.z = this.vel.az = this.vel.pol = 0;
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, b: e.button, shift: e.shiftKey });
       if (this.pointers.size === 1) { downX = e.clientX; downY = e.clientY; downT = performance.now(); moved = 0; }
       if (this.pointers.size === 2) { const [a, b] = [...this.pointers.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); lastMid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
@@ -400,17 +411,25 @@ export class Rig {
       if (!active()) return;
       if (this.drone) { this.drone.gy -= dx * 0.0042; this.drone.gp = clamp(this.drone.gp - dy * 0.0036, -1.2, 0.3); return; }
       this._userTook();
-      const g = this.goal;
+      const g = this.goal, x0 = g.x, z0 = g.z, a0 = g.az, p0 = g.pol;
       if (this.pointers.size >= 2) {
         const [a, b] = [...this.pointers.values()], d = Math.hypot(a.x - b.x, a.y - b.y), mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
         if (pinch) g.dist *= pinch / Math.max(d, 1); pinch = d;
         if (lastMid) this._pan((mid.x - lastMid.x) * 0.5, (mid.y - lastMid.y) * 0.5); lastMid = mid;
       } else if (p.b === 2 || p.b === 1 || p.shift) this._pan(dx, dy);
       else { g.az -= dx * 0.0052; g.pol -= dy * 0.0042; }
+      // how fast the hand moves the view (smoothed over the last few events), for the glide when it lets go
+      const sec = Math.max(0.004, Math.min(0.1, (e.timeStamp - moveT) / 1000)), V = this.vel, w = 0.45; moveT = e.timeStamp;
+      V.x += ((g.x - x0) / sec - V.x) * w; V.z += ((g.z - z0) / sec - V.z) * w; V.az += ((g.az - a0) / sec - V.az) * w; V.pol += ((g.pol - p0) / sec - V.pol) * w;
     });
     const up = (e) => {
       const p = this.pointers.get(e.pointerId); if (!p) return;
       this.pointers.delete(e.pointerId); pinch = 0; lastMid = null;
+      // a flick: the view glides on (only if the hand was still moving when it let go)
+      if (!this.pointers.size && moved > 12 && e.timeStamp - moveT < 70 && this.user && !this.drone && !this.flight && !this.path) {
+        const V = this.vel, cap = Math.max(20, this.goal.dist * 1.6), L = Math.hypot(V.x, V.z), s = L > cap ? cap / L : 1;
+        this.fling = { az: clamp(V.az, -2.6, 2.6), pol: clamp(V.pol, -1.2, 1.2), x: V.x * s, z: V.z * s };
+      }
       if (moved < 7 && performance.now() - downT < 600 && p.b === 0) this.onTap && this.onTap(e.clientX, e.clientY, e);
     };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', (e) => { this.pointers.delete(e.pointerId); });
@@ -431,6 +450,6 @@ export class Rig {
     const ca = Math.cos(g.az), sa = Math.sin(g.az), fy = dy / Math.max(0.35, Math.cos(g.pol));
     g.x += (-dx * ca - fy * sa) * k; g.z += (dx * sa - fy * ca) * k;
   }
-  _userTook() { this.idle = 0; if (this.flight || this.path) { this.flight = null; this.path = null; copy(this.goal, this.cur); } this.onUser && this.onUser(); }
+  _userTook() { this.idle = 0; if (this.flight || this.path) { this.flight = null; this.path = null; copy(this.goal, this.cur); } this.fling = null; this.onUser && this.onUser(); }
   zoomBy(f) { this._userTook(); this.goal.dist *= f; }
 }

@@ -366,6 +366,18 @@ export function smoothPath(pts, per = 6, closed = false) {
 }
 
 /* ───────────────────────── canvas textures ───────────────────────── */
+/**
+ * A photo made ready for the graphics card off the main thread. Chrome decodes it into a bitmap the right way up and with its
+ * alpha as WebGL wants it, so sending it is a plain copy (an ordinary image is decoded and flipped again during the upload,
+ * inside a frame: 30 to 60 ms for a big one). Other browsers get the decoded image. Resolves to { image, flipY } (the value
+ * a texture needs for that kind of picture), or null if it did not load.
+ */
+export async function loadPhoto(url) {
+  try {
+    if (window.chrome && window.createImageBitmap) return { image: await createImageBitmap(await (await fetch(url)).blob(), { imageOrientation: 'flipY', premultiplyAlpha: 'none' }), flipY: false };
+    const img = new Image(); img.src = url; await img.decode(); return { image: img, flipY: true };
+  } catch (e) { return null; }
+}
 export function canvasTex(w, h, draw, { repeat = true, aniso = 8, srgb = true } = {}) {
   const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
   draw(cv.getContext('2d'), w, h);

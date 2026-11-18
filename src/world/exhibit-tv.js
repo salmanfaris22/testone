@@ -41,17 +41,17 @@ function backdrop(w, h, k) {
 
 function fish(g, img, x, y, width, time, flip = false, opacity = 1) {
   if (!img) return;
-  const height = width * img.naturalHeight / img.naturalWidth;
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height, height = width * ih / iw;
   g.save(); g.translate(x, y); g.scale(flip ? -1 : 1, 1); g.globalAlpha = opacity;
   if (opacity < 1) {
     // Distant translucent fish use one image so overlapping strips cannot form seams.
     g.rotate(Math.sin(time * 1.2) * 0.025); g.drawImage(img, -width / 2, -height / 2, width, height); g.restore(); return;
   }
   // Keep the head steady, with a small travelling wave along the body and tail.
-  const strips = 20, slice = img.naturalWidth / strips;
+  const strips = 20, slice = iw / strips;
   for (let j = 0; j < strips; j++) {
     const u = j / strips, sway = Math.sin(time * 3.6 - u * 6) * u * u * width * 0.018;
-    g.drawImage(img, slice * j, 0, slice, img.naturalHeight, -width / 2 + width * u, -height / 2 + sway, width / strips + 0.5, height);
+    g.drawImage(img, slice * j, 0, slice, ih, -width / 2 + width * u, -height / 2 + sway, width / strips + 0.5, height);
   }
   g.restore();
 }
@@ -110,9 +110,22 @@ export function createExhibitTVs(list, engine) {
   draw(0);
   // when a fish picture or the fonts arrive, draw the screens again straight away and send the picture to the graphics card now,
   // rather than leaving it for the first frame the screens are seen in (that frame would stall)
-  const settle = () => { draw(Math.max(0, last)); try { engine.renderer.initTexture(tex); } catch (e) { /* drawn on first use instead */ } };
+  // (the pictures arrive one after another: the redraw waits for a calm frame with the rest of the background work, so the
+  // screens are redrawn and sent once for all of them that have come by then, not once a picture)
+  let settling = false;
+  const settle = () => {
+    if (settling) return; settling = true;
+    const run = () => { settling = false; draw(Math.max(0, last)); try { engine.renderer.initTexture(tex); } catch (e) { /* drawn on first use instead */ } };
+    if (engine.later) engine.later(run, 'fish screens: photos'); else setTimeout(run, 220);
+  };
   for (const id of new Set(PROGRAMMES.map(p => p[3]))) {
-    const img = new Image(); img.onload = () => { images[id] = img; settle(); }; img.src = FISH_CUT[id];
+    // each photo is decoded and scaled down to the size the screens draw it at (the biggest fish is 0.58 of a screen wide) off the
+    // main thread, so painting the screens never has to send a full-size photo to the graphics card in the middle of a frame
+    const img = new Image(); img.src = FISH_CUT[id];
+    img.decode().then(() => {
+      const W = Math.min(img.naturalWidth, Math.round(w * 0.72)), H = Math.round((W * img.naturalHeight) / img.naturalWidth);
+      return (window.createImageBitmap ? createImageBitmap(img, { resizeWidth: W, resizeHeight: H, resizeQuality: 'high' }) : Promise.reject()).catch(() => img);
+    }).then((pic) => { images[id] = pic; settle(); }, () => {});
   }
   document.fonts.ready.then(settle);
 

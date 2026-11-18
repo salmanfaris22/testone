@@ -136,6 +136,7 @@ async function boot() {
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     target = 1; done();
     lastY = -1; window.__app = app;
+    setTimeout(() => app.audio.prime(), 1500);                    // the first sound then starts at once (audio.js)
     if (intro) setTimeout(() => runIntro(lock, countItems), 120);
     else setTimeout(() => world.prebuild && world.prebuild().then(countItems), 1800);
     if (location.hash === '#explore') setTimeout(() => app.enter(), 600);

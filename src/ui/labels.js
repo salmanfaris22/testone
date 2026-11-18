@@ -12,11 +12,12 @@ export function createLabels(world, root) {
     for (let i = 0; i < W.length; i++) { const w = W[i], ex = w[2] - w[0], ez = w[3] - w[1], den = lx * ez - lz * ex; if (den > -1e-9 && den < 1e-9) continue; const qx = w[0] - ox, qz = w[1] - oz, t = (qx * ez - qz * ex) / den; if (t < 0.02 || t > 0.96) continue; const u = (qx * lz - qz * lx) / den; if (u < 0 || u > 1) continue; if (cam.y + (y - cam.y) * t < w[4]) return true; }
     return false;
   };
-  const place = (el, x, y, z, pad = 40) => {
+  // (labels only ever move by transform, and nothing here reads the page's layout back, so a frame never waits on the page)
+  const place = (el, x, y, z, pad = 40, tail = '') => {
     const s = project(world, x, y, z, p);
     if (!s || s.x < -pad || s.y < -pad || s.x > world.engine.w + pad || s.y > world.engine.h + pad) { if (el._on !== false) { el.style.display = 'none'; el._on = false; } return false; }
     if (el._on !== true) { el.style.display = ''; el._on = true; }
-    el.style.transform = `translate3d(${s.x.toFixed(1)}px,${s.y.toFixed(1)}px,0)`; return true;
+    const tr = `translate3d(${s.x.toFixed(1)}px,${s.y.toFixed(1)}px,0)${tail}`; if (tr !== el._tr) { el._tr = tr; el.style.transform = tr; } return true;
   };
   const api = {
     buildPins(areas, onClick, onHover) {
@@ -105,7 +106,7 @@ export function createLabels(world, root) {
           if (tight && !phone) x = s.x - 330 > 170 ? s.x - 330 : Math.min(E.w - 590, s.x + 330);      // no room above it: stand beside it instead
           focus.classList.toggle('is-side', tight); focus.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0)`; }
       }
-      for (const r of rooms) { const c = r.it.center; if (place(r.el, c[0], 1.4, c[2], 0)) { const w = r.el.offsetWidth; r.el.style.transform += ` translate(-50%,-50%)`; } }
+      for (const r of rooms) { const c = r.it.center; place(r.el, c[0], 1.4, c[2], 0, ' translate(-50%,-50%)'); }
       if (tipAt) { const a = tipAt.anchor, s = project(world, a[0], a[1], a[2], p); if (s) tip.style.transform = `translate3d(${(s.x + 14).toFixed(1)}px,${(s.y - 34).toFixed(1)}px,0)`; }
     },
   };

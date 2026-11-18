@@ -2,6 +2,7 @@
 // Each kind is one small binary (mesh + skeleton) and one atlas picture; all share one file of animation clips.
 // Files are fetched the first time someone of that kind comes close to the camera.
 import * as THREE from 'three';
+import { loadPhoto } from './kit.js';
 
 const BASE = `${import.meta.env.BASE_URL}people/`;
 const FEMALE = new Set(['lab_f', 'coat_f', 'hivis_f', 'office_f', 'visitor_f', 'abaya', 'child_f']);
@@ -60,14 +61,21 @@ export const avatars = {
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3, true)); geo.setAttribute('uv', new THREE.BufferAttribute(d.uv.slice(), 2, true));
       geo.setAttribute('skinIndex', new THREE.BufferAttribute(new Uint16Array(d.si), 4)); geo.setAttribute('skinWeight', new THREE.BufferAttribute(d.sw.slice(), 4, true)); geo.setIndex(new THREE.BufferAttribute(d.idx.slice(), 1));
       geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0.9, 0), 1.3);
-      const map = al.ghutra ? new THREE.CanvasTexture(whiten(await new THREE.ImageLoader().loadAsync(`${BASE}${file}.webp`))) : await new THREE.TextureLoader().loadAsync(`${BASE}${file}.webp`);
+      // the picture is decoded off the main thread (loadPhoto), then sent to the graphics card on its own between frames
+      // (build.js, engine.soon: a few ms), not inside the first frame this kind of person is drawn in (that frame would stall
+      // for 40 ms or more); until then whoever wears it is shown as before
+      let map;
+      if (al.ghutra) map = new THREE.CanvasTexture(whiten(await new THREE.ImageLoader().loadAsync(`${BASE}${file}.webp`)));
+      else { const pic = await loadPhoto(`${BASE}${file}.webp`); if (!pic) throw new Error('picture did not load'); map = new THREE.Texture(pic.image); map.flipY = pic.flipY; map.needsUpdate = true; }
       map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4;
+      await new Promise((done) => { const up = () => { try { this.engine.renderer.initTexture(map); } catch (e) { /* sent on first use instead */ } done(); }; if (this.engine.soon) this.engine.soon(up, `person ${id}`); else up(); });
       const mat = new THREE.MeshStandardMaterial({ map, roughness: 0.86, metalness: 0, alphaTest: 0.5, side: THREE.DoubleSide, envMapIntensity: 0.55 });
       // rest pose in model space → inverse bind matrices, shared by everyone of this kind
       const bones = h.bones, world = [], inv = [], m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
       bones.forEach((b, i) => { m.compose(p.fromArray(b.t), q.fromArray(b.q), one); world[i] = b.p >= 0 ? world[b.p].clone().multiply(m) : m.clone(); inv[i] = world[i].clone().invert(); });
       const A2 = A.head, map2 = A2.bones.map((nm) => bones.findIndex((b) => b.n === nm)), fmap = A2.fingers.map((nm) => bones.findIndex((b) => b.n === nm));
-      Object.assign(this.types.get(id), { id, ready: true, geo, mat, bones, inv, map: map2, fmap, rootY: bones[0].t[1], female: FEMALE.has(id), height: h.max[1] - h.min[1] });
+      const box = new THREE.Box3(new THREE.Vector3(-0.7, Math.min(0, h.min[1]), -0.7), new THREE.Vector3(0.7, h.max[1] + 0.1, 0.7));
+      Object.assign(this.types.get(id), { id, ready: true, geo, mat, bones, inv, box, map: map2, fmap, rootY: bones[0].t[1], female: FEMALE.has(id), height: h.max[1] - h.min[1] });
     } catch (e) { console.warn('avatar', id, e); this.types.delete(id); }
   },
   /** a speck-sized rigged figure with the same kind of surface as every person, never shown: the page compiles its shader under the
@@ -79,6 +87,7 @@ export const avatars = {
     const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.86, metalness: 0, alphaTest: 0.5, side: THREE.DoubleSide, envMapIntensity: 0.55 });
     const bone = new THREE.Bone(), mesh = new THREE.SkinnedMesh(geo, mat); mesh.add(bone); mesh.bind(new THREE.Skeleton([bone]), new THREE.Matrix4());
     mesh.frustumCulled = false; mesh.castShadow = true; mesh.receiveShadow = false; mesh.visible = false; mesh.name = 'avatar-stand-in'; mesh.position.set(-40, -3, 60);
+    mesh.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 0.02); mesh.boundingBox = new THREE.Box3(new THREE.Vector3(-0.01, -0.01, -0.01), new THREE.Vector3(0.01, 0.01, 0.01));
     scene.add(mesh); return mesh;
   },
   /** one person: their own bones, the shared mesh */
@@ -87,6 +96,9 @@ export const avatars = {
     T.bones.forEach((b, i) => { if (b.p >= 0) bones[b.p].add(bones[i]); });
     const root = new THREE.Group(), mesh = new THREE.SkinnedMesh(T.geo, T.mat); mesh.layers.set(1); root.add(bones[0], mesh);      // (layer 1: the main camera sees them, the wheel bath's mirror does not, so it never has to prepare them mid-film)
     mesh.bind(new THREE.Skeleton(bones, T.inv), new THREE.Matrix4()); mesh.frustumCulled = false; mesh.castShadow = cast; mesh.receiveShadow = false;
+    // a person's bounds, given rather than measured: three.js would otherwise pose every vertex through the bones to find them
+    // (for depth sorting, the first frame someone is drawn), which stops the frame for 10 to 60 ms per person as they appear
+    mesh.boundingSphere = T.geo.boundingSphere.clone(); mesh.boundingBox = T.box;
     return { T, root, mesh, bones, cur: new Float32Array(T.map.length * 4), from: new Float32Array(T.map.length * 4), fade: 1, clip: null, ph: 0, rx: 0, ry: 1, rz: 0, fy: 1 };
   },
   clipFor(T, act, k = 0) { const list = DO[act] || DO.idle, A = this.anims; return A.by[`${T.female ? 'f' : 'm'}_${list[Math.floor(k * list.length) % list.length]}`] || A.by[`m_${list[0]}`]; },

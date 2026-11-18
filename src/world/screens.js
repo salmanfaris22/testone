@@ -178,6 +178,8 @@ let dash = null, panels = null;
  *  not on the first frame it is seen (for these big atlases that frame would stall) */
 export const uploadNow = { renderer: null };
 const upload = (t) => { if (uploadNow.renderer) try { uploadNow.renderer.initTexture(t); } catch (e) { /* uploaded on first use instead */ } };
+/** a repaint that can wait for a calm frame (build.js queues it with the other background work) */
+const later = (fn, label) => (uploadNow.later ? uploadNow.later(fn, label) : fn());
 function atlas(w, h, paint) { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); paint(g); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
 function dashTex() {
   return dash || (dash = atlas(TW * COLS, TH * ROWS, (g) => { DRAW.forEach((fn, i) => { R = 97 + i * 131; g.save(); g.translate((i % COLS) * TW, Math.floor(i / COLS) * TH); g.beginPath(); g.rect(0, 0, TW, TH); g.clip(); g.textBaseline = 'middle'; fn(g); g.restore(); }); }));
@@ -188,8 +190,15 @@ function panelTex() {
   panels = atlas(PW * PCOLS, PH * PROWS, paint);
   // the client's fish pictures arrive a moment later
   const want = [...new Set(PANELS.map((p) => p.fish).filter(Boolean))], imgs = {}; let left = want.length;
-  for (const id of want) { const im = new Image(); im.onload = im.onerror = () => { if (im.naturalWidth) imgs[id] = im; if (--left === 0) { paint(panels.image.getContext('2d'), imgs); panels.needsUpdate = true; upload(panels); } }; im.src = `${import.meta.env.BASE_URL}fish/${id}.webp`; }
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { paint(panels.image.getContext('2d'), imgs); panels.needsUpdate = true; upload(panels); if (dash) { const g = dash.image.getContext('2d'); DRAW.forEach((fn, i) => { R = 97 + i * 131; g.save(); g.translate((i % COLS) * TW, Math.floor(i / COLS) * TH); g.beginPath(); g.rect(0, 0, TW, TH); g.clip(); g.textBaseline = 'middle'; fn(g); g.restore(); }); dash.needsUpdate = true; upload(dash); } });
+  // (each photo is decoded and scaled to the size a panel shows it at off the main thread, so painting the panels never sends a
+  // full-size photo to the graphics card in the middle of a frame)
+  const done = () => { if (--left === 0) later(() => { paint(panels.image.getContext('2d'), imgs); panels.needsUpdate = true; upload(panels); }, 'panels: photos'); };
+  for (const id of want) {
+    const im = new Image(); im.src = `${import.meta.env.BASE_URL}fish/${id}.webp`;
+    im.decode().then(() => { const w = Math.min(im.naturalWidth, 560), h = Math.round((w * im.naturalHeight) / im.naturalWidth); return (window.createImageBitmap ? createImageBitmap(im, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' }) : Promise.reject()).catch(() => im); })
+      .then((pic) => { imgs[id] = pic; }, () => {}).then(done);
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => later(() => { paint(panels.image.getContext('2d'), imgs); panels.needsUpdate = true; upload(panels); if (dash) { const g = dash.image.getContext('2d'); DRAW.forEach((fn, i) => { R = 97 + i * 131; g.save(); g.translate((i % COLS) * TW, Math.floor(i / COLS) * TH); g.beginPath(); g.rect(0, 0, TW, TH); g.clip(); g.textBaseline = 'middle'; fn(g); g.restore(); }); dash.needsUpdate = true; upload(dash); } }, 'panels: fonts'));
   return panels;
 }
 

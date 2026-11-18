@@ -2,7 +2,7 @@
 // Plan scale 0.1 m per pixel. Local frame: origin at the rotunda centre, +x = plan right, +z = plan down.
 // Angles are in degrees, 0 = +x, 90 = +z (south), 180 = west, 270 = north.
 import * as THREE from 'three';
-import { Builder, C, shade, rng, TAU, DEG, sectorPts, arcPts, canvasTex } from './kit.js';
+import { Builder, C, shade, rng, TAU, DEG, sectorPts, arcPts, canvasTex, loadPhoto } from './kit.js';
 import { wallRun, noteWall, roofGear, aoSkirts, CUT } from './shell.js';
 import * as E from './equip.js';
 import { WEAR, wearFor } from './people.js';
@@ -241,8 +241,12 @@ export function buildPark(world) {
         ctx.updaters.push((dt, t) => { causticTex.offset.set(Math.sin(t * 0.11) * 0.08 + t * 0.012, Math.cos(t * 0.09) * 0.08); uSway.value = t; });
         // the globe: the Earth (NASA Blue Marble, public domain), lit from inside, turning once a minute on its tilted axis,
         // in a clear glass shell that hangs from the ceiling on a steel rod
-        const earthMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.38, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.06, emissive: 0xffffff, emissiveIntensity: 0.32, envMapIntensity: 1.1 });
-        new THREE.TextureLoader().load('./photos/earth.webp', (tx) => { tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 8; earthMat.map = tx; earthMat.emissiveMap = tx; earthMat.needsUpdate = true; });
+        // (the picture is the globe's from the start, an ocean-blue dot until the photo is in, so the surface never changes kind and
+        // its shader is compiled once; the photo is decoded off the main thread and sent to the graphics card on its own)
+        const dot = document.createElement('canvas'); dot.width = dot.height = 2; { const g = dot.getContext('2d'); g.fillStyle = '#3f6f9a'; g.fillRect(0, 0, 2, 2); }
+        const earthTex = new THREE.Texture(dot); earthTex.colorSpace = THREE.SRGBColorSpace; earthTex.anisotropy = 8; earthTex.needsUpdate = true;
+        const earthMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: earthTex, emissiveMap: earthTex, roughness: 0.38, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.06, emissive: 0xffffff, emissiveIntensity: 0.32, envMapIntensity: 1.1 });
+        loadPhoto('./photos/earth.webp').then((p) => { if (!p) return; earthTex.image = p.image; earthTex.flipY = p.flipY; earthTex.needsUpdate = true; const up = () => { try { world.engine.renderer.initTexture(earthTex); } catch (e) { /* sent on first use */ } }; if (world.engine.soon) world.engine.soon(up, 'globe photo'); });
         const globe = new THREE.Group(); globe.position.set(px, GLOBE.y, pz); globe.name = 'globe';
         const tilt = new THREE.Group(); tilt.rotation.z = (23.44 * Math.PI) / 180; globe.add(tilt);
         const earth = new THREE.Mesh(new THREE.SphereGeometry(GLOBE.r, 96, 64), earthMat); earth.castShadow = true; tilt.add(earth);

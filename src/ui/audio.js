@@ -1,10 +1,23 @@
 // Sound made in the browser, no audio files. Each place has its own bed: sea and gulls outside, running water
 // and bubbles in the tank halls, a quiet hum in the labs, pumps in the plant room, and a muffled deep under water.
+// The first sound a page makes in Chrome on a Mac stops the page for half a second or more while the browser starts its audio
+// service. prime() starts that service early and quietly (loading a silent, empty clip does it, without playing anything), and
+// makes the noise the sound beds are made of in idle moments, so the Sound and Drone buttons answer at once.
+const SILENT = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+const RATE = 48000;                                    // the noise is made at this rate; the browser resamples it if the device differs
+const BEDS = [[6, true], [4, false], [3, true], [5, false], [2, false]];        // [seconds, brown?] for sea, air, hum, water, drone
+function makeNoise(seconds, brown) {
+  const n = RATE * seconds, out = [];
+  for (let c = 0; c < 2; c++) { const d = new Float32Array(n); let last = 0; for (let i = 0; i < n; i++) { const w = Math.random() * 2 - 1; if (brown) { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.2; } else d[i] = w * 0.5; } out.push(d); }
+  return out;
+}
+
 export function createAudio() {
-  let ctx = null, master, L = {}, on = false, scene = 'outside', timers = {};
+  let ctx = null, master, L = {}, on = false, scene = 'outside', timers = {}, primed = false;
+  const made = new Map();
   const noise = (seconds, brown) => {
-    const n = ctx.sampleRate * seconds, buf = ctx.createBuffer(2, n, ctx.sampleRate);
-    for (let c = 0; c < 2; c++) { const d = buf.getChannelData(c); let last = 0; for (let i = 0; i < n; i++) { const w = Math.random() * 2 - 1; if (brown) { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.2; } else d[i] = w * 0.5; } }
+    const key = `${seconds}${brown ? 'b' : 'w'}`, data = made.get(key) || makeNoise(seconds, brown), buf = ctx.createBuffer(2, data[0].length, RATE);
+    buf.copyToChannel(data[0], 0); buf.copyToChannel(data[1], 1);
     const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true; return src;
   };
   const gain = (v) => { const g = ctx.createGain(); g.gain.value = v; return g; };
@@ -73,6 +86,14 @@ export function createAudio() {
   const tone = (f0, f1, dur, vol, type = 'sine', at = 0) => { const t = ctx.currentTime + at, o = ctx.createOscillator(), g = gain(0); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0005, t + dur); o.connect(g); g.connect(L.fx); o.start(t); o.stop(t + dur + 0.02); };
   return {
     get on() { return on; },
+    /** call once the page has loaded and gone quiet: wakes the audio service and makes the noise beds ahead of time */
+    prime() {
+      if (primed || ctx) return; primed = true;
+      try { const a = new Audio(); a.preload = 'auto'; a.muted = true; a.src = SILENT; a.load(); } catch (e) { /* no media element: the first sound waits instead */ }
+      const idle = window.requestIdleCallback || ((f) => setTimeout(f, 80)), todo = BEDS.slice();
+      const next = () => { const q = todo.shift(); if (!q || ctx) return; made.set(`${q[0]}${q[1] ? 'b' : 'w'}`, makeNoise(q[0], q[1])); if (todo.length) idle(next, { timeout: 3000 }); };
+      idle(next, { timeout: 3000 });
+    },
     async toggle(v = !on) {
       if (v && !ctx) { try { build(); } catch { return false; } }
       if (!ctx) return false;

@@ -61,19 +61,48 @@ export function createStory(world, { onExplore, onFocus, scrollTo }) {
     box.hidden = false;
   }
 
-  // camera keys along the tour position τ (τ = i while area i is on screen)
-  const keys = [{ t: -1, p: heroPose(world.engine.w, world.engine.h) }];
-  TOUR.forEach((a, i) => { const A = areas.byId[a.id]; keys.push({ t: i + 0.1, p: A.pose }, { t: i + 0.5, p: A.inside }, { t: i + 0.84, p: A.inside }); });
-  keys.push({ t: N + 0.12, p: DIVE }, { t: N + 0.6, p: DIVE });
-  for (let i = 1; i < keys.length; i++) { const a = keys[i - 1].p, b = { ...keys[i].p }; let d = (b.az - a.az) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; b.az = a.az + d; keys[i].p = b; }
-  const out = P(0, 0, 0, 0, 0, 0);
+  // Camera keys along the tour position τ (τ = i while area i is on screen): the view of the building, then the view into it,
+  // held while its card is read. They make one smooth rail: each pose part runs on its own curve through its keys, with
+  // shape-preserving slopes (the weighted harmonic mean of the two neighbouring legs, zero where a leg turns back), so the
+  // camera never overshoots a view (no swing past a roof, no dip below a view) and rests only where it holds.
+  // The point the camera looks at, and its heading, arrive at a building a little later (ARRIVE) than its tilt and distance
+  // reach the outside view (0.1): one is still under way while the other turns, so the camera sweeps on from the flight
+  // between two buildings into the view inside the next without the stop it would make if all of them turned at once.
+  const ARRIVE = 0.22, LOOK = ['x', 'y', 'z', 'az'], ORBIT = ['pol', 'dist'];
+  const track = (at) => {
+    const ks = [{ t: -1, p: heroPose(world.engine.w, world.engine.h) }];
+    TOUR.forEach((a, i) => { const A = areas.byId[a.id]; ks.push({ t: i + at, p: A.pose }, { t: i + 0.5, p: A.inside }, { t: i + 0.84, p: A.inside }); });
+    ks.push({ t: N + 0.12, p: DIVE }, { t: N + 0.6, p: DIVE });
+    for (let i = 1; i < ks.length; i++) { const a = ks[i - 1].p, b = { ...ks[i].p }; let d = (b.az - a.az) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; b.az = a.az + d; ks[i].p = b; }
+    return { ks, m: [] };
+  };
+  const look = track(ARRIVE), orbit = track(0.1);
+  const fit = (R, parts) => {
+    const ks = R.ks, same = (p, q) => parts.every((k) => Math.abs(p[k] - q[k]) < 1e-6);
+    R.m = ks.map((k, i) => {
+      const m = {}, rest = !i || i === ks.length - 1 || same(k.p, ks[i - 1].p) || same(k.p, ks[i + 1].p);
+      for (const key of parts) {
+        if (rest) { m[key] = 0; continue; }
+        const h0 = k.t - ks[i - 1].t, h1 = ks[i + 1].t - k.t, a = (k.p[key] - ks[i - 1].p[key]) / h0, b = (ks[i + 1].p[key] - k.p[key]) / h1, w0 = 2 * h1 + h0, w1 = h1 + 2 * h0;
+        m[key] = a * b <= 0 ? 0 : (w0 + w1) / (w0 / a + w1 / b);
+      }
+      return m;
+    });
+  };
+  const fitRail = () => { fit(look, LOOK); fit(orbit, ORBIT); };
+  const out = P(0, 0, 0, 0, 0, 0), seg = { u: 0, hop: 0 };
+  /** evaluate one track's parts at τ (cubic Hermite), and say where in its leg τ is */
+  const along = (R, parts, tau) => {
+    const ks = R.ks; let i = 0; while (i < ks.length - 2 && tau > ks[i + 1].t) i++;
+    const a = ks[i], b = ks[i + 1], h = b.t - a.t, u = clamp((tau - a.t) / h, 0, 1), u2 = u * u, u3 = u2 * u;
+    const h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = 3 * u2 - 2 * u3, h11 = u3 - u2, ma = R.m[i], mb = R.m[i + 1];
+    for (const key of parts) out[key] = h00 * a.p[key] + h10 * h * ma[key] + h01 * b.p[key] + h11 * h * mb[key];
+    seg.u = u; seg.hop = Math.hypot(b.p.x - a.p.x, b.p.z - a.p.z);
+  };
   function poseAt(tau) {
-    let i = 0; while (i < keys.length - 2 && tau > keys[i + 1].t) i++;
-    const a = keys[i], b = keys[i + 1], k = smooth(clamp((tau - a.t) / (b.t - a.t), 0, 1));
-    for (const key of ['x', 'y', 'z', 'az', 'pol']) out[key] = lerp(a.p[key], b.p[key], k);
-    // long hops pull back a little in the middle so the move reads as a flight, not a slide
-    const hop = Math.hypot(b.p.x - a.p.x, b.p.z - a.p.z);
-    out.dist = lerp(a.p.dist, b.p.dist, k) + Math.sin(Math.PI * k) * Math.min(120, hop * 0.22);
+    along(orbit, ORBIT, tau); along(look, LOOK, tau);
+    // long hops pull back a little in the middle so the move reads as a flight, not a slide (sin² starts and ends level)
+    const s = Math.sin(Math.PI * seg.u); out.dist += s * s * Math.min(120, seg.hop * 0.22);
     return out;
   }
 
@@ -81,7 +110,9 @@ export function createStory(world, { onExplore, onFocus, scrollTo }) {
   const measure = () => {
     const r = stepsEl.getBoundingClientRect(); metrics = { top: r.top + scrollY, stepH: steps[0].offsetHeight, vh: innerHeight };
     // the hero steps back on a narrower window (and the next key keeps its turn short)
-    const h = heroPose(world.engine.w, world.engine.h), d = (h.az - keys[1].p.az) % TAU; keys[0].p = { ...h, az: keys[1].p.az + (d > Math.PI ? d - TAU : d < -Math.PI ? d + TAU : d) };
+    const h = heroPose(world.engine.w, world.engine.h);
+    for (const { ks } of [look, orbit]) { const d = (h.az - ks[1].p.az) % TAU; ks[0].p = { ...h, az: ks[1].p.az + (d > Math.PI ? d - TAU : d < -Math.PI ? d + TAU : d) }; }
+    fitRail();
   };
   measure(); addEventListener('resize', measure);
   const api = {
@@ -110,7 +141,10 @@ export function createStory(world, { onExplore, onFocus, scrollTo }) {
       if (world.cages && world.cages.sail) world.cages.sail(idx < LFC ? 0 : idx > LFC ? 1 : smooth(clamp((f - 0.12) / 0.72, 0, 1)));
       if (open !== api.open) { api.open = open; for (const a of areas.list) { if (a.id === open) areas.open(a.id); else if (a.goal) areas.close(a.id); } if (open) fill(open); }
       const on = tau >= N ? -1 : clamp(Math.floor(tau + 0.06), -1, N - 1);          // past the last area no card is up (phones hold the card on screen)
-      if (on !== cur) { cur = on; rail.forEach((b, i) => b.classList.toggle('is-on', i === on)); steps.forEach((s, i) => s.classList.toggle('is-on', i === on)); if (on >= 0) fill(TOUR[on].id); api.onStep && api.onStep(on); }
+      if (on !== cur) {
+        cur = on; rail.forEach((b, i) => b.classList.toggle('is-on', i === on)); steps.forEach((s, i) => s.classList.toggle('is-on', i === on)); if (on >= 0) fill(TOUR[on].id); api.onStep && api.onStep(on);
+        if (world.soon && on + 1 < N) world.soon(TOUR[on + 1].id);              // the next area's inside is built while this card is read
+      }
       // the line along the top of the card fills as you scroll through its area
       if (on >= 0) { const k = Math.round(clamp(tau - on, 0, 1) * 250) / 250; if (k !== barAt) { barAt = k; bars[on].style.transform = `scaleX(${k})`; } }
     },

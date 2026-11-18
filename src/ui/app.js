@@ -178,7 +178,7 @@ export function createApp(world, hooks) {
       else {
         rig.room = null; S.arrived = false; rig.limits.distMax = 1250;
         if (instant) { rig.jump(a.walk); arrive(a); }
-        else rig.playPath([{ p: { ...rig.cur } }, { p: { ...a.walk, pol: 1.2, dist: a.walk.dist + 58 }, t: 1.8 }, { p: a.walk, t: 1.6 }], { done: () => arrive(a) });
+        else rig.playPath([{ p: { ...rig.goal } }, { p: { ...a.walk, pol: 1.2, dist: a.walk.dist + 58 }, t: 1.8 }, { p: a.walk, t: 1.6 }], { done: () => arrive(a) });
       }
     } else {
       if (a.peek) areas.peek(id, false); outdoors(); areas.open(id); if (partner) areas.open(partner.id);

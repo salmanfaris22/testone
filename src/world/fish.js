@@ -1,7 +1,7 @@
 // Procedural fish. Each species has its own body profile, fins and painted skin, so a Hamour
 // reads as a Hamour. Schools are instanced and swim entirely on the GPU.
 import * as THREE from 'three';
-import { canvasTex, rng, TAU, clamp } from './kit.js';
+import { canvasTex, rng, TAU, clamp, loadPhoto } from './kit.js';
 
 const VF = 0.3125;              // the skin canvas covers ±VF body lengths vertically
 const sm = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -200,9 +200,17 @@ export function fishTexture(id, W = 1024) {
 /* ───────── swimming material ───────── */
 export function createFish(world) {
   const thumbs = {};
-  const uTime = { value: 0 }, geo = {}, mat = {}, hiGeo = {}, loader = new THREE.TextureLoader();
+  const uTime = { value: 0 }, geo = {}, mat = {}, hiGeo = {};
   const getGeo = (id) => geo[id] || (geo[id] = PHOTO[id] ? photoGeometry(id, 12, 8) : fishGeometry(id, 12, 8));
-  const photoTex = (id) => { const t = loader.load(import.meta.env.BASE_URL + PHOTO[id].src); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+  // (each photo is decoded off the main thread before it is first drawn, then sent to the graphics card on its own, between frames)
+  const photoTex = (id) => {
+    const t = new THREE.Texture(); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+    loadPhoto(import.meta.env.BASE_URL + PHOTO[id].src).then((p) => {
+      if (!p) return; t.image = p.image; t.flipY = p.flipY; t.needsUpdate = true;
+      const E = world.engine, up = () => { try { E.renderer.initTexture(t); } catch (e) { /* sent on first use */ } }; if (E.soon) E.soon(up, `fish ${id}`);
+    });
+    return t;
+  };
   const uRip = world.sea && world.sea.uniforms ? world.sea.uniforms.uN : { value: null };
   const getMat = (id) => {
     if (mat[id]) return mat[id];

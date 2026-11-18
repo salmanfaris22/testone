@@ -108,11 +108,13 @@ export function createBoards(world, list) {
   }
   group.add(b.build(mats, { cast: true }));
   let k = 0, acc = 0;
+  const view = new THREE.Frustum(), vp = new THREE.Matrix4();
   const update = (dt, t) => {
     acc += dt; if (acc < 1 / 36) return; acc = 0;                       // one screen per tick, about 3 to 4 refreshes a second each
+    vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); view.setFromProjectionMatrix(vp);
     for (let n = 0; n < screens.length; n++) {
       const s = screens[(k + n) % screens.length]; const dx = camera.position.x - s.x, dz = camera.position.z - s.z;
-      if (dx * dx + dz * dz > 520 * 520 || !s.mesh.visible) continue;
+      if (dx * dx + dz * dz > 520 * 520 || !s.mesh.visible || !view.intersectsObject(s.mesh)) continue;      // (only the ones in view are redrawn)
       s.draw(t + s.t); k = (k + n + 1) % screens.length; return;
     }
   };

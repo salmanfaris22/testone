@@ -183,6 +183,7 @@ export function buildPark(world) {
   /* ───────── roofs ───────── */
   // the white shell, the curved glass front, the name over the doors and the podium with its lawns, steps and ramp (oval.js)
   const oval = buildOval(lo1, hi1, { RO, pol });
+  const DOORU = pol(1, OVAL.door);                     // the way out through the main doors, from the middle of the hall
   // flat roofs
   const flat = (b, pts, y, hex = C.roof) => { b.use('matte').prism(hex, pts, y, y + 0.35); b.use('glow').prism(0xdde2e1, pts, y - 0.07, y - 0.03, { cap: false, sides: false, bottom: true }); };
   // ceilings seen from inside: the hall under the shell, the ring of rooms round it, the two wings
@@ -227,10 +228,12 @@ export function buildPark(world) {
   const a1 = areas.add({
     id: 'visitor', frame: PARK_FRAME, low: lo1.build(mats), high: high1, roofMats: roof1, lift: 11, hit: hitA, pin: [px, 17, pz],
     pose: P(px + 6, 2, pz + 2, -0.82, 1.0, 150), inside: P(px + 3, 1, pz - 3, -0.7, 0.66, 104), plan: P(px + 42, 0, pz - 8, 0, 0.1, 252), planWith: 'research',
-    walk: P(px, 2.4, pz, 2.25, 1.44, 9.6), walls: parkWalls,
+    // walking in starts at the main doors (under the name on the glass front, OVAL.door degrees round): just inside them in the
+    // foyer at eye height, looking down the line of the doors through the lobby's door and the hall's wide opening to the globe
+    walk: P(px + DOORU[0] * 27.6, 1.45, pz + DOORU[1] * 27.6, Math.atan2(DOORU[0], DOORU[1]), 1.53, 3.0), walkDoor: false, walls: parkWalls,
     // (for the drone: the foyer inside the oval glass is indoors too, under the shell roof)
     envelope: [{ ellipse: true, x: px, z: pz + OVAL.cz, a: OVAL.fa - 0.3, b: OVAL.fb - 0.3, h: OVAL.top - 0.2 }],
-    rooms: [{ circle: true, x: 0, z: 0, r: RH - 0.9, h: 8.6, globe: { x: 0, z: 0, y: GLOBE.y, r: GLOBE.r + 0.32 } }, { circle: true, x: 0, z: 0, r: RO - 0.8, h: 6.6 }, { x0: WING.x0, x1: WING.split, z0: WING.z0, z1: WING.zc, h: WING.h }, { x0: WING.x0, x1: 29.1, z0: WING.zc, z1: -18.6, h: 5.2 }, { x0: 26, x1: 47.6, z0: WING.zc, z1: -5, h: 5.5 }],
+    rooms: [{ circle: true, x: 0, z: 0, r: RH - 0.9, h: 8.6, globe: { x: 0, z: 0, y: GLOBE.y, r: GLOBE.r + 0.32 } }, { circle: true, x: 0, z: 0, r: RO - 0.8, h: 6.6 }, { x0: WING.x0, x1: WING.split, z0: WING.z0, z1: WING.zc, h: WING.h }, { x0: WING.x0, x1: 29.1, z0: WING.zc, z1: -18.6, h: 5.2 }, { x0: 26, x1: 47.6, z0: WING.zc, z1: -5, h: 5.5 }, { circle: true, x: DOORU[0] * 28.6, z: DOORU[1] * 28.6, r: 4.4, h: 6 }],      // (the last: the foyer inside the main doors)
     makeInterior(b0, ctx) {
       const b = b0; b.push(px, 0, pz); const R = rng(101);
       const who = (x, z, k, s, o = {}) => { const kk = k === 'coat' ? 'lab' : k; ctx.person(px + x, pz + z, o.ry ?? R() * TAU, wearFor(kk, R), undefined, { kind: kk, s, mode: /visitor|kandura|emirati|abaya/.test(kk) ? (R() < 0.4 ? 'talk' : 'idle') : kk === 'office' ? 'talk' : 'work', ...o }); };
@@ -393,7 +396,7 @@ export function buildPark(world) {
   ];
   const labRooms = [[29.1, 37.9], [37.9, 47.6], [54.1, 64.4], [64.4, 73.1], [73.1, 81.8], [81.8, 92.6], [99.6, 107.5]];
   areas.add({
-    id: 'research', frame: PARK_FRAME, low: lo2.build(mats), high: hi2.build(roof2), roofMats: roof2, lift: 7, hit: hitB, pin: [px + 68, 11.5, pz - 30],
+    id: 'research', walkDoor: false, frame: PARK_FRAME, low: lo2.build(mats), high: hi2.build(roof2), roofMats: roof2, lift: 7, hit: hitB, pin: [px + 68, 11.5, pz - 30],
     pose: P(px + 62, 2, pz - 16, -0.4, 0.98, 170), inside: P(px + 64, 1, pz - 18, -0.2, 0.62, 122), plan: P(px + 42, 0, pz - 8, 0, 0.1, 252), planWith: 'visitor',
     walk: P(px + 66, 1.5, pz - 30.6, Math.PI / 2, 1.45, 9), walls: parkWalls,
     rooms: [{ x0: WING.split, x1: WING.x1, z0: WING.z0, z1: WING.zc, h: WING.h }, { x0: 91, x1: 115.1, z0: -28.3, z1: -18.5, h: 4.8 }, { x0: 22, x1: 106, z0: -22, z1: 15, h: 4.6 }],

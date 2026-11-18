@@ -473,7 +473,7 @@ export function buildHalls(world) {
     ao.push(r, kiosk);
     const st = stops([r, { ...kiosk }], null, { az: -0.4, k: 1.5, walk: P(127.5, 1.4, 10.1, 2.47, 1.42, 8.6) }); st.rooms = [{ ...r }];
     areas.add({ walls: lo.walls,
-      id: 'genroom', low: lo.build(mats), high: roofNo(hi.build(roof), roof, NO.genroom, 128.4, GEN.h + 0.46, 10.3, 7.5), roofMats: roof, lift: 7, pin: [128.4, GEN.h + 7, 10.3], ...st,
+      id: 'genroom', walkDoor: false, low: lo.build(mats), high: roofNo(hi.build(roof), roof, NO.genroom, 128.4, GEN.h + 0.46, 10.3, 7.5), roofMats: roof, lift: 7, pin: [128.4, GEN.h + 7, 10.3], ...st,
       makeInterior(b, ctx) {
         const R = rng(81);
         for (let k = 0; k < 3; k++) { const box = E.genset(b, 126.2, 5 + k * 5.1); ctx.item({ code: `G${k + 1}`, group: 'Generators', name: `Standby generator G${k + 1}`, kind: 'Diesel, automatic start', box, label: k === 0,

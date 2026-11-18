@@ -356,7 +356,8 @@ export function createApp(world, hooks) {
   function startDrone() {
     stopTour(); stopFilm(); if (S.area || S.dive) overview(false); labels.showPins(false); select.hide(); labels.tip(null);
     S.drone = true; body.classList.add('droning'); hud.hidden = false; droneT0 = performance.now(); droneThr = -1; droneOn = false;
-    rig.enterDrone(droneDock, air); setSpeed(1); setStatus('Taking off from the dock'); hudExit.textContent = 'Land the drone'; droneDock.setBusy(true);
+    // the drone is flown through its own camera, from high over the site (it is not seen, and does not take off from the dock)
+    rig.enterDrone(null, air, { top: true }); setSpeed(1); setStatus(''); hudExit.textContent = 'Exit drone view';
     // a drone is heard as well as seen: its rotors come on with it (the Sound button in the corner turns them off)
     if (audio.on) { audio.scene('outside'); syncSnd(); }
     else { droneSnd = true; audio.toggle(true).then((v) => { syncSnd(); if (v && S.drone) { audio.scene('outside'); droneOn = false; } }); }
@@ -376,6 +377,7 @@ export function createApp(world, hooks) {
    *  pressed again while it does that, it is put straight in */
   function landDrone() {
     const d = rig.drone; if (!S.drone || !d) return;
+    if (rig.fpv) { finishDrone(); return; }                       // (through the drone's camera: Exit just ends the flight)
     if (d.phase !== 'fly') { rig.droneHome(true); return; }
     if (d.inside) { setStatus('Back out to the dock'); fade(() => rig.droneOverDock()); }
     else { rig.droneHome(); setStatus('Flying home to the dock'); }
@@ -385,11 +387,16 @@ export function createApp(world, hooks) {
   function stopDrone() { if (!S.drone) return; rig.droneHome(true); finishDrone(); }
   function finishDrone() {
     if (!S.drone) return; S.drone = false; const d = rig.drone; if (locked()) document.exitPointerLock();
-    if (d) { d.motor = 0; d.thr = 0; d.bob = 0; d.size = 1; d.tiltX = d.tiltZ = 0; droneCraft.update(d, 0, engine.t, null); }      // it stays parked in the dock
+    if (d && !rig.fpv) { d.motor = 0; d.thr = 0; d.bob = 0; d.size = 1; d.tiltX = d.tiltZ = 0; droneCraft.update(d, 0, engine.t, null); }      // it stays parked in the dock
+    else droneCraft.hide();
     droneCraft.hideShadow(); air.reset(); droneDock.setOpen(0); droneDock.setBusy(false);
-    const at = droneDock.rest.clone(); at.y += 1; rig.exitDrone(at); body.classList.remove('droning'); hud.hidden = true; setStatus('');
+    // (through the drone's camera the view simply stays where the drone was, turned to the ground ahead; from inside a building
+    // it goes back out to the overview)
+    const inside = !!(d && d.inside);
+    if (rig.fpv) rig.exitDrone(null); else { const at = droneDock.rest.clone(); at.y += 1; rig.exitDrone(at); }
+    body.classList.remove('droning'); hud.hidden = true; setStatus('');
     audio.drone(false); droneOn = false; if (droneSnd && audio.on) audio.toggle(false).then(syncSnd); droneSnd = false;
-    if (S.exploring) { labels.showPins(true); rig.limits.distMin = 30; setHint(touch ? 'Drag to orbit. Pinch to zoom. Tap a pin.' : 'Drag to orbit. Scroll to zoom. Click a pin or a building.'); }
+    if (S.exploring) { labels.showPins(true); rig.limits.distMin = 30; setHint(touch ? 'Drag to orbit. Pinch to zoom. Tap a pin.' : 'Drag to orbit. Scroll to zoom. Click a pin or a building.'); if (rig.fpv && inside) overview(); }
   }
   function act(k) {
     if (k === 'film') startFilm();
@@ -503,9 +510,11 @@ export function createApp(world, hooks) {
     }
     // a tip left on something whose roof has since closed (the page scrolled on)
     if (!S.exploring && lastHover && lastHover.box && !(hooks.storyOpen && hooks.storyOpen() === lastHover.area)) { lastHover = null; labels.tip(null); select.hide(); body.classList.remove('pointing'); }
+    // walking in, doors open as you come to them (the glass doors slide apart, shutters roll up) and close behind you
+    if (S.exploring && !S.drone && !S.film && !S.dive && S.view === 'walk') air.doors(world.camera.position, dt);
     if (S.drone && rig.drone) {
       const d = rig.drone, deg = ((Math.atan2(Math.sin(d.yaw), -Math.cos(d.yaw)) * 180) / Math.PI + 360) % 360, sec = (performance.now() - droneT0) / 1000;
-      droneCraft.update(d, dt, engine.t, floorAt);
+      if (rig.fpv) droneCraft.hide(); else droneCraft.update(d, dt, engine.t, floorAt);
       // the dock's lid: open for the take-off, shut again behind it, open for the landing; doors open as the drone comes;
       // the inside of a building it is near shows, and the one it is in is lit as indoors
       if (d.phase === 'fly' && d.pt > 1.0) d.lid = Math.max(0, d.lid - dt / 1.1);

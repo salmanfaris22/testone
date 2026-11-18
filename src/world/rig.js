@@ -39,6 +39,7 @@ export class Rig {
     this.fov = 32; this.fovGoal = 32; this.room = null; this._rd = 0;
     this.lambda = 6.5;
     this.flight = null; this.path = null; this.drone = null;
+    this.fpv = true;              // the drone is flown through its own camera (it is not seen); false: the camera follows behind it
     this.user = false;            // may the visitor steer?
     this.wheelZoom = false;       // wheel zooms (explore) or scrolls the page (story)
     this.drift = 0; this.idle = 0;
@@ -83,9 +84,11 @@ export class Rig {
    * `air` is the space it flies in (airspace.js): walls, doors, roofs, ceilings. The state is rig.drone; d.phase says what it is doing:
    * 'launch', 'fly' (yours), 'home' (flying itself back to the dock), 'land' (down into it), 'done'.
    */
-  enterDrone(dock = null, air = null) {
+  enterDrone(dock = null, air = null, { top = false } = {}) {
     this.air = air; this.dock = dock;
     const c = this.cam.position.clone(), t = this.target.clone();
+    // from the top: high over the side of the site the camera was looking from, looking down at what it was looking at
+    if (top) { const az = this.cur.az; c.set(t.x + Math.sin(az) * 95, 72, t.z + Math.cos(az) * 95); }
     const d = this.drone = { pos: c.clone(), vel: new THREE.Vector3(), cam: c.clone(), look: t.clone(), yaw: 0, cy: 0, pitch: -0.1, gy: 0, gp: -0.1, boost: 1, level: 1,
       tiltX: 0, tiltZ: 0, thr: 0.3, motor: 1, size: 1, inK: 0, age: 0, kmh: 0, touch: { f: 0, s: 0, u: 0, yaw: 0 }, phase: 'fly', pt: 0, lid: 0, bob: 1, sp: {}, inside: null };
     if (dock) {
@@ -372,7 +375,11 @@ export class Rig {
     if (d.phase === 'fly') d.thr = damp(d.thr, clamp(0.24 + speed / 62 + (Math.abs(af) + Math.abs(as)) * 0.012, 0, 1), 5, dt);
     // indoors: closer camera, smaller-looking drone (it has doors to get through)
     d.inK = damp(d.inK, d.inside ? 1 : 0, 3.2, dt); d.size = lerp(1, 0.62, d.inK);
-    if (!camSet) {
+    if (!camSet && this.fpv) {
+      // the drone's own camera: where the drone is, held level by its gimbal (no roll), looking the way it heads and tilts
+      d.cam.copy(d.pos); cam.position.copy(d.pos);
+      const cp = Math.cos(d.pitch), sn = Math.sin(d.pitch); _l2.set(d.pos.x + Math.sin(d.cy) * cp, d.pos.y + sn, d.pos.z + Math.cos(d.cy) * cp); cam.lookAt(_l2);
+    } else if (!camSet) {
       this._chaseCam(d, _t);
       // flying low, the camera stays at about eye height over the ground (not down on the floor) and looks over the drone
       if (air) { const g = air.space(_t.x, Math.min(_t.y, d.pos.y), _t.z, _sp), lo = g.floor + lerp(1.05, 0.55, d.inK); _t.y = clamp(_t.y, lo, Math.max(lo, g.ceil + 0.2)); }

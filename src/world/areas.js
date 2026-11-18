@@ -37,6 +37,26 @@ export class AreaCtx {
   specks(s) { this.fry.push(s); }
 }
 
+/**
+ * Where walking into a building starts: just inside its door, at eye height, looking in. The door is the one that faces the
+ * building's outside view (`pose`, the side it is shown from), a wide one (a roller shutter) before a narrow one beside it.
+ * The camera stands 1.4 m inside, turning round a point 3 m further in. Null when no door leads into one of its rooms.
+ */
+function doorWalk(a) {
+  const P = a.pose, sp = Math.sin(P.pol), [cx, cz] = a.toLocal(P.x + P.dist * sp * Math.sin(P.az), P.z + P.dist * sp * Math.cos(P.az));
+  const inside = (x, z) => a.rooms.some((r) => (r.circle ? (x - r.x) ** 2 + (z - r.z) ** 2 < r.r * r.r : x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1));
+  let best = null, bd = Infinity;
+  for (const d of a.doors) {
+    const mx = (d.x0 + d.x1) / 2, mz = (d.z0 + d.z1) / 2, len = Math.hypot(d.x1 - d.x0, d.z1 - d.z0); if (len < 1) continue;
+    const nx = -(d.z1 - d.z0) / len, nz = (d.x1 - d.x0) / len, s = inside(mx + nx * 2, mz + nz * 2) ? 1 : inside(mx - nx * 2, mz - nz * 2) ? -1 : 0;
+    if (!s || !inside(mx + nx * s * 4.4, mz + nz * s * 4.4)) continue;                    // it must open into one of the rooms
+    const score = Math.hypot(mx - cx, mz - cz) - len * 2; if (score < bd) { bd = score; best = { mx, mz, ix: nx * s, iz: nz * s }; }
+  }
+  if (!best) return null;
+  const { mx, mz, ix, iz } = best, w = a.toWorld(mx + ix * 4.4, mz + iz * 4.4);
+  return { x: w[0], y: 1.45, z: w[1], az: Math.atan2(-ix, -iz) + a.frame.ry, pol: 1.53, dist: 3.0 };
+}
+
 export function createAreas(world) {
   const { scene, mats, engine } = world;
   const list = [], byId = {};
@@ -59,6 +79,8 @@ export function createAreas(world) {
       if (a.low) a.root.add(a.low);
       if (a.high) { a.root.add(a.high); a.highMeshes = []; a.high.traverse((m) => { if (m.isMesh) a.highMeshes.push(m); }); }
       a.doors = [...((a.high && a.high.userData.doors) || []), ...((a.low && a.low.userData.doors) || [])];     // leaves that open (shell.js doorLeaf)
+      // walking in starts at the building's door, as a visitor comes in (an area may keep its own: walkDoor: false)
+      if (def.walkDoor !== false && a.rooms && a.doors.length && a.pose) { const w = doorWalk(a); if (w) a.walk = w; }
       scene.add(a.root); a.root.updateMatrixWorld(true);
       list.push(a); byId[a.id] = a;
       return a;

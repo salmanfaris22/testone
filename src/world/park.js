@@ -8,7 +8,7 @@ import * as E from './equip.js';
 import { WEAR, wearFor } from './people.js';
 import { PARK, PARK_FRAME, OVAL } from './layout.js';
 import { buildOval } from './oval.js';
-import { reefRocks, seaGrass, softCorals, causticTexture } from './reef.js';
+import { createFloorScreen } from './floor-screen.js';
 import { P } from './rig.js';
 
 const F = E.FLOOR;
@@ -16,8 +16,41 @@ export const RH = 11.1, RR = 14.7, RO = 25.5, RT = 33;      // hall wall, ring c
 export const SPINE = { x: 12, z: -3.1, ry: 0.1396 };        // the angled corridor to the office wing (8° off the plan axis)
 const WING = { x0: -18.1, x1: 107.5, z0: -48.3, zr: -32.8, zc: -28.5, split: 29.1, h: 5.2 };
 const UPF = 3.6;                                              // height of the wing's upper floor
-const POOL = 6.4, DEEP = 2.15;                                // the walk-on aquarium in the middle of the hall: radius, depth under the glass (its floor stays over the sea level under the land)
+const POOL = 6.4;                                             // the round LED floor screen in the middle of the hall, under walk-on glass: its radius
 const GLOBE = { y: F + 4.4, r: 2.2 };                          // the Earth turning over it (centre height, radius)
+// the globe's thin layers: a few soft clouds, banded the way the weather is (the doldrums at the equator, the storm belts of the
+// middle latitudes, clear skies over the subtropics), and the blue haze of the air at its rim
+const GLOBE_VS = /* glsl */ `
+varying vec3 vP; varying vec3 vN; varying vec3 vV;
+void main() { vP = position; vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`;
+const CLOUDS_FS = /* glsl */ `
+uniform float uTime;
+varying vec3 vP; varying vec3 vN; varying vec3 vV;
+float h3(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float n3(vec3 x) {
+  vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(h3(i), h3(i + vec3(1.0, 0.0, 0.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 0.0)), h3(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+             mix(mix(h3(i + vec3(0.0, 0.0, 1.0)), h3(i + vec3(1.0, 0.0, 1.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 1.0)), h3(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
+}
+float fbm(vec3 p) { float s = 0.0, a = 0.5; for (int k = 0; k < OCT; k++) { s += a * n3(p); p = p * 2.03 + 1.7; a *= 0.5; } return s; }
+void main() {
+  vec3 d = normalize(vP); float lat = abs(d.y);
+  float belt = 0.62 + 0.3 * smoothstep(0.5, 0.75, lat) * (1.0 - smoothstep(0.88, 1.0, lat)) + 0.2 * (1.0 - smoothstep(0.0, 0.16, lat)) - 0.3 * smoothstep(0.18, 0.3, lat) * (1.0 - smoothstep(0.42, 0.56, lat));
+  vec3 q = d * 3.4 + vec3(uTime * 0.004, 0.0, uTime * 0.003);
+  float c = fbm(q + 0.7 * vec3(fbm(q + 4.1), fbm(q + 7.3), 0.0));
+  float a = smoothstep(0.5, 0.74, c * belt + 0.1) * 0.5;
+  float rim = 1.0 - max(dot(normalize(vN), normalize(vV)), 0.0);
+  gl_FragColor = vec4(vec3(0.96, 0.98, 1.0), a * (1.0 - rim * 0.6));
+  #include <colorspace_fragment>
+}`;
+const HAZE_FS = /* glsl */ `
+uniform vec3 uColor;
+varying vec3 vP; varying vec3 vN; varying vec3 vV;
+void main() {
+  float f = 1.0 - max(dot(normalize(vN), normalize(vV)), 0.0), a = pow(f, 2.6) * 0.8;
+  gl_FragColor = vec4(uColor * a, a);
+  #include <colorspace_fragment>
+}`;
 const pol = (r, deg) => [Math.cos(deg * DEG) * r, Math.sin(deg * DEG) * r];
 const ux = Math.cos(SPINE.ry), uz = -Math.sin(SPINE.ry), vx = Math.sin(SPINE.ry), vz = Math.cos(SPINE.ry);
 /** spine frame (u along the corridor, v to the south) → local xz */
@@ -205,68 +238,83 @@ export function buildPark(world) {
     walk: P(px, 2.4, pz, 2.25, 1.44, 9.6), walls: parkWalls,
     // (for the drone: the foyer inside the oval glass is indoors too, under the shell roof)
     envelope: [{ ellipse: true, x: px, z: pz + OVAL.cz, a: OVAL.fa - 0.3, b: OVAL.fb - 0.3, h: OVAL.top - 0.2 }],
-    rooms: [{ circle: true, x: 0, z: 0, r: RH - 0.9, h: 8.6, globe: { x: 0, z: 0, y: GLOBE.y, r: GLOBE.r + 0.14 } }, { circle: true, x: 0, z: 0, r: RO - 0.8, h: 6.6 }, { x0: WING.x0, x1: WING.split, z0: WING.z0, z1: WING.zc, h: WING.h }, { x0: WING.x0, x1: 29.1, z0: WING.zc, z1: -18.6, h: 5.2 }, { x0: 26, x1: 47.6, z0: WING.zc, z1: -5, h: 5.5 }],
+    rooms: [{ circle: true, x: 0, z: 0, r: RH - 0.9, h: 8.6, globe: { x: 0, z: 0, y: GLOBE.y, r: GLOBE.r + 0.32 } }, { circle: true, x: 0, z: 0, r: RO - 0.8, h: 6.6 }, { x0: WING.x0, x1: WING.split, z0: WING.z0, z1: WING.zc, h: WING.h }, { x0: WING.x0, x1: 29.1, z0: WING.zc, z1: -18.6, h: 5.2 }, { x0: 26, x1: 47.6, z0: WING.zc, z1: -5, h: 5.5 }],
     makeInterior(b0, ctx) {
       const b = b0; b.push(px, 0, pz); const R = rng(101);
       const who = (x, z, k, s, o = {}) => { const kk = k === 'coat' ? 'lab' : k; ctx.person(px + x, pz + z, o.ry ?? R() * TAU, wearFor(kk, R), undefined, { kind: kk, s, mode: /visitor|kandura|emirati|abaya/.test(kk) ? (R() < 0.4 ? 'talk' : 'idle') : kk === 'office' ? 'talk' : 'work', ...o }); };
       // an Emirati couple strolling the ring corridor round the hall (the visitor centre is kept calm: fewer people than before)
       for (let k = 0; k < 2; k++) ctx.person(0, 0, 0, wearFor(k ? 'abaya' : 'emirati', R), undefined, { kind: k ? 'abaya' : 'emirati', path: arcPts(12.9, 0, TAU, px, pz, 10 * DEG), loop: true, speed: 0.82, off: k * 0.02 });
-      /* exhibition hall: a walk-on aquarium under a glass floor, and the Earth turning over it */
+      /* exhibition hall: a round LED screen in the floor under walk-on glass, and the Earth turning over it */
       {
-        // the pool, made like the underwater scenes on the hall's fish screens (reef.js, the same floor the dive shows): deep blue
-        // walls, a sandy seabed with dark teal rocks, sea grass that sways, a few muted sponges and corals, sunlight playing on the
-        // sand and shafts of light coming down through the glass
-        b.use('matte').lathe(0x0b3a5c, [[POOL, F - 0.02], [POOL, F - DEEP * 0.5], [POOL, F - DEEP]], 0, 0, 0, 72);
-        b.disc(0x6f735e, POOL, 0, F - DEEP, 0, 72);
-        const Q = rng(77), bed = F - DEEP, uSway = { value: 0 }, rocks = [], grass = [], corals = [];
-        for (let k = 0; k < 11; k++) { const a = (k / 11) * TAU + Q() * 0.4, r = POOL - 0.75 - Q() * 0.5; rocks.push([Math.cos(a) * r, bed, Math.sin(a) * r, 0.42 + Q() * 0.38, 0.55 + Q() * 0.3]); }
-        for (let k = 0; k < 9; k++) { const a = Q() * TAU, r = 1.3 + Q() * (POOL - 2.8); rocks.push([Math.cos(a) * r, bed, Math.sin(a) * r, 0.18 + Q() * 0.26, 0.6]); }
-        for (let k = 0; k < 42; k++) { const a = Q() * TAU, r = 0.7 + Q() * (POOL - 1.3); grass.push([Math.cos(a) * r, bed, Math.sin(a) * r, 0.45 + Q() * 0.6]); }
-        for (let k = 0; k < 14; k++) { const a = Q() * TAU, r = 1 + Q() * (POOL - 1.9); corals.push([Math.cos(a) * r, bed, Math.sin(a) * r, ['tube', 'brain', 'branch'][k % 3], 0.9 + Q() * 0.5]); }
-        for (const m of [reefRocks(rocks, { seed: 11 }), seaGrass(grass, { uT: uSway, seed: 12 }), softCorals(corals, { seed: 13 })]) { m.position.set(px, 0, pz); ctx.extra.push(m); }
+        // the screen plays what the hall's fish TVs play, made round (floor-screen.js): blue water lit from the middle, slow rays of
+        // light, the sunlight net drifting over it and the client's fish swimming round in rings under visitors' feet
+        b.use('matte').disc(0x05080b, POOL + 0.02, 0, F - 0.035, 0, 96);                                  // the black surround of the screen
         b.use('metal').torus(C.alu, POOL + 0.05, 0.07, 0, F + 0.02, 0, 6, 96);
-        b.use('glow').torus(0x7fd6ff, POOL - 0.16, 0.035, 0, F - 0.06, 0, 6, 96);
-        b.torus(0xdff6ff, 3.0, 0.08, 0, 7.05, 0, 6, 48);                                               // the ring of light in the ceiling over the globe
-        // sunlight dancing on the seabed (a moving pattern of light), and soft shafts of light down through the water
-        const causticTex = causticTexture().clone(); causticTex.repeat.set(3.4, 3.4); causticTex.needsUpdate = true;
-        const caustics = new THREE.Mesh(new THREE.CircleGeometry(POOL - 0.05, 72).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: causticTex, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
-        caustics.position.set(px, F - DEEP + 0.03, pz); caustics.renderOrder = 1; ctx.extra.push(caustics);
-        const shaftMat = new THREE.MeshBasicMaterial({ color: 0x9fe6ff, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
-        for (let k = 0; k < 7; k++) { const a = (k / 7) * TAU + 0.4, r = 1.6 + (k % 3) * 1.3, sh = new THREE.Mesh(new THREE.PlaneGeometry(0.9 + (k % 2) * 0.6, DEEP - 0.1), shaftMat); sh.position.set(px + Math.cos(a) * r, F - DEEP / 2, pz + Math.sin(a) * r); sh.rotation.set(0, a, 0.18); sh.renderOrder = 2; ctx.extra.push(sh); }
-        // the water seen from above: a deep blue over the seabed, and the clear glass with its reflections on top
-        const tint = new THREE.Mesh(new THREE.CircleGeometry(POOL - 0.02, 72).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x0a5a8c, transparent: true, opacity: 0.38, depthWrite: false }));
-        tint.position.set(px, F - 0.09, pz); tint.renderOrder = 3; ctx.extra.push(tint);
+        b.use('glow').torus(0xdff6ff, 3.0, 0.08, 0, 7.05, 0, 6, 48);                                      // the ring of light in the ceiling over the globe
+        const screen = createFloorScreen({ radius: POOL - 0.1, y: F - 0.02 }); screen.group.position.set(px, 0, pz); ctx.extra.push(screen.group); ctx.updaters.push(screen.update);
         const glassFloor = new THREE.Mesh(new THREE.CircleGeometry(POOL, 72).rotateX(-Math.PI / 2), new THREE.MeshPhysicalMaterial({ color: 0xe8f7ff, transparent: true, opacity: 0.07, roughness: 0.04, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.4, depthWrite: false }));
         glassFloor.position.set(px, F + 0.004, pz); glassFloor.renderOrder = 4; glassFloor.receiveShadow = true; ctx.extra.push(glassFloor);
-        ctx.updaters.push((dt, t) => { causticTex.offset.set(Math.sin(t * 0.11) * 0.08 + t * 0.012, Math.cos(t * 0.09) * 0.08); uSway.value = t; });
-        // the globe: the Earth (NASA Blue Marble, public domain), lit from inside, turning once a minute on its tilted axis,
-        // in a clear glass shell that hangs from the ceiling on a steel rod
-        // (the picture is the globe's from the start, an ocean-blue dot until the photo is in, so the surface never changes kind and
-        // its shader is compiled once; the photo is decoded off the main thread and sent to the graphics card on its own)
-        const dot = document.createElement('canvas'); dot.width = dot.height = 2; { const g = dot.getContext('2d'); g.fillStyle = '#3f6f9a'; g.fillRect(0, 0, 2, 2); }
+        // the globe: the Earth (NASA Blue Marble 2002, public domain, its sea coloured by depth: turquoise over the shelves, deep blue
+        // offshore), lit from inside and turning once a minute on its tilted axis in a clear glass shell, held at its poles by a
+        // steel meridian ring that hangs from the ceiling on a rod. Its seas are glossy and its land is not, a thin blue haze lies
+        // round its rim as round the real one, and a few soft clouds drift over it, a little faster than it turns.
+        // (The picture is the globe's from the start, an ocean-blue dot until the photo is in, so the surface never changes kind and
+        // its shader is compiled once; the photo is decoded off the main thread and sent on its own.)
+        const dot = document.createElement('canvas'); dot.width = dot.height = 2; { const g = dot.getContext('2d'); g.fillStyle = '#16407a'; g.fillRect(0, 0, 2, 2); }
         const earthTex = new THREE.Texture(dot); earthTex.colorSpace = THREE.SRGBColorSpace; earthTex.anisotropy = 8; earthTex.needsUpdate = true;
-        const earthMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: earthTex, emissiveMap: earthTex, roughness: 0.38, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.06, emissive: 0xffffff, emissiveIntensity: 0.32, envMapIntensity: 1.1 });
-        loadPhoto('./photos/earth.webp').then((p) => { if (!p) return; earthTex.image = p.image; earthTex.flipY = p.flipY; earthTex.needsUpdate = true; const up = () => { try { world.engine.renderer.initTexture(earthTex); } catch (e) { /* sent on first use */ } }; if (world.engine.soon) world.engine.soon(up, 'globe photo'); });
+        const earthMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: earthTex, emissiveMap: earthTex, roughness: 0.64, metalness: 0, clearcoat: 0.5, clearcoatRoughness: 0.14, emissive: 0xffffff, emissiveIntensity: 0.26, envMapIntensity: 1.0 });
+        earthMat.onBeforeCompile = (sh) => {
+          sh.fragmentShader = sh.fragmentShader
+            .replace('#include <map_fragment>', '#include <map_fragment>\n  float seaK = smoothstep(0.004, 0.03, diffuseColor.b - max(diffuseColor.r, diffuseColor.g) * 1.02);')
+            .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  roughnessFactor = mix(roughnessFactor, 0.13, seaK);');
+        };
+        earthMat.customProgramCacheKey = () => 'earth-sea';
+        // (on a desktop the sharper picture follows the first one and replaces it in a calm frame: sending a picture 4096 wide
+        // takes the graphics card about 70 ms, which nobody notices while the camera is still)
+        const sendEarth = (p) => { earthTex.image = p.image; earthTex.flipY = p.flipY; earthTex.needsUpdate = true; try { world.engine.renderer.initTexture(earthTex); } catch (e) { /* sent on first use */ } };
+        loadPhoto('./photos/earth.webp').then((p) => {
+          if (!p) return; earthTex.image = p.image; earthTex.flipY = p.flipY; earthTex.needsUpdate = true;
+          if (world.engine.soon) world.engine.soon(() => sendEarth(p), 'globe photo');
+          if (world.engine.tier === 'high') loadPhoto('./photos/earth-4k.webp').then((q) => { if (q) (world.engine.later || ((f) => f()))(() => sendEarth(q), 'globe photo, 4096 wide'); });
+        });
         const globe = new THREE.Group(); globe.position.set(px, GLOBE.y, pz); globe.name = 'globe';
         const tilt = new THREE.Group(); tilt.rotation.z = (23.44 * Math.PI) / 180; globe.add(tilt);
-        const earth = new THREE.Mesh(new THREE.SphereGeometry(GLOBE.r, 96, 64), earthMat); earth.castShadow = true; tilt.add(earth);
-        const shell = new THREE.Mesh(new THREE.SphereGeometry(GLOBE.r + 0.14, 72, 48), new THREE.MeshPhysicalMaterial({ color: 0xe6f6ff, transparent: true, opacity: 0.14, roughness: 0.02, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 2.4, depthWrite: false }));
-        shell.renderOrder = 3; globe.add(shell);
-        const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 8.6 - GLOBE.y - GLOBE.r - 0.14, 10), new THREE.MeshStandardMaterial({ color: 0xc7ced3, metalness: 0.85, roughness: 0.3 }));
-        rod.position.y = GLOBE.r + 0.14 + (8.6 - GLOBE.y - GLOBE.r - 0.14) / 2; globe.add(rod);
-        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.24, 0.12, 24), rod.material); cap.position.y = GLOBE.r + 0.16; globe.add(cap);
+        const earth = new THREE.Mesh(new THREE.SphereGeometry(GLOBE.r, 128, 96), earthMat); earth.castShadow = true; tilt.add(earth);
+        const clouds = new THREE.Mesh(new THREE.SphereGeometry(GLOBE.r * 1.012, 96, 72), new THREE.ShaderMaterial({
+          uniforms: { uTime: { value: 0 } }, defines: { OCT: world.engine.tier === 'high' ? 5 : 3 },
+          vertexShader: GLOBE_VS, fragmentShader: CLOUDS_FS, transparent: true, depthWrite: false,
+        }));
+        clouds.renderOrder = 2; tilt.add(clouds);
+        const haze = new THREE.Mesh(new THREE.SphereGeometry(GLOBE.r * 1.03, 96, 72), new THREE.ShaderMaterial({
+          uniforms: { uColor: { value: new THREE.Color(0x6fc4ff) } }, vertexShader: GLOBE_VS, fragmentShader: HAZE_FS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+        }));
+        haze.renderOrder = 3; globe.add(haze);
+        // the glass shell: almost clear where you look straight through it, catching the light towards its edge, as glass does
+        const shellMat = new THREE.MeshPhysicalMaterial({ color: 0xe6f6ff, transparent: true, opacity: 0.14, roughness: 0.02, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 2.4, depthWrite: false });
+        shellMat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', 'diffuseColor.a = mix(0.03, 0.42, pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 2.6));\n#include <opaque_fragment>'); };
+        shellMat.customProgramCacheKey = () => 'globe-glass';
+        const shell = new THREE.Mesh(new THREE.SphereGeometry(GLOBE.r + 0.14, 96, 64), shellMat); shell.renderOrder = 4; globe.add(shell);
+        // the steel: a meridian ring in the plane of the axis (so it passes through both poles), pins to the poles, and the rod
+        const steel = new THREE.MeshStandardMaterial({ color: 0xd5dbdf, metalness: 0.9, roughness: 0.2 }), RM = GLOBE.r + 0.27;
+        const meridian = new THREE.Mesh(new THREE.TorusGeometry(RM, 0.034, 12, 200), steel); meridian.castShadow = true; tilt.add(meridian);
+        for (const sg of [1, -1]) {
+          const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, RM - GLOBE.r, 12), steel); pin.position.y = sg * (GLOBE.r + (RM - GLOBE.r) / 2); tilt.add(pin);
+          const hub = new THREE.Mesh(new THREE.SphereGeometry(0.065, 18, 12), steel); hub.position.y = sg * RM; tilt.add(hub);
+        }
+        const rodLen = 8.6 - GLOBE.y - RM, rod = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, rodLen, 12), steel);
+        rod.position.y = RM + rodLen / 2; globe.add(rod);
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 0.1, 24), steel); cap.position.y = RM + 0.05; globe.add(cap);
 
         ctx.extra.push(globe);
-        ctx.updaters.push((dt, t) => { earth.rotation.y = t * ((TAU / 60) * 0.9); });
-        ctx.school({ x: px, z: pz, rx: POOL - 0.9, rz: POOL - 0.9, r0: 0.25, y0: F - DEEP + 0.45, y1: F - 0.4, n: 78, sp: 'mix', len: 0.42, speed: 0.2 });
+        ctx.updaters.push((dt, t) => { earth.rotation.y = t * ((TAU / 60) * 0.9); clouds.rotation.y = t * ((TAU / 60) * 1.02); clouds.material.uniforms.uTime.value = t; });
       }
-      ctx.item({ code: 'AQ', group: 'Exhibition hall', name: 'Living aquarium', kind: 'Walk-on, under a glass floor', box: Wb(-POOL, -POOL, POOL, POOL, F + 0.1, F - DEEP), label: true, prio: 2,
-        desc: 'The middle of the hall is a round aquarium under a glass floor. Visitors walk out over the water and see the same species the hatchery breeds swimming under their feet, as they would on a Gulf reef.',
-        card: [['On show', 'Hamour, Shaari, red snappers, seabream'], ['Raised', 'In this hatchery'], ['Water', 'Filtered Gulf sea water']],
-        specs: [['Glass floor', 'Walk over it'], [`${(POOL * 2).toFixed(1)} m`, 'Across'], [`${DEEP} m`, 'Deep']], live: [{ k: 'Temperature', u: '°C', v: 26.0, d: 0.15, lo: 24, hi: 28, p: 1 }, { k: 'Salinity', u: 'ppt', v: 39.0, d: 0.2, lo: 36, hi: 42, p: 1 }, { k: 'Visitors today', u: '', v: 184, d: 0, lo: 0, hi: 600, p: 0, rise: true }], swim: { sp: 'mix', n: 70, glass: true, tank: POOL - 0.4, depth: DEEP - 0.2, age: 1.6 } });
+      ctx.item({ code: 'AQ', group: 'Exhibition hall', name: 'Living floor screen', kind: 'A round LED screen under the glass floor', box: Wb(-POOL, -POOL, POOL, POOL, F + 0.06, F - 0.06), label: true, prio: 2,
+        desc: `The middle of the hall is a round LED screen under a walk-on glass floor, ${(POOL * 2).toFixed(1)} metres across. It plays what the hall's fish screens play: the species this hatchery breeds swimming round under visitors' feet in clear Gulf water, with the light of the sea moving over them.`,
+        card: [['On screen', 'Hamour, Shaari, red snappers, seabream, cobia, mullet'], ['Screen', 'LED, under walk-on glass'], ['Across', `${(POOL * 2).toFixed(1)} m`]],
+        specs: [[`${(POOL * 2).toFixed(1)} m`, 'Across'], ['LED', 'Under glass'], ['7', 'Species']], live: [{ k: 'Visitors today', u: '', v: 184, d: 0, lo: 0, hi: 600, p: 0, rise: true }] });
       ctx.item({ code: 'GL', group: 'Exhibition hall', name: 'The ocean planet', kind: 'A turning globe of the Earth', box: Wb(-GLOBE.r - 0.2, -GLOBE.r - 0.2, GLOBE.r + 0.2, GLOBE.r + 0.2, GLOBE.y + GLOBE.r + 0.2, GLOBE.y - GLOBE.r - 0.2), label: true, prio: 2,
-        desc: 'A 4.4 metre globe of the Earth hangs over the aquarium in a clear glass shell, lit from inside and turning slowly on its tilted axis. Seven tenths of it is sea: the hall starts there, with the ocean the fish below come from.',
-        card: [['Picture', 'NASA Blue Marble'], ['Turns', 'Once a minute'], ['Axis', 'Tilted 23.4°, as the Earth']],
+        desc: 'A 4.4 metre globe of the Earth hangs over the floor screen in a clear glass shell, held at its poles by a steel meridian ring, lit from inside and turning slowly on its tilted axis. Its sea is coloured by depth, turquoise over the shelves and deep blue offshore: seven tenths of it is sea, and the hall starts there.',
+        card: [['Picture', 'NASA Blue Marble 2002'], ['Turns', 'Once a minute'], ['Axis', 'Tilted 23.4°, as the Earth']],
         specs: [['4.4 m', 'Across'], ['71%', 'Of it is sea'], ['1 min', 'A turn']] });
       const topics = [['Hamour', C.orange], ['Shaari', 0x3a9ec4], ['Red snappers', 0xc9503c], ['Seabream', 0x7f97a8], ['From egg to sea', C.teal], ['Live feed', 0x69a95a], ['Clean water', 0x2f86ab], ['Restocking the Gulf', 0x2a5c7d]];
       topics.forEach(([t, hex], k) => { const d = 20 + k * 45, [x, z] = pol(9.5, d), az = -(d * DEG) - Math.PI / 2;
@@ -347,9 +395,6 @@ export function buildPark(world) {
       b.pop();
     },
   });
-  // the ground (and the site paving) under 08's glass floor opens while its inside shows, so the aquarium below ground level can be seen
-  { const c = a1.toWorld(px, pz); world.land.hardscape.traverse((o) => { if (o.isMesh && !Array.isArray(o.material)) o.material = mats.withHole(o.material); });
-    world.updaters.push(() => { const v = !!(a1.interior && a1.interior.visible); mats.groundHole.value.set(c[0], c[1], v ? POOL - 0.04 : 0, 0); }); }
 
   /* ═════════ 02 · Research and Administration Wing ═════════ */
   const LABS = [

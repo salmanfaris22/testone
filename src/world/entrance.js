@@ -9,17 +9,21 @@ import * as THREE from 'three';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { Builder, C, rng, TAU, canvasTex, clamp } from './kit.js';
 import { createFlags } from './flags.js';
-import { GATE, ROADS, RB_W } from './layout.js';
+import { GATE, ROADS, RB_W, HELI } from './layout.js';
 import { landSDF } from './terrain-fn.js';
 
 const BRONZE = 0x2c2621, PILLAR = 0xf3f1ec, WALL = 0xeeece6, COPING = 0xdedad2, STONE = 0xb9b2a6, ORANGE = 0xe0602a;
 
-/** the salt lagoons either side of the flag road (outline points), also used to keep shrubs out of the water */
+/** the salt lagoons either side of the flag road (outline points), also used to keep shrubs out of the water. The water stops
+ *  a few metres short of the helipad's paver ring (HELI): an edge that would run onto it is drawn round it instead, so the lagoon
+ *  comes right up to the pad's far side, as on the client's map */
 export function lagoons() {
+  const keep = HELI.r + 4.5;
+  const clear = ([x, z]) => { const dx = x - HELI.x, dz = z - HELI.z, d = Math.hypot(dx, dz); return d >= keep ? [x, z] : [HELI.x + (dx / (d || 1)) * keep, HELI.z + (dz / (d || 1)) * keep]; };
   const blob = (cx, cz, rx, rz, seed) => { const R = rng(seed), a = R() * TAU, b = R() * TAU, c = R() * TAU, out = [];
-    for (let i = 0; i < 64; i++) { const t = (i / 64) * TAU, r = 1 + 0.16 * Math.sin(3 * t + a) + 0.09 * Math.sin(5 * t + b) + 0.05 * Math.sin(9 * t + c); out.push([cx + Math.cos(t) * rx * r, cz + Math.sin(t) * rz * r]); }
+    for (let i = 0; i < 96; i++) { const t = (i / 96) * TAU, r = 1 + 0.16 * Math.sin(3 * t + a) + 0.09 * Math.sin(5 * t + b) + 0.05 * Math.sin(9 * t + c); out.push(clear([cx + Math.cos(t) * rx * r, cz + Math.sin(t) * rz * r])); }
     return out; };
-  return [blob(-322, -24, 44, 26, 3), blob(-330, -124, 38, 19, 8), blob(-288, -36, 13, 9, 12)];
+  return [blob(-322, -24, 44, 26, 3), blob(-330, -124, 38, 19, 8), blob(-300, -40, 13, 9, 12)];
 }
 export function inPolygon(p, x, z) { let c = false; for (let i = 0, j = p.length - 1; i < p.length; j = i++) { const a = p[i], b = p[j]; if ((a[1] > z) !== (b[1] > z) && x < ((b[0] - a[0]) * (z - a[1])) / (b[1] - a[1]) + a[0]) c = !c; } return c; }
 

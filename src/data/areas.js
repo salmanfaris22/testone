@@ -66,9 +66,9 @@ export const AREAS = [
   {
     id: 'visitor', n: '09', phase: 3, name: 'Education and Visitor Centre', short: 'Visitor Centre', tag: 'Marine Innovation Park',
     line: 'Where the public meets the science.',
-    desc: 'The round building at the entrance is the Marine Innovation Park. Under its white shell roof are an exhibition hall built around a living aquarium, an amphitheatre, and the Marine Discovery Corners where school groups work hands-on.',
-    bullets: ['Exhibition hall with a 360° aquarium of native species', 'Amphitheatre for talks and school visits', 'Marine Discovery Corners 1 and 2', 'Staff canteen opening onto the palm courtyard'],
-    stats: [['360°', 'Living aquarium'], ['2', 'Discovery Corners'], ['1', 'Amphitheatre']],
+    desc: 'The round building at the entrance is the Marine Innovation Park. Under its white shell roof are an exhibition hall built round a 12.8 m fish floor screen under walk-on glass, with a turning globe of the Earth over it, an amphitheatre, and the Marine Discovery Corners where school groups work hands-on.',
+    bullets: ['Exhibition hall with a round fish floor screen and a 4.4 m globe', 'Amphitheatre for talks and school visits', 'Marine Discovery Corners 1 and 2', 'Staff canteen opening onto the palm courtyard'],
+    stats: [['12.8 m', 'Fish floor screen'], ['2', 'Discovery Corners'], ['1', 'Amphitheatre']],
   },
   {
     id: 'research', n: '10', phase: 3, name: 'Research and Administration Wing', short: 'Research Wing', tag: 'Laboratories and offices',

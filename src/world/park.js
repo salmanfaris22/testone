@@ -18,8 +18,8 @@ const WING = { x0: -18.1, x1: 107.5, z0: -48.3, zr: -32.8, zc: -28.5, split: 29.
 const UPF = 3.6;                                              // height of the wing's upper floor
 const POOL = 6.4;                                             // the round LED floor screen in the middle of the hall, under walk-on glass: its radius
 const GLOBE = { y: F + 4.4, r: 2.2 };                          // the Earth turning over it (centre height, radius)
-// the globe's thin layers: a few soft clouds, banded the way the weather is (the doldrums at the equator, the storm belts of the
-// middle latitudes, clear skies over the subtropics), and the blue haze of the air at its rim
+// the globe's clouds: a few, soft, banded the way the weather is (the doldrums at the equator, the storm belts of the middle
+// latitudes, clear skies over the subtropics)
 const GLOBE_VS = /* glsl */ `
 varying vec3 vP; varying vec3 vN; varying vec3 vV;
 void main() { vP = position; vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`;
@@ -41,14 +41,6 @@ void main() {
   float a = smoothstep(0.5, 0.74, c * belt + 0.1) * 0.5;
   float rim = 1.0 - max(dot(normalize(vN), normalize(vV)), 0.0);
   gl_FragColor = vec4(vec3(0.96, 0.98, 1.0), a * (1.0 - rim * 0.6));
-  #include <colorspace_fragment>
-}`;
-const HAZE_FS = /* glsl */ `
-uniform vec3 uColor;
-varying vec3 vP; varying vec3 vN; varying vec3 vV;
-void main() {
-  float f = 1.0 - max(dot(normalize(vN), normalize(vV)), 0.0), a = pow(f, 2.6) * 0.8;
-  gl_FragColor = vec4(uColor * a, a);
   #include <colorspace_fragment>
 }`;
 const pol = (r, deg) => [Math.cos(deg * DEG) * r, Math.sin(deg * DEG) * r];
@@ -255,9 +247,9 @@ export function buildPark(world) {
         const glassFloor = new THREE.Mesh(new THREE.CircleGeometry(POOL, 72).rotateX(-Math.PI / 2), new THREE.MeshPhysicalMaterial({ color: 0xe8f7ff, transparent: true, opacity: 0.07, roughness: 0.04, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.4, depthWrite: false }));
         glassFloor.position.set(px, F + 0.004, pz); glassFloor.renderOrder = 4; glassFloor.receiveShadow = true; ctx.extra.push(glassFloor);
         // the globe: the Earth (NASA Blue Marble 2002, public domain, its sea coloured by depth: turquoise over the shelves, deep blue
-        // offshore), lit from inside and turning once a minute on its tilted axis in a clear glass shell, held at its poles by a
-        // steel meridian ring that hangs from the ceiling on a rod. Its seas are glossy and its land is not, a thin blue haze lies
-        // round its rim as round the real one, and a few soft clouds drift over it, a little faster than it turns.
+        // offshore), lit from inside and turning once a minute on its tilted axis, held at its poles by a steel meridian ring that
+        // hangs from the ceiling on a rod. Its seas are glossy and its land is not, and a few soft clouds drift over it, a little
+        // faster than it turns. Nothing glows round it (no haze, no glass shell catching the light): just the globe.
         // (The picture is the globe's from the start, an ocean-blue dot until the photo is in, so the surface never changes kind and
         // its shader is compiled once; the photo is decoded off the main thread and sent on its own.)
         const dot = document.createElement('canvas'); dot.width = dot.height = 2; { const g = dot.getContext('2d'); g.fillStyle = '#16407a'; g.fillRect(0, 0, 2, 2); }
@@ -285,15 +277,6 @@ export function buildPark(world) {
           vertexShader: GLOBE_VS, fragmentShader: CLOUDS_FS, transparent: true, depthWrite: false,
         }));
         clouds.renderOrder = 2; tilt.add(clouds);
-        const haze = new THREE.Mesh(new THREE.SphereGeometry(GLOBE.r * 1.03, 96, 72), new THREE.ShaderMaterial({
-          uniforms: { uColor: { value: new THREE.Color(0x6fc4ff) } }, vertexShader: GLOBE_VS, fragmentShader: HAZE_FS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-        }));
-        haze.renderOrder = 3; globe.add(haze);
-        // the glass shell: almost clear where you look straight through it, catching the light towards its edge, as glass does
-        const shellMat = new THREE.MeshPhysicalMaterial({ color: 0xe6f6ff, transparent: true, opacity: 0.14, roughness: 0.02, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 2.4, depthWrite: false });
-        shellMat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', 'diffuseColor.a = mix(0.03, 0.42, pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 2.6));\n#include <opaque_fragment>'); };
-        shellMat.customProgramCacheKey = () => 'globe-glass';
-        const shell = new THREE.Mesh(new THREE.SphereGeometry(GLOBE.r + 0.14, 96, 64), shellMat); shell.renderOrder = 4; globe.add(shell);
         // the steel: a meridian ring in the plane of the axis (so it passes through both poles), pins to the poles, and the rod
         const steel = new THREE.MeshStandardMaterial({ color: 0xd5dbdf, metalness: 0.9, roughness: 0.2 }), RM = GLOBE.r + 0.27;
         const meridian = new THREE.Mesh(new THREE.TorusGeometry(RM, 0.034, 12, 200), steel); meridian.castShadow = true; tilt.add(meridian);
@@ -313,7 +296,7 @@ export function buildPark(world) {
         card: [['On screen', 'Hamour, Shaari, red snappers, seabream, cobia, mullet'], ['Screen', 'LED, under walk-on glass'], ['Across', `${(POOL * 2).toFixed(1)} m`]],
         specs: [[`${(POOL * 2).toFixed(1)} m`, 'Across'], ['LED', 'Under glass'], ['7', 'Species']], live: [{ k: 'Visitors today', u: '', v: 184, d: 0, lo: 0, hi: 600, p: 0, rise: true }] });
       ctx.item({ code: 'GL', group: 'Exhibition hall', name: 'The ocean planet', kind: 'A turning globe of the Earth', box: Wb(-GLOBE.r - 0.2, -GLOBE.r - 0.2, GLOBE.r + 0.2, GLOBE.r + 0.2, GLOBE.y + GLOBE.r + 0.2, GLOBE.y - GLOBE.r - 0.2), label: true, prio: 2,
-        desc: 'A 4.4 metre globe of the Earth hangs over the floor screen in a clear glass shell, held at its poles by a steel meridian ring, lit from inside and turning slowly on its tilted axis. Its sea is coloured by depth, turquoise over the shelves and deep blue offshore: seven tenths of it is sea, and the hall starts there.',
+        desc: 'A 4.4 metre globe of the Earth hangs over the floor screen, held at its poles by a steel meridian ring, lit from inside and turning slowly on its tilted axis. Its sea is coloured by depth, turquoise over the shelves and deep blue offshore: seven tenths of it is sea, and the hall starts there.',
         card: [['Picture', 'NASA Blue Marble 2002'], ['Turns', 'Once a minute'], ['Axis', 'Tilted 23.4°, as the Earth']],
         specs: [['4.4 m', 'Across'], ['71%', 'Of it is sea'], ['1 min', 'A turn']] });
       const topics = [['Hamour', C.orange], ['Shaari', 0x3a9ec4], ['Red snappers', 0xc9503c], ['Seabream', 0x7f97a8], ['From egg to sea', C.teal], ['Live feed', 0x69a95a], ['Clean water', 0x2f86ab], ['Restocking the Gulf', 0x2a5c7d]];

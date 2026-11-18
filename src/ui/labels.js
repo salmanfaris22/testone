@@ -1,5 +1,6 @@
 // HTML labels pinned to points in the 3D model: area pins, item tags, room names, a hover tip.
 import { project } from '../world/areas.js';
+import { marked } from '../world/select.js';
 
 export function createLabels(world, root) {
   const p = { x: 0, y: 0 };
@@ -71,8 +72,8 @@ export function createLabels(world, root) {
     pinClear: null,
     /** the name and key figures of the selected thing, pinned to it in the model */
     focus(it) {
-      focusAt = it || null; focus.classList.remove('is-on');
-      if (!it || it.isDisplay) return; // the TV already carries its title; keep its picture unobstructed
+      focusAt = marked(it) ? it : null; focus.classList.remove('is-on');        // (only the sea cages get this card: select.js)
+      if (!focusAt || it.isDisplay) return; // the TV already carries its title; keep its picture unobstructed
       const figs = (it.specs || []).slice(0, 3).map(([v, k]) => `<span><b>${v}</b>${k}</span>`).join('');
       focus.innerHTML = `<div class="ft-card"><small>${it.code || ''}${it.group ? ` · ${it.group}` : ''}</small><strong>${it.name}</strong>${figs ? `<div class="ft-figs">${figs}</div>` : ''}</div><i class="ft-stem"></i><i class="ft-dot"></i>`;
       clearTimeout(focus._t); focus._t = setTimeout(() => { if (focusAt === it) focus.classList.add('is-on'); }, 900);

@@ -311,7 +311,7 @@ body:not(.is-loading) #loader { opacity: 0; visibility: hidden; pointer-events: 
 .tag.tag-free span { background: rgba(6, 40, 60, 0.82); color: #fff; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .tag.tag-free em { color: #8fe6ea; }
 body.diving .dock { opacity: 0; pointer-events: none; }
-body.diving .app-ctrl .pill:not(:nth-child(5)):not(:nth-child(6)) { display: none; }
+body.diving .app-ctrl .pill:not([data-k='sound']):not([data-k='home']) { display: none; }
 body.diving .hint { background: rgba(6, 40, 60, 0.6); color: #fff; }
 body.diving .gl { cursor: grab; }
 body.diving.pointing .gl { cursor: pointer; }

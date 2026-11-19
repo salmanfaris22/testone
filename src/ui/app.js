@@ -48,8 +48,9 @@ export function createApp(world, hooks) {
 
   /* ───── controls ───── */
   const pills = {};
-  [['film', 'Fly-through', true], ['drone', 'Drone'], ['tour', 'Tour'], ['night', 'Night'], ['sound', 'Sound'], ['home', 'Overview']].forEach(([k, label, heroP]) => {
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'pill' + (heroP ? ' pill-hero' : ''); b.innerHTML = `${ICON[k]}<span>${label}</span>`; b.title = label; b.setAttribute('aria-label', label);
+  // (no Fly-through button any more, at Jeffry's word: the Tour and the drone cover it)
+  [['drone', 'Drone'], ['tour', 'Tour'], ['night', 'Night'], ['sound', 'Sound'], ['home', 'Overview']].forEach(([k, label, heroP]) => {
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.k = k; b.className = 'pill' + (heroP ? ' pill-hero' : ''); b.innerHTML = `${ICON[k]}<span>${label}</span>`; b.title = label; b.setAttribute('aria-label', label);
     if (k === 'night' || k === 'sound' || k === 'tour') b.setAttribute('aria-pressed', 'false');
     b.addEventListener('click', () => act(k)); ctrl.appendChild(b); pills[k] = b;
   });

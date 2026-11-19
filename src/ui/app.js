@@ -189,15 +189,16 @@ export function createApp(world, hooks) {
         else rig.playPath([{ p: { ...rig.goal } }, { p: { ...a.walk, pol: 1.2, dist: a.walk.dist + 58 }, t: 1.8 }, { p: a.walk, t: 1.6 }], { done: () => arrive(a) });
       }
     } else if (view === 'top' && front && a.front && !instant && !partner) {
-      // first the building as you arrive at it, roof on, from about drone height and with a drone's wider lens; a moment later
+      // first the building as you arrive at it, roof on, from about drone height and with a drone's wider lens; on arrival
       // its roof lifts and the camera rises into the view from above (a drag, a click or any other move in between stops that)
       if (a.peek) areas.peek(id, false); outdoors(); rig.fovGoal = 55; S.fronting = true;
       rig.limits.distMin = 8; rig.limits.distMax = Math.max(300, a.inside.dist * 2.4); rig.limits.polMax = 1.5; S.arrived = false;
       const n = frontN;
-      rig.flyTo(a.front, { dur: 2.6, hop: 0.05, done: () => { frontT = setTimeout(() => {
+      // (no hold at the front: the roof starts to lift and the camera to rise the moment it gets there)
+      rig.flyTo(a.front, { dur: 2.6, hop: 0.05, done: () => {
         if (n !== frontN || S.area !== id || S.view !== 'top' || S.item || S.dive) return;
         S.fronting = false; labels.hideTags(false); areas.open(id); rig.fovGoal = 32; rig.limits.polMax = 1.36; rig.flyTo(a.inside, { dur: 2.4, hop: 0.12 });
-      }, 1600); } });
+      } });
     } else {
       if (a.peek) areas.peek(id, false); outdoors(); areas.open(id); if (partner) areas.open(partner.id);
       const pose = view === 'plan' ? a.plan : a.inside;

@@ -43,7 +43,7 @@ const turn = (a, b, k) => { let d = (b - a) % TAU; if (d > Math.PI) d -= TAU; if
  *        'talk'  stands and gestures
  *        'walk'  follows `path` [[x,z],...] (there and back, or round and round with loop), pausing to work at the ends
  *        'sit' on a seat, 'desk' seated at a table, 'present' showing something, 'check' reading a clipboard, 'watch' looking on
- *   cast: which figures may play this person (a key of CAST); otherwise worked out from kind and colour
+ *   cast: which figures may play this person (a key of CAST); otherwise worked out from kind and colour; type: this one figure
  */
 export function createPeople(mats, list, { y = 0.07, seed = 1, cast = true } = {}) {
   const P = parts(), R = rng(seed * 31 + list.length), n = list.length;
@@ -59,7 +59,7 @@ export function createPeople(mats, list, { y = 0.07, seed = 1, cast = true } = {
     cap.setColorAt(i, _c.setHex(o.cap ?? (gown ? 0x7fbce4 : kind === 'hivis' ? 0xf6f6f2 : kind === 'overall' ? 0x2a5c7d : robe ? 0xfbfbf9 : abaya ? 0x141416 : HAIR[Math.floor(R() * HAIR.length)])));
     const s = { o, kind, x: o.x, z: o.z, h: o.ry || 0, gh: o.ry || 0, y: o.y ?? y, sc: o.s || 1, ph: R() * TAU, k: R(), mode: o.mode || (VISIT[kind] ? 'idle' : 'work'), stride: 0, wait: 0, moving: false, av: null };
     const child = s.sc < 0.86, pool = CAST[o.cast || (child ? 'child' : gown || kind === 'coat' ? 'gown' : robe ? 'emirati' : abaya ? 'abaya' : kind)] || CAST.visitor;
-    s.type = pool[Math.floor(R() * pool.length)]; s.asc = child ? 0.9 + R() * 0.12 : 0.97 + R() * 0.06;
+    s.type = pool[Math.floor(R() * pool.length)]; if (o.type) s.type = o.type; s.asc = child ? 0.9 + R() * 0.12 : 0.97 + R() * 0.06;
     if (o.path && o.path.length > 1) {
       const pts = o.path, segs = []; let total = 0; const m = o.loop ? pts.length : pts.length - 1;
       for (let j = 0; j < m; j++) { const a = pts[j], c = pts[(j + 1) % pts.length], l = Math.hypot(c[0] - a[0], c[1] - a[1]); if (l < 0.01) continue; segs.push({ a, c, l, s: total }); total += l; }

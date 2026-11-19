@@ -16,14 +16,20 @@ export const SITE = {
   website: 'gulfaquaculture.com',
 };
 
-// The company, in its own published facts (gulfaquaculture.com). The wording of ABOUT and STORY is ours;
+// The company, in its own published facts (gulfaquaculture.com, and the GA company profile for the joint venture, the award,
+// BAP and the 2026 target). The wording of ABOUT and STORY is ours;
 // VISION and MISSION are the company's own statements, quoted.
 export const ABOUT = 'Gulf Aquaculture is a marine fish hatchery company and a subsidiary of Emirates Consortium (EmCon). It raises fry of high-value fish that are native to the Gulf and supplies them to farms across the region, so that farmers can build their businesses on local species rather than imported ones.';
 export const STORY = [
   { when: 'January 2023', what: 'Founded, with a pilot hatchery on Balghailam Island in Abu Dhabi.' },
+  { when: '2023', what: 'A joint venture between Emirates Consortium and Hibiscus Capital Investment, begun with a simple idea: aquaculture designed for this region, not imported from elsewhere.' },
   { when: '2024', what: 'Hamour larvae and fry produced at scale for the first time, and the first fry sold to commercial farms in the Gulf.' },
+  { when: '2024', what: 'The Balghailam Island hatchery proves the concept in operation.' },
+  { when: 'February 2025', what: 'First place at the Sheikh Mansour Agriculture Award.' },
   { when: 'November 2025', what: 'The UAE Government awards the long-term lease of the Sheikh Khalifa Marine Research Centre in Umm Al Quwain.' },
+  { when: 'March 2026', what: 'BAP (Best Aquaculture Practices) certification for both assets, Balghailam Island and SKMRC.' },
   { when: 'Today', what: 'Two sites: SKMRC, one of the largest marine hatcheries in the region, and the Balghailam pilot hatchery, which is being expanded.' },
+  { when: '2026', what: 'On track to ship more than 20 million fry to regional clients.' },
 ];
 export const VISION = 'To be the premier catalyst for a self-sustaining Gulf aquaculture ecosystem.';
 export const MISSION = 'To fortify regional food security by pioneering the production of high-quality, locally adapted marine fish fry.';

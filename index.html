@@ -16,12 +16,16 @@
     var l = (q || s) === 'ar' ? 'ar' : 'en'; if (q) { try { localStorage.setItem('lang', l); } catch (e) {} }
     if (l === 'ar') { var h = document.documentElement; h.lang = 'ar'; h.dir = 'rtl'; h.className += ' ar'; } })();
 </script>
+<!-- the loading screen is a picture of the landing view: asked for first, the one that fits the screen's shape -->
+<link rel="preload" as="image" href="./loader/landing-phone.webp" type="image/webp" media="(max-aspect-ratio: 4/5)" fetchpriority="high">
+<link rel="preload" as="image" href="./loader/landing.webp" type="image/webp" media="(min-aspect-ratio: 4001/5000)" fetchpriority="high">
 <link rel="icon" href="./brand/favicon-64.png" type="image/png">
 <link rel="apple-touch-icon" href="./brand/favicon-64.png">
 <style>
   /* first paint before the stylesheet arrives */
   html{background:#0b2b3c;color:#eaf3f4}body{margin:0}
-  #loader{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:#0b2b3c}
+  #loader{position:fixed;inset:0;z-index:100;display:grid;place-items:end center;background:#0b2b3c}
+  .ld-pic{position:absolute;inset:0;overflow:hidden}.ld-pic img{display:block;width:100%;height:100%;object-fit:cover}
 </style>
 </head>
 <body class="is-loading">
@@ -48,6 +52,7 @@
     <a href="#species">Species</a>
     <a href="#gallery">Gallery</a>
     <a href="#cycle">Production cycle</a>
+    <a href="#about">About</a>
     <a href="#contact">Contact</a>
   </nav>
   <button class="lang-btn" data-lang type="button">عربي</button>
@@ -93,6 +98,19 @@
         <p class="species-hint">Drag to turn the fish</p>
       </div>
       <article class="species-card" id="species-card" aria-live="polite"></article>
+    </div>
+  </section>
+
+  <!-- ───────── our best portfolio: the client's own picture of the centre at work (gulfaquaculture.com, home page) ───────── -->
+  <section class="folio" id="portfolio" aria-labelledby="folio-h">
+    <div class="wrap">
+      <div class="movie-head">
+        <p class="movie-eye">Gulf Aquaculture at work</p>
+        <h2 id="folio-h">Our best portfolio</h2>
+        <p class="folio-sub">In the laboratory, with partners and guests, and on a tour through the hatchery.</p>
+      </div>
+      <figure class="folio-pic"><img src="./photos/portfolio.webp" alt="Four photographs: a scientist at a microscope, a delegation on a visit, partners at the Gates Foundation stand, and guests touring the hatchery in protective gowns" width="966" height="625" loading="lazy" decoding="async"></figure>
+      <p class="gal-credit">Photos: Gulf Aquaculture</p>
     </div>
   </section>
 
@@ -171,6 +189,108 @@
     </div>
   </section>
 
+  <!-- ───────── what we stand for: the company profile's own words (mission, principles, vision) ───────── -->
+  <section class="about" id="about" aria-labelledby="about-h">
+    <div class="wrap about-grid">
+      <div class="about-lead">
+        <p class="company-eye">From vision to operation</p>
+        <h2 id="about-h">What we stand for</h2>
+        <p class="about-mission">To advance sustainable aquaculture by proving it can work in harmony with the Gulf’s ecosystems and communities.</p>
+        <p class="about-text">We exist to make aquaculture work: for our ecosystems, for food security, and for future generations. In a region where seafood demand is growing and marine ecosystems are under strain, we believe in a better way: simpler, smarter, and grounded in nature.</p>
+        <h3 class="about-h3">Our principles</h3>
+        <ol class="about-list">
+          <li>Grow responsibly, not rapidly</li>
+          <li>Invest only what we need to learn</li>
+          <li>Focus on animal welfare and ecosystem integrity</li>
+          <li>Build trust through transparency</li>
+          <li>Share knowledge and invite collaboration</li>
+        </ol>
+        <blockquote class="about-vision"><span>Our vision</span><p>To nurture a sustainable future by cultivating what thrives naturally, with humility, care, and scientific rigour.</p></blockquote>
+      </div>
+      <div class="about-side">
+        <div class="about-people">
+          <figure><img src="./photos/gm-with-fish.webp" alt="Mohamed Razali, founder and General Manager of Gulf Aquaculture, holding a fish" width="663" height="1400" loading="lazy" decoding="async"><figcaption><b>Mohamed Razali</b><span>Founder and General Manager</span></figcaption></figure>
+          <figure><img src="./photos/team-member.webp" alt="A member of the Gulf Aquaculture team in Abu Dhabi" width="507" height="1021" loading="lazy" decoding="async"><figcaption><b>The team</b><span>Abu Dhabi</span></figcaption></figure>
+        </div>
+        <p class="about-line">This isn’t just a job. It’s a responsibility to the Gulf.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── our regional role: why the Gulf needs a different model, and what it changes ───────── -->
+  <section class="role" id="role" aria-labelledby="role-h">
+    <div class="role-bg" aria-hidden="true"><img src="./gallery/sea-cages.webp" alt="" width="1600" height="980" loading="lazy" decoding="async"></div>
+    <div class="wrap">
+      <p class="movie-eye">Our regional role</p>
+      <h2 id="role-h">Our role is to serve the sea and the people who depend on it.</h2>
+      <ul class="role-stats">
+        <li><b>50%<small>less</small></b><span>Wild Gulf fish stocks since 1990</span><p>We supply seedstock from land-based hatcheries, easing pressure on wild populations.</p></li>
+        <li><b>95%</b><span>Of water recycled in our hatchery system</span><p>Lower environmental footprint and energy use, aligned with national sustainability goals.</p></li>
+      </ul>
+      <div class="role-cols">
+        <div>
+          <h3>A region hungry for change</h3>
+          <p>Demand for seafood in the UAE is growing at 8% annually, expected to reach 900,000 tonnes by 2030. Yet our local fisheries are in decline, and most aquaculture projects face challenges tied to over-engineered systems and species not suited to Gulf waters.</p>
+          <p>Despite significant investment, aquaculture in the UAE has yet to reach its potential. At Gulf Aquaculture, we saw this not as a failure, but an opportunity to rethink, simplify, and rebuild from first principles.</p>
+        </div>
+        <div>
+          <h3>We’re doing things differently</h3>
+          <p>We believe success starts small. Our method is rooted in four pillars:</p>
+          <ol class="role-pillars">
+            <li>Prioritise native species like grouper and red snapper</li>
+            <li>Keep upland infrastructure minimal: just hatchery and nursery</li>
+            <li>Move juveniles to sea cages early, reducing energy use</li>
+            <li>Grow gradually through proof of concept, validation, and iteration</li>
+          </ol>
+          <p class="role-motto">We call this <b>Local Species in Local Waters.</b></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── leadership interview (the company profile) ───────── -->
+  <section class="talk" id="interview" aria-labelledby="talk-h">
+    <div class="wrap talk-grid">
+      <aside class="talk-side">
+        <p class="company-eye">Leadership interview</p>
+        <h2 id="talk-h">A thoughtful approach to growth</h2>
+        <p class="talk-who">A conversation with Mohamed Razali, General Manager</p>
+        <figure class="talk-pic"><img src="./photos/gm-portrait.webp" alt="Mohamed Razali, General Manager of Gulf Aquaculture" width="640" height="640" loading="lazy" decoding="async"></figure>
+      </aside>
+      <div class="talk-qa">
+        <dl>
+          <dt>What inspired you to launch Gulf Aquaculture?</dt>
+          <dd>I’ve always believed that food security starts in our own waters. But the models we saw here weren’t working: they were imported, high-cost, and environmentally mismatched. We saw a gap for a simpler, region-specific approach. That’s how Gulf Aquaculture began.</dd>
+          <dt>What makes your approach different?</dt>
+          <dd>We don’t chase complexity. We focus on native species, grow them naturally, and keep our systems lean. The difference is, we’re not trying to replicate European aquaculture. We’re building something Gulf-born and Gulf-suited.</dd>
+          <dt>What’s your vision for the next 5 years?</dt>
+          <dd>Scale. But responsibly. We want to prove this model can work nationally, and then regionally. And we want to be a partner to government and research institutions: not just a supplier, but a strategic contributor to the UAE’s food systems.</dd>
+        </dl>
+        <blockquote class="talk-pull"><p>“Every phase is tested before it’s scaled. That’s how we build trust, with nature and with investors.”</p></blockquote>
+        <figure class="talk-photo"><img src="./photos/balghailam-aerial.webp" alt="Aerial view of the Gulf Aquaculture hatchery on Balghailam Island" width="1000" height="408" loading="lazy" decoding="async"><figcaption>The hatchery on Balghailam Island, where the concept was proved</figcaption></figure>
+        <dl>
+          <dt>What does success look like for Gulf Aquaculture?</dt>
+          <dd>For us, success isn’t measured by how fast we grow, but by how well we grow. If we can reliably produce fry of local species to support the region’s aquaculture industry, raise healthy fish, protect the marine environment, and earn the trust of partners and regulators, that’s a strong foundation. Over time, we hope our model can inspire others to approach aquaculture in a more local and sustainable way.</dd>
+          <dt>How do you approach uncertainty in a developing sector like this?</dt>
+          <dd>Carefully. We know this industry is still taking shape in the region, so staying grounded is key. We start small, validate every step, and let production data and environmental conditions guide our decisions. It’s about being proactive without being reckless, and keeping long-term resilience at the center of what we do.</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="wrap"><blockquote class="talk-big"><p>“We’re not building a fish farm. We’re building trust, in the idea that the UAE can feed itself, responsibly.”</p><cite>Mohamed Razali · General Manager</cite></blockquote></div>
+  </section>
+
+  <!-- ───────── latest news ───────── -->
+  <section class="news" id="news" aria-labelledby="news-h">
+    <div class="wrap">
+      <div class="sec-head"><p class="company-eye">News and insights</p><h2 id="news-h">Latest news and developments</h2></div>
+      <ul class="news-list">
+        <li><a class="news-card" href="#interview"><span class="news-pic is-portrait"><img src="./photos/gm-portrait.webp" alt="" width="640" height="640" loading="lazy" decoding="async"></span><span class="news-body"><small>People and interviews · March 2026</small><b>A thoughtful approach to growth: a conversation with Mohamed Razali</b><span>Our General Manager on native species, testing every phase before scaling it, and building trust with nature and with investors.</span></span></a></li>
+        <li><a class="news-card" href="#company"><span class="news-pic"><img src="./gallery/lab-bench-s.webp" alt="" width="720" height="540" loading="lazy" decoding="async"></span><span class="news-body"><small>Company news · March 2026</small><b>Gulf Aquaculture receives BAP certification for both its assets</b><span>Balghailam Island and the Sheikh Khalifa Marine Research Centre are now certified under Best Aquaculture Practices.</span></span></a></li>
+        <li><a class="news-card" href="#masterplan"><span class="news-pic"><img src="./gallery/hatchery-building-s.webp" alt="" width="720" height="366" loading="lazy" decoding="async"></span><span class="news-body"><small>Research and publications · January 2026</small><b>Inside SKMRC: 14 laboratories and seven native broodstock programmes</b><span>How the Sheikh Khalifa Marine Research Centre supports broodstock development, water-quality science and fish-health monitoring.</span></span></a></li>
+      </ul>
+    </div>
+  </section>
+
   <!-- ───────── contact ───────── -->
   <section class="contact" id="contact" aria-labelledby="contact-h">
     <div class="wrap contact-grid">
@@ -214,7 +334,7 @@
   <footer class="foot">
     <div class="wrap foot-grid">
       <div><img class="foot-logo" src="./brand/logo-light.webp" alt="Gulf Aquaculture" width="563" height="132" loading="lazy" decoding="async"><p>Operator of the Sheikh Khalifa Marine Research Centre since November 2025.</p></div>
-      <nav aria-label="Footer"><a href="#masterplan">Masterplan</a><a href="#species">Species</a><a href="#cycle">Production cycle</a><a href="#contact">Contact</a></nav>
+      <nav aria-label="Footer"><a href="#masterplan">Masterplan</a><a href="#species">Species</a><a href="#cycle">Production cycle</a><a href="#about">About</a><a href="#news">News</a><a href="#contact">Contact</a></nav>
       <p class="foot-note">The 3D model is an illustration built from the site plan. Readings shown on tanks and machines are examples, not live data. Fish photographs: Gulf Aquaculture, Jean-Lou Justine (CC BY-SA 3.0), Hamid Badar Osmany (CC BY 3.0), Totti (CC BY-SA 4.0) and D. Ross Robertson. <a href="fish/CREDITS.md">Photo credits</a></p>
     </div>
   </footer>
@@ -245,6 +365,7 @@
 </div>
 
 <div id="loader" role="status" aria-live="polite">
+  <picture class="ld-pic" aria-hidden="true"><source media="(max-aspect-ratio: 4/5)" srcset="./loader/landing-phone.webp" width="786" height="1704"><img src="./loader/landing.webp" alt="" width="1920" height="1080" fetchpriority="high" decoding="async"></picture>
   <div class="ld">
     <img class="ld-logo" src="./brand/logo-light.webp" alt="Gulf Aquaculture" width="563" height="132">
     <div class="ld-plan" aria-hidden="true"><svg id="ld-svg" viewBox="-432 -278 736 724" preserveAspectRatio="xMidYMid meet"><path class="ld-l ld-c" pathLength="1" style="--a:0;--b:.24" d="M-153.1 -300L-148 -296.2M-145 -294L-148 -296.2M-145 -294L-142 -291.8M-137 -288L-142 -291.8M-137 -288L-136 -287.3M-130 -282.8L-136 -287.3M-128.9 -282L-130 -282.8M-128.9 -282L-124 -278.4M-120.8 -276L-124 -278.4M-120.8 -276L-118 -273.9M-112.8 -270L-118 -273.9M-112.8 -270L-112 -269.4M-106 -265L-112 -269.4M-104.7 -264L-106 -265M-104.7 -264L-100 -260.5M-96.7 -258L-100 -260.5M-96.7 -258L-94 -256M-88.6 -252L-94 -256M-88.6 -252L-88 -251.6M-82 -247.1L-88 -251.6M-80.5 -246L-82 -247.1M-80.5 -246L-76 -242.6M-72.5 -240L-76 -242.6M-72.5 -240L-70 -238.2M-64.4 -234L-70 -238.2M-64.4 -234L-64 -233.7M-58 -229.2L-64 -233.7M-56.3 -228L-58 -229.2M-56.3 -228L-52 -224.8M-48.3 -222L-52 -224.8M-48.3 -222L-46 -220.3M-40.2 -216L-46 -220.3M-40.2 -216L-40 -215.8M-34 -211.4L-40 -215.8M-32.2 -210L-34 -211.4M-32.2 -210L-28 -206.9M-24.1 -204L-28 -206.9M-24.1 -204L-22 -202.4M-16 -198L-22 -202.4M-16 -198L-16 -198M-10 -193.5L-16 -198M-8 -192L-10 -193.5M-8 -192L-4 -189M0.1 -186L-4 -189M0.1 -186L2 -184.6M8 -180.1L2 -184.6M8.1 -180L8 -180.1M8.1 -180L14 -175.6M16.2 -174L14 -175.6M16.2 -174L20 -171.2M24.3 -168L20 -171.2M24.3 -168L26 -166.7M32 -162.2L26 -166.7M32.3 -162L32 -162.2M32.3 -162L38 -157.8M40.4 -156L38 -157.8M40.4 -156L44 -153.3M48.4 -150L44 -153.3M48.4 -150L50 -148.8M56 -144.4L50 -148.8M56.5 -144L56 -144.4M56.5 -144L62 -139.9M64.6 -138L62 -139.9M64.6 -138L68 -135.4M72.6 -132L68 -135.4M72.6 -132L74 -131M80 -126.5L74 -131M80.7 -126L80 -126.5M80.7 -126L86 -122M88.7 -120L86 -122M88.7 -120L92 -117.6M96.8 -114L92 -117.6M96.8 -114L98 -113.1M104 -108.6L98 -113.1M104.9 -108L104 -108.6M104.9 -108L110 -104.2M112.9 -102L110 -104.2M112.9 -102L116 -99.7M121 -96L116 -99.7M121 -96L122 -95.2M128 -90.8L122 -95.2M129 -90L128 -90.8M129 -90L134 -86.3M137.1 -84L134 -86.3M137.1 -84L140 -81.8M145.2 -78L140 -81.8M145.2 -78L146 -77.4M152 -72.9L146 -77.4M153.2 -72L152 -72.9M153.2 -72L158 -68.4M161.3 -66L158 -68.4M161.3 -66L164 -64M169.3 -60L164 -64M169.3 -60L170 -59.5M176 -55L170 -59.5M177.4 -54L176 -55M177.4 -54L182 -50.6M185.5 -48L182 -50.6M185.5 -48L188 -46.1M193.5 -42L188 -46.1M193.5 -42L194 -41.6M200 -37.2L194 -41.6M201.6 -36L200 -37.2M201.6 -36L206 -32.7M209.6 -30L206 -32.7M209.6 -30L212 -28.2M217.7 -24L212 -28.2M217.7 -24L218 -23.8M224 -19.3L218 -23.8M225.8 -18L224 -19.3M225.8 -18L230 -14.8M233.8 -12L230 -14.8M233.8 -12L236 -10.2M241 -6L236 -10.2M241 -6L242 -5M247.2 0L242 -5M247.2 0L248 0.9M252.6 6L248 0.9M252.6 6L254 7.7M257.3 12L254 7.7M257.3 12L260 16M261.3 18L260 16M261.3 18L264.8 24M264.8 24L266 26.4M267.8 30L266 26.4M267.8 30L270.3 36M270.3 36L272 41M272.3 42L272 41M272.3 42L274 48M274 48L275.3 54M275.3 54L276.3 60M276.3 60L277 66M277 66L277.4 72M277.4 72L277.5 78M277.5 78L277.5 84M277.5 84L277.5 90M277.5 90L277.5 96M277.5 96L277.5 102M277.5 102L277.5 108M277.5 108L277.5 114M277.5 114L277.5 120M277.5 120L277.4 126M277.4 126L276.9 132M276.9 132L275.7 138M275.7 138L273.9 144M272 148.2L271 150M273.9 144L272 148.2M271 150L266.5 156M260 161.2L258.6 162M266 156.5L260 161.2M266.5 156L266 156.5M-454 168L-460 168M-448 168L-454 168M-442 168L-448 168M-436 168L-442 168M-430 168L-436 168M-424 168L-430 168M-418 168L-424 168M-412 168L-418 168M-406 168L-412 168M-400 168L-406 168M-394 168L-400 168M-388 168L-394 168M-382 168L-388 168M-376 168L-382 168M-370 168L-376 168M-364 168L-370 168M-358 168L-364 168M-352 168L-358 168M-346 168L-352 168M-340 168L-346 168M-334 168L-340 168M-328 168L-334 168M-322 168L-328 168M-316 168L-322 168M-310 168L-316 168M-304 168L-310 168M-298 168L-304 168M-292 168L-298 168M-286 168L-292 168M-280 168L-286 168M-274 168L-280 168M-268 168L-274 168M-262 168L-268 168M-256 168L-262 168M-250 168L-256 168M-244 168L-250 168M-238 168L-244 168M-232 168L-238 168M-226 168L-232 168M-220 168L-226 168M-214 168L-220 168M-208 168L-214 168M-202 168L-208 168M-196 168L-202 168M-190 168L-196 168M-184 168L-190 168M-178 168L-184 168M-172 168L-178 168M-166 168L-172 168M-160 168L-166 168M-154 168L-160 168M-148 168L-154 168M-142 168L-148 168M-136 168L-142 168M-130 168L-136 168M-124 168L-130 168M-118 168L-124 168M-112 168L-118 168M-106 168L-112 168M-100 168L-106 168M-94 168L-100 168M-88 168L-94 168M-82 168L-88 168M-76 168L-82 168M-70 168L-76 168M-64 168L-70 168M-58 168L-64 168M-52 168L-58 168M-46 168L-52 168M-40 168L-46 168M-34 168L-40 168M-28 168L-34 168M-22 168L-28 168M-16 168L-22 168M-10 168L-16 168M-4 168L-10 168M2 168L-4 168M8 168L2 168M14 168L8 168M20 168L14 168M26 168L20 168M32 168L26 168M38 168L32 168M44 168L38 168M50 168L44 168M56 168L50 168M62 168L56 168M68 168L62 168M74 168L68 168M80 168L74 168M86 168L80 168M92 168L86 168M98 168L92 168M104 168L98 168M110 168L104 168M116 168L110 168M122 168L116 168M128 168L122 168M134 168L128 168M140 168L134 168M146 168L140 168M152 168L146 168M158 168L152 168M164 168L158 168M170 168L164 168M176 168L170 168M182 168L176 168M188 168L182 168M194 168L188 168M200 168L194 168M206 168L200 168M212 168L206 168M218 168L212 168M224 168L218 168M230 168L224 168M236 167.9L230 168M242 167.3L236 167.9M248 166.1L242 167.3M254 164.2L248 166.1M258.6 162L254 164.2"/><path class="ld-l ld-r" pathLength="1" style="--a:0.100;--b:0.220" d="M-459 -75L-456 -75L-453 -75L-450 -75L-447 -75L-444 -75L-441 -75L-438 -75L-435 -75L-432 -75L-429 -75L-426 -75L-423 -75L-420 -75L-417 -75L-414 -75L-411 -75L-408 -75L-405 -75L-402 -75L-399 -75L-396 -75L-393 -75L-390 -75L-387 -75L-384 -75L-381 -75L-378 -75L-375 -75L-372 -75L-369 -75L-366 -75L-363 -75L-360 -75L-357 -75L-354 -75L-351 -75L-348 -75L-345 -75L-342 -75L-339 -75L-336 -75L-333 -75L-330 -75L-327 -75L-324 -75L-321 -75L-318 -75L-315 -75L-312 -75L-309 -75L-306 -75L-303 -75L-300 -75L-297 -75L-294 -75L-291 -75L-288 -75L-285 -75L-282 -75L-279 -75L-276 -75L-273 -75L-270 -75L-267 -75L-264 -75L-261 -75L-258 -75L-256.5 -75"/><path class="ld-l ld-r" pathLength="1" style="--a:0.130;--b:0.250" d="M-240 31.9L-237 31.9L-234 31.9L-231 31.9L-228 31.9L-225 31.9L-222 31.9L-219 31.9L-216 31.9L-213 31.9L-210 31.9L-207 31.9L-204 31.9L-201 31.9L-198 31.9L-195 31.9L-192 31.9L-189 31.9L-186 31.9L-183 31.9L-180 31.9L-177 31.9L-174 31.9L-171 31.9L-168 31.9L-165 31.9L-162 31.9L-159 31.9L-156 31.9L-153 31.9L-150 31.9L-147 31.9L-144 31.9L-141 31.9L-138 31.9L-135 31.9L-132 31.9L-129 31.9L-126 31.9L-123 31.9L-120 31.9L-117 31.9L-114 31.9L-111 31.9L-108 31.9L-105 31.9L-102 31.9L-99 31.9L-96 31.9L-93 31.9L-90 31.9L-87 31.9L-84 31.9L-81 31.9L-78 31.9L-75 31.9L-72 31.9L-69 31.9L-66 31.9L-63 31.9L-60 31.9L-57 31.9L-54 31.9L-51 31.9L-48 31.9L-45 31.9L-42 31.9L-39 31.9L-36 31.9L-33 31.9L-30 31.9L-27 31.9L-24 31.9L-21 31.9L-18 31.9L-15 31.9L-12 31.9L-9 31.9L-6 31.9L-3 31.9L0 31.9L3 31.9L6 31.9L9 31.9L12 31.9L15 31.9L18 31.9L21 31.9L24 31.9L27 31.9L30 31.9L33 31.9L36 31.9L39 31.9L42 31.9L45 31.9L48 31.9L51 31.9L54 31.9L57 31.9L60 31.9L63 31.9L66 31.9L69 31.9L72 31.9L75 31.9L78 31.9L81 31.9L84 31.9L87 31.9L90 31.9L93 31.9L96 31.9L99 31.9L102 31.9L105 31.9L108 31.9L111 31.9L114 31.9L117 31.9L120 31.9L123 31.9L126 31.9L129 31.9L132 31.9L135 31.9L138 32L140.9 32.7L143.7 33.9L146.1 35.6L148.2 37.7L149.9 40.2L151.1 42.9L151.7 45.8L151.9 48.8L151.9 51.8L151.9 54.8L151.9 57.8L151.9 60.8L151.9 63.8L151.9 66.8L151.9 69.8L151.9 72.8L151.9 75.8L151.9 78.8L151.9 81.8L151.9 84.8L151.9 87.8L151.9 90.8L151.9 93.8L151.9 96.8L151.9 99.8L151.9 102.8L151.9 105.8L151.9 108.8L151.9 111.8L151.9 114.8L151.9 117.8L151.9 120.8L151.9 123.8L151.9 126.8L151.9 129.8L151.9 132.8L151.9 135.8L151.9 138.8L151.9 141.8L151.9 144.8L151.9 147.8L151.9 150.8"/><path class="ld-l ld-r" pathLength="1" style="--a:0.160;--b:0.280" d="M-178.1 -68.2L-178.1 -65.2L-178.1 -62.2L-178.1 -59.2L-178.1 -56.2L-178.1 -53.2L-178.1 -50.2L-178.1 -47.2L-178.1 -44.2L-178.1 -41.2L-178.1 -38.2L-178.1 -35.2L-178.1 -32.2L-178.1 -29.2L-178.1 -26.2L-178.1 -23.2L-178.1 -20.2L-178.1 -17.2L-178.1 -14.2L-178.1 -11.2L-178.1 -8.2L-178.1 -5.2L-178.1 -2.2L-178.1 0.8L-178.1 3.8L-178.1 6.8L-178.1 9.8L-178.1 12.8L-178.1 15.8L-178.1 18.8L-178.1 21.8L-178.1 24.8L-178.1 27.8L-178.1 30"/><path class="ld-l ld-r" pathLength="1" style="--a:0.190;--b:0.310" d="M-240 -91.5L-240.6 -94.4L-241.2 -97.4L-241.8 -100.3L-242.1 -103.3L-242.1 -106.3L-241.8 -109.3L-241.2 -112.2L-240.3 -115.1L-239.5 -118L-238.7 -120.9L-237.8 -123.7L-237 -126.6L-236.4 -128.6"/><path class="ld-l ld-r" pathLength="1" style="--a:0.220;--b:0.340" d="M-223.1 -73.1L-220.1 -73.1L-217.1 -73.1L-214.1 -73L-211.1 -73L-208.1 -73L-205.1 -72.9L-202.1 -72.9L-199.1 -72.9L-196.1 -72.8L-193.1 -72.8L-190.1 -72.8L-187.1 -72.8L-184.1 -72.7L-181.1 -72.7L-178.1 -72.7L-175.1 -72.6L-172.1 -72.6L-169.1 -72.6L-166.1 -72.5L-163.1 -72.5L-160.1 -72.5L-157.1 -72.4L-154.1 -72.4L-151.1 -72.4L-148.1 -72.4L-145.1 -72.3L-142.1 -72.3L-139.1 -72.3L-136.1 -72.2L-133.1 -72.2L-130.1 -72.2L-127.1 -72.1L-124.1 -72.1L-121.1 -72.1L-118.1 -72L-115.1 -72L-112.1 -72L-109.1 -71.9L-106.1 -71.9L-103.1 -71.9L-100.1 -71.9L-97.1 -71.8L-94.1 -71.8L-91.1 -71.8L-88.1 -71.7L-85.1 -71.7L-82.1 -71.7L-79.1 -71.6L-76.1 -71.6L-73.1 -71.6L-70.1 -71.5L-67.1 -71.5L-64.1 -71.5L-61.1 -71.5L-58.1 -71.4L-55.1 -71.4L-52.1 -71.4L-49.1 -71.5L-46.1 -71.8L-43.2 -72.2L-40.2 -72.7L-37.3 -73.4L-34.4 -74.3L-31.6 -75.3L-28.8 -76.5L-26.1 -77.7L-23.5 -79.1L-20.9 -80.6L-18.4 -82.3L-16 -84.1L-13.6 -85.9L-11.4 -87.9L-9.2 -90L-7.1 -92.1L-4.9 -94.2L-2.6 -96.1L-0.1 -97.8L2.5 -99.2L5.3 -100.1L8.3 -100.6"/><path class="ld-l ld-r" pathLength="1" style="--a:0.250;--b:0.370" d="M8.3 -100.6L11.3 -100.5L14.2 -99.9L17 -98.9L19.7 -97.6L22.3 -96L24.8 -94.3L27.2 -92.6L29.7 -90.8L32.1 -89.1L34.6 -87.4L37 -85.6L39.5 -83.9L41.9 -82.2L44.3 -80.4L46.8 -78.7L49.2 -77L51.7 -75.3L54.1 -73.5L56.6 -71.8L59 -70.1L61.5 -68.3L63.9 -66.6L66.4 -64.9L68.8 -63.1L71.3 -61.4L73.7 -59.7L76.2 -57.9L78.6 -56.2L81.1 -54.5L83.5 -52.7L86 -51L88.4 -49.3L90.9 -47.5L93.3 -45.8L95.8 -44.1L98.2 -42.3L100.7 -40.6L103.1 -38.9L105.6 -37.2L108 -35.4L110.5 -33.7L112.9 -32L115.4 -30.2L117.8 -28.5L120.3 -26.8L122.7 -25L125.2 -23.3L127.6 -21.6L130.1 -19.8L132.5 -18.1L135 -16.4L137.4 -14.6L139.9 -12.9L142.3 -11.2L144.8 -9.4L147.2 -7.7L149.7 -6L152.1 -4.2L154.6 -2.5L157 -0.8L159.5 1L161.8 2.8L164.1 4.7L166.4 6.7L168.6 8.7L170.8 10.8L172.9 12.9L174.9 15.1L176.9 17.4L178.9 19.7L180.8 22L182.6 24.4L184.3 26.8L185.8 29.4L187.2 32.1L188.5 34.8L189.6 37.6L190.6 40.4L191.4 43.3L192.2 46.2L192.8 49.1L193.3 52.1L193.7 55L194 58L194.2 61L194.2 64L194.3 67L194.3 70L194.3 73L194.3 76L194.3 79L194.3 82L194.3 85L194.3 88L194.3 91L194.3 94L194.3 97L194.3 100L194.3 103L194.3 106L194.3 109L194.3 112L194.3 115L194.3 118L194.3 121"/><path class="ld-l ld-r" pathLength="1" style="--a:0.280;--b:0.400" d="M-240 -58.5L-240 -55.5L-240 -52.5L-240 -49.5L-240 -46.5L-240 -43.5L-240 -40.5L-240 -37.5L-240 -34.5L-240 -31.5L-240 -28.5L-240 -25.5L-240 -22.5L-240 -19.5L-240 -16.5L-240 -13.5L-240 -10.5L-240 -7.5L-240 -4.5L-240 -1.5L-240 1.5L-240 4.5L-240 7.5L-240 10.5L-240 13.5L-240 16.5L-240 19.5L-240 22.5L-240 25.5L-240 28.5L-240 31.5L-240 34.5L-240 37.5L-240 40.5L-240 43.5L-240 46.5L-240 49.5L-240 52.5L-240 55.5L-240 58.5L-240 61.5L-240 64.5L-240 67.5L-240 70.5L-240 73.5L-240 76.5L-240 79.5L-240 82.5L-240 85.5L-240 88.5L-240 91.5L-240 94.5L-240 97.5L-240 100.5L-240 103.5L-240 106.5L-240 109.5L-240 112.5L-240 115.5L-240 118.5L-240 121.5L-240 124.5L-240 127.5L-240 130.5L-240 133.5L-239.9 136.5L-239.6 139.5L-238.9 142.4L-237.6 145.1L-235.7 147.4"/><path class="ld-l ld-r" pathLength="1" style="--a:0.310;--b:0.430" d="M-235.7 147.4L-233.2 149.1L-230.5 150.2L-227.5 150.9L-224.6 151.1L-221.6 151.1L-218.6 151.1L-215.6 151.1L-212.6 151.1L-209.6 151.1L-206.6 151.1L-203.6 151.1L-200.6 151.1L-197.6 151.1L-194.6 151.1L-191.6 151.1L-188.6 151.1L-185.6 151.1L-182.6 151.1L-179.6 151.1L-176.6 151.1L-173.6 151.1L-170.6 151.1L-167.6 151.1L-164.6 151.1L-161.6 151.1L-158.6 151.1L-155.6 151.1L-152.6 151.1L-149.6 151.1L-146.6 151.1L-143.6 151.1L-140.6 151.1L-137.6 151.1L-134.6 151.1L-131.6 151.1L-128.6 151.1L-125.6 151.1L-122.6 151.1L-119.6 151.1L-116.6 151.1L-113.6 151.1L-110.6 151.1L-107.6 151.1L-104.6 151.1L-101.6 151.1L-98.6 151.1L-95.6 151.1L-92.6 151.1L-89.6 151.1L-86.6 151.1L-83.6 151.1L-80.6 151.1L-77.6 151.1L-74.6 151.1L-71.6 151.1L-68.6 151.1L-65.6 151.1L-62.6 151.1L-59.6 151.1L-56.6 151.1L-53.6 151.1L-50.6 151.1L-47.6 151.1L-44.6 151.1L-41.6 151.1L-38.6 151.1L-35.6 151.1L-32.6 151.1L-29.6 151.1L-26.6 151.1L-23.6 151.1L-20.6 151.1L-17.6 151.1L-14.6 151.1L-11.6 151.1L-8.6 151.1L-5.6 151.1L-2.6 151.1L0.4 151.1L3.4 151.1L6.4 151.1L9.4 151.1L12.4 151.1L15.4 151.1L18.4 151.1L21.4 151.1L24.4 151.1L27.4 151.1L30.4 151.1L33.4 151.1L36.4 151.1L39.4 151.1L42.4 151.1L45.4 151.1L48.4 151.1L51.4 151.1L54.4 151.1L57.4 151.1L60.4 151.1L63.4 151.1L66.4 151.1L69.4 151.1L72.4 151.1L75.4 151.1L78.4 151.1L81.4 151.1L84.4 151.1L87.4 151.1L90.4 151.1L93.4 151.1L96.4 151.1L99.4 151.1L102.4 151.1L105.4 151.1L108.4 151.1L111.4 151.1L114.4 151.1L117.4 151.1L120.4 151.1L123.4 151.1L126.4 151.1L129.4 151.1L132.4 151.1L135.4 151.1L138.4 151.1L141.4 151.1L144.4 151.1L147.4 151.1L150.4 151.1L153.4 151.1L156.4 151.1L159.4 151.1L162.4 151.1L165.4 151.1L168.4 151.1L171.4 151.1L174.4 151.1L177.4 151.1L180.4 151.1L183.4 151.1L186.4 151.2L189.4 151.3L192 151.4"/><path class="ld-l ld-r" pathLength="1" style="--a:0.340;--b:0.460" d="M-223.5 -75L-223.7 -72.4L-224.3 -69.9L-225.3 -67.5L-226.7 -65.3L-228.3 -63.3L-230.3 -61.7L-232.5 -60.3L-234.9 -59.3L-237.4 -58.7L-240 -58.5L-242.6 -58.7L-245.1 -59.3L-247.5 -60.3L-249.7 -61.7L-251.7 -63.3L-253.3 -65.3L-254.7 -67.5L-255.7 -69.9L-256.3 -72.4L-256.5 -75L-256.3 -77.6L-255.7 -80.1L-254.7 -82.5L-253.3 -84.7L-251.7 -86.7L-249.7 -88.3L-247.5 -89.7L-245.1 -90.7L-242.6 -91.3L-240 -91.5L-237.4 -91.3L-234.9 -90.7L-232.5 -89.7L-230.3 -88.3L-228.3 -86.7L-226.7 -84.7L-225.3 -82.5L-224.3 -80.1L-223.7 -77.6Z"/><path class="ld-l ld-r" pathLength="1" style="--a:0.370;--b:0.490" d="M210 136.9L209.8 139.2L209.3 141.5L208.4 143.7L207.1 145.7L205.6 147.5L203.8 149L201.8 150.2L199.6 151.1L197.3 151.7L195 151.9L192.7 151.7L190.4 151.1L188.2 150.2L186.2 149L184.4 147.5L182.9 145.7L181.6 143.7L180.7 141.5L180.2 139.2L180 136.9L180.2 134.5L180.7 132.2L181.6 130.1L182.9 128.1L184.4 126.3L186.2 124.7L188.2 123.5L190.4 122.6L192.7 122.1L195 121.9L197.3 122.1L199.6 122.6L201.8 123.5L203.8 124.7L205.6 126.3L207.1 128.1L208.4 130.1L209.3 132.2L209.8 134.5Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.340;--b:0.420" d="M-175 -204.9L-117.3 -163.7L-150.7 -116.9L-208.4 -158.1Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.359;--b:0.439" d="M-132.2 -177.4L-106.4 -159L-121.3 -138.3L-147.1 -156.7Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.378;--b:0.458" d="M-147.9 -213L-109.5 -185.5L-121 -169.4L-159.4 -196.8Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.397;--b:0.477" d="M-109.5 -185.5L-45.7 -140L-57.2 -123.9L-121 -169.4Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.417;--b:0.497" d="M-123.7 -153.5L-67.2 -113.2L-81.7 -92.9L-138.2 -133.2Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.436;--b:0.516" d="M-70.7 -133.3L-51.1 -119.3L-56.8 -111.3L-76.4 -125.3Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.455;--b:0.535" d="M-210 54.4L-86.2 54.4L-86.2 112.5L-210 112.5Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.474;--b:0.554" d="M-86.2 48.8L-37.5 48.8L-37.5 135L-86.2 135Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.493;--b:0.573" d="M-24.4 46.9L48.8 46.9L48.8 93.8L-24.4 93.8Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.512;--b:0.592" d="M-18.7 99.4L58.1 99.4L58.1 135L-18.7 135Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.531;--b:0.611" d="M69.4 46.9L140.6 46.9L140.6 80.6L69.4 80.6Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.550;--b:0.630" d="M76.9 105L140.6 105L140.6 127.5L76.9 127.5Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.570;--b:0.650" d="M-170.6 -51.7L-86.2 -51.7L-86.2 0.8L-170.6 0.8Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.589;--b:0.669" d="M-86.2 -51.7L-22.5 -51.7L-22.5 0.8L-86.2 0.8Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.608;--b:0.688" d="M-58.1 0.8L-22.5 0.8L-22.5 22.5L-58.1 22.5Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.627;--b:0.707" d="M-22.5 -51.7L1.9 -51.7L1.9 0.8L-22.5 0.8Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.646;--b:0.726" d="M-22.5 0.8L1.9 0.8L1.9 22.5L-22.5 22.5Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.665;--b:0.745" d="M5.6 -48.7L75 -48.7L75 20.6L5.6 20.6Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.684;--b:0.764" d="M37.5 -61.9L48.8 -61.9L48.8 -48.7L37.5 -48.7Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.703;--b:0.783" d="M-3 -83L15.8 -83L15.8 -64.6L-3 -64.6Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.723;--b:0.803" d="M75 15L75 -24.7L106.9 -24.7L106.9 15Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.742;--b:0.822" d="M120 1.9L136.9 1.9L136.9 18.8L120 18.8Z"/><path class="ld-l ld-b" pathLength="1" style="--a:0.761;--b:0.841" d="M138 6L147 6L147 15L138 15Z"/><circle class="ld-l ld-k" pathLength="1" style="--a:0.800;--b:0.860" cx="-150" cy="320" r="19.5"/><circle class="ld-l ld-k" pathLength="1" style="--a:0.813;--b:0.873" cx="-93" cy="320" r="19.5"/><circle class="ld-l ld-k" pathLength="1" style="--a:0.827;--b:0.887" cx="-36" cy="320" r="19.5"/><circle class="ld-l ld-k" pathLength="1" style="--a:0.840;--b:0.900" cx="-150" cy="377" r="19.5"/><circle class="ld-l ld-k" pathLength="1" style="--a:0.853;--b:0.913" cx="-93" cy="377" r="19.5"/><circle class="ld-l ld-k" pathLength="1" style="--a:0.867;--b:0.927" cx="-36" cy="377" r="19.5"/><circle class="ld-l ld-k" pathLength="1" style="--a:0.880;--b:0.940" cx="-150" cy="434" r="19.5"/><circle class="ld-l ld-k" pathLength="1" style="--a:0.893;--b:0.953" cx="-93" cy="434" r="19.5"/><circle class="ld-l ld-k" pathLength="1" style="--a:0.907;--b:0.967" cx="-36" cy="434" r="19.5"/></svg><i class="ld-scan"></i></div>

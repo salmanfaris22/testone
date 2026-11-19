@@ -311,8 +311,9 @@ export function buildPark(world) {
         desc: 'Where guided tours begin. School groups, university partners and official visitors are met here before they go round the hall or on to the hatchery.',
         specs: [['Guided', 'Tours'], ['Schools', 'Welcome'], ['By booking', 'Hatchery visits']] });
       // a school group on the glass listening to their guide: the three children turned to her, and she to them
-      { const G = [-0.6, 7.4], kids = [[-1.6, 5.4, 0.72], [-0.3, 5.7, 0.74], [1.0, 5.5, 0.7]];
-        for (const [x, z, sc] of kids) who(x, z, 'visitor', sc, { ry: Math.atan2(G[0] - x, G[1] - z), mode: 'watch' });
+      // (each child dressed differently: a boy in red and khaki, a girl, a boy in white and navy)
+      { const G = [-0.6, 7.4], kids = [[-1.6, 5.4, 0.72, 'child_m_red'], [-0.3, 5.7, 0.74, 'child_f'], [1.0, 5.5, 0.7, 'child_m_white']];
+        for (const [x, z, sc, type] of kids) who(x, z, 'visitor', sc, { ry: Math.atan2(G[0] - x, G[1] - z), mode: 'watch', type });
         who(G[0], G[1], 'coat', undefined, { ry: Math.atan2(-0.3 - G[0], 5.5 - G[1]), mode: 'present' }); } who(5.8, -3.2, 'emirati'); who(6.5, -2.4, 'abaya');
       /* amphitheatre */
       for (let k = 0; k < 5; k++) { const r0 = 17.2 + k * 1.6; b.use('matte').sector(k % 2 ? C.carpet : shade(C.carpet, 0.92), r0, RO - 0.3, 12 * DEG, 88 * DEG, F, F + 0.26 * (k + 1));

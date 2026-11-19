@@ -6,13 +6,14 @@ import { loadPhoto } from './kit.js';
 
 const BASE = `${import.meta.env.BASE_URL}people/`;
 const FEMALE = new Set(['lab_f', 'coat_f', 'hivis_f', 'office_f', 'visitor_f', 'abaya', 'child_f']);
-/** figures made from another one's files: the library's Gulf figure wears a red shemagh, an Emirati wears a white ghutra */
-const ALIAS = { kandura_ae: { file: 'kandura', ghutra: true } };
+/** figures made from another one's files: the library's Gulf figure wears a red shemagh, an Emirati wears a white ghutra;
+ *  the boy also comes in a red sweater with khaki trousers and a white one with navy (tools/recolour-child.py) */
+const ALIAS = { kandura_ae: { file: 'kandura', ghutra: true }, child_m_red: { file: 'child_m', pic: 'child_m_red' }, child_m_white: { file: 'child_m', pic: 'child_m_white' } };
 /** what someone wears → the figures that may play them */
 export const CAST = {
   gown: ['gown_m', 'scrub_m', 'gown_m', 'lab_f'], lab: ['coat_f', 'coat_m', 'lab_f'], overall: ['overall_m'], hivis: ['hivis_m', 'hivis_f', 'hivis_m'],
   office: ['office_m', 'office_f'], kandura: ['kandura_ae'], emirati: ['kandura_ae'], abaya: ['abaya'], host: ['kandura_ae'],
-  visitor: ['visitor_m', 'visitor_f'], child: ['child_m', 'child_f'], guard: ['guard'],
+  visitor: ['visitor_m', 'visitor_f'], child: ['child_m', 'child_f', 'child_m_red', 'child_m_white'], guard: ['guard'],
 };
 /** the shemagh in the kandura atlas (lower right) turned into a plain white ghutra; the folds keep their shading */
 function whiten(img) {
@@ -66,7 +67,7 @@ export const avatars = {
       // for 40 ms or more); until then whoever wears it is shown as before
       let map;
       if (al.ghutra) map = new THREE.CanvasTexture(whiten(await new THREE.ImageLoader().loadAsync(`${BASE}${file}.webp`)));
-      else { const pic = await loadPhoto(`${BASE}${file}.webp`); if (!pic) throw new Error('picture did not load'); map = new THREE.Texture(pic.image); map.flipY = pic.flipY; map.needsUpdate = true; }
+      else { const pic = await loadPhoto(`${BASE}${al.pic || file}.webp`); if (!pic) throw new Error('picture did not load'); map = new THREE.Texture(pic.image); map.flipY = pic.flipY; map.needsUpdate = true; }
       map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4;
       await new Promise((done) => { const up = () => { try { this.engine.renderer.initTexture(map); } catch (e) { /* sent on first use instead */ } done(); }; if (this.engine.soon) this.engine.soon(up, `person ${id}`); else up(); });
       const mat = new THREE.MeshStandardMaterial({ map, roughness: 0.86, metalness: 0, alphaTest: 0.5, side: THREE.DoubleSide, envMapIntensity: 0.55 });

@@ -47,7 +47,8 @@ $('#cycle-list').innerHTML = CYCLE.map((c) => `<li><span class="cy-n">${c.n}</sp
 // the client's photographs: small copies in the grid (loaded as they come near), the big one in the viewer
 {
   const grid = $('#gallery-grid'), view = $('#gal-view'), img = view && view.querySelector('img'), cap = view && view.querySelector('figcaption'); let at = 0;
-  if (grid) grid.innerHTML = GALLERY.map(([id, c, w, h], i) => `<li><button type="button" data-gal="${i}"><img src="./gallery/${id}-s.webp" alt="${esc(c)}" width="${w}" height="${h}" loading="lazy" decoding="async"><span>${esc(c)}</span></button></li>`).join('');
+  // (every photo a card: the picture, then what it is and where, and a magnifier that comes up on hover)
+  if (grid) grid.innerHTML = GALLERY.map(([id, c, w, h, tag], i) => `<li><button class="gal-card" type="button" data-gal="${i}"><span class="gal-pic"><img src="./gallery/${id}-s.webp" alt="${esc(c)}" width="${w}" height="${h}" loading="lazy" decoding="async"><i class="gal-zoom" aria-hidden="true"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.3 10.3 13.6 13.6M5 7h4M7 5v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></i></span><span class="gal-body"><small>${esc(tag)}</small><b>${esc(c)}</b></span></button></li>`).join('');
   const show = (i) => { at = (i + GALLERY.length) % GALLERY.length; const [id, c, w, h] = GALLERY[at]; img.src = `./gallery/${id}.webp`; img.width = w; img.height = h; img.alt = c; cap.textContent = c; };
   if (grid && view) {
     grid.addEventListener('click', (e) => { const b = e.target.closest('[data-gal]'); if (!b) return; show(+b.dataset.gal); view.showModal(); if (lenis) lenis.stop(); });

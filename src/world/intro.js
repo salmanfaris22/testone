@@ -98,13 +98,27 @@ export function createIntro(world, { hero }) {
   // opening gate and comes down low on the road inside it, looking back out at the car
   const IN = [GX + 11.8, 0.86, Z0 - 0.75];
   const overCam = (t) => { const p0 = boardCam(T.over), u = smooth(win(t, T.over + 0.3, 2.3)); return bez(p0, [p0[0] + 2.5, 7.2, p0[2] + 1.5], [GX + 6.5, 7.0, Z0 - 2.2], IN, u); };
-  const overLook = (t) => { const k = smooth(win(t, T.over - 0.1, 1.2)); return mix3(boardLook(T.over), mix3([GX - 2, 1.6, Z0 + 0.3], carAt(t), 0.55), k); };
   // 4, inside: the car comes through the gate at the camera and past it on the left; the eye follows it
   const inLook = (t) => { const x = route.at(t), k = smooth(win(x, GX - 12, 22)); return mix3([GX - 9, 1.5, Z0 + 0.4], [x + 0.6, 1.0, LANE], 0.3 + 0.62 * k); };
   /** shot 5, the drone: it lifts off behind and above the car, over the guard cabin and the boom, as it drives through the bath */
   const chase = (t, x) => { const k = smooth(win(t, T.chase, T.rise - T.chase + 1.2)); return [[x - 10 - 7 * k, 2.4 + 15 * k, LANE - 8 - 6 * k], [x + 3.5 + 6 * k, 0.9, LANE - 0.4]]; };
   // where the crane-up comes to rest: high over the flag road, looking along it past 08's plot to the sea
   const upright = engine.h > engine.w * 1.1;
+  /** a look point turned from l0 to l1 by k, as seen from c: the heading and the tilt turn evenly (the short way round), so the
+   *  camera pans; blending the two points instead sent the aim under the camera when they lay either side of it, and the view
+   *  whipped over (1,000°/s just after the name board) */
+  const aimMix = (c, l0, l1, k, dir = 0) => {
+    if (k <= 0) return l0; if (k >= 1) return l1;
+    const ax = l0[0] - c[0], ay = l0[1] - c[1], az = l0[2] - c[2], bx = l1[0] - c[0], by = l1[1] - c[1], bz = l1[2] - c[2];
+    const r0 = Math.hypot(ax, ay, az) || 1, r1 = Math.hypot(bx, by, bz) || 1, y0 = Math.atan2(ax, az), y1 = Math.atan2(bx, bz);
+    let dy = y1 - y0; while (dy > Math.PI) dy -= 2 * Math.PI; while (dy < -Math.PI) dy += 2 * Math.PI;
+    if (dir < 0 && dy > 0) dy -= 2 * Math.PI; else if (dir > 0 && dy < 0) dy += 2 * Math.PI;      // (a turn of about half a circle goes one fixed way: the short way can swap sides from one frame to the next)
+    const p0 = Math.asin(clamp(ay / r0, -1, 1)), p1 = Math.asin(clamp(by / r1, -1, 1)), y = y0 + dy * k, pt = p0 + (p1 - p0) * k, r = r0 + (r1 - r0) * k;
+    return [c[0] + Math.sin(y) * Math.cos(pt) * r, c[1] + Math.sin(pt) * r, c[2] + Math.cos(y) * Math.cos(pt) * r];
+  };
+  /** where the camera turns to from the board: the gate and the car waiting at it (it turns across the gate, clockwise seen from above) */
+  const gateLook = (t) => mix3([GX - 2, 1.6, Z0 + 0.3], carAt(t), 0.55);
+  const kGate = (t) => smooth(win(t, T.over - 0.9, 2.4));          // a slow pan from the board round to the gate (≈110°/s at most)
   const vantage = [[GX + 10, 128, Z0 - 132], upright ? [vc[0] - 8, 0, vc[1] + 22] : [vc[0] - 26, 0, vc[1] + 66]], vantageP = poseFrom(...vantage);
   /** how far the camera steps back for a narrow screen while the site is built: half the rig's usual step-back (which fits the
    *  site's whole width into an upright phone and turns it into a flat road map), growing to all of it as the camera comes down
@@ -114,12 +128,13 @@ export function createIntro(world, { hero }) {
   const shotAt = (t) => {
     const x = route.at(t);
     if (t < T.over) {
-      const b = smooth(win(t, T.board - 0.4, 1.4));                                   // car → board
-      return [mix3(carCam(t), boardCam(t), b), mix3(carAt(t), boardLook(t), b), 0];
+      const b = smooth(win(t, T.board - 0.6, 1.8));                                   // car → board: one slow, even turn
+      const c = mix3(carCam(t), boardCam(t), b);
+      return [c, aimMix(c, aimMix(c, carAt(t), boardLook(t), b), gateLook(t), kGate(t), -1), 0];
     }
     if (t < T.chase) {
       const c = t < T.over + 2.6 ? overCam(t) : [IN[0] - 1.4 * smooth(win(t, T.over + 2.6, T.chase - T.over - 2.6)), IN[1], IN[2]];
-      const l = t < T.over + 2.6 ? mix3(overLook(t), inLook(t), smooth(win(t, T.over + 1.4, 1.2))) : inLook(t);
+      const l = t < T.over + 2.6 ? aimMix(c, aimMix(c, boardLook(t), gateLook(t), kGate(t), -1), inLook(t), smooth(win(t, T.over + 1.4, 1.2))) : inLook(t);
       return [c, l, 0];
     }
     const e = easeIO(win(t, T.chase, 2.3)), ch = chase(t, x), c0 = [IN[0] - 1.4, IN[1], IN[2]];
@@ -139,7 +154,9 @@ export function createIntro(world, { hero }) {
   const cages = (world.cages && world.cages.cages) || [];
 
   /* ───── where and when the ground gets built ───── */
-  const map = revealMap(world, { gateX: GX, pre: onRoute, island: { x: vc[0], z: vc[1], r: ISLAND } });
+  // every road stands complete on the sand from the first frame (Jeffry: no half-built roads, no cut-off arms at the roundabout):
+  // the paving, lawns and buildings fill in round them as the film goes on
+  const map = revealMap(world, { gateX: GX, pre: () => true, island: { x: vc[0], z: vc[1], r: ISLAND } });
   const G = { map: { value: map.tex }, box: { value: map.uBox }, p: { value: -1 }, rise: { value: 3.2 }, pre: { value: new THREE.Vector4(vc[0], vc[1], ISLAND, 0) } };
   const hard = world.land.hardscape;
   const helpers = new THREE.Group(); helpers.name = 'intro-helpers'; helpers.visible = false;
@@ -280,7 +297,7 @@ export function createIntro(world, { hero }) {
   };
   const lightsG = named('lights'), plantsG = named('plants');
   const islandAt = (x, z) => T.b08 + 0.5 + 1.3 * clamp(Math.hypot(x - vc[0], z - vc[1]) / ISLAND, 0, 1);
-  if (lightsG) addGrow(lightsG.children.find((c) => c.isInstancedMesh && c.visible), (x, z) => (x < GX || onRoute(x, z) ? -10 : inIsland(x, z) ? islandAt(x, z) : T.infra + Math.max(0, map.sample(x, z)) / T.pace + 0.12), 0.5, true);
+  if (lightsG) addGrow(lightsG.children.find((c) => c.isInstancedMesh && c.visible), (x, z) => (x < GX || onRoute(x, z) || map.sample(x, z) < -1 ? -10 : inIsland(x, z) ? islandAt(x, z) : T.infra + Math.max(0, map.sample(x, z)) / T.pace + 0.12), 0.5, true);
   if (plantsG) for (const im of plantsG.children) addGrow(im, (x, z) => (x < GX || onRoute(x, z) ? -10 : inIsland(x, z) ? islandAt(x, z) + 0.4 : T.life + 0.95 * clamp(map.sample(x, z) / Math.max(1, map.end), 0, 1)), 1.1, false);
   const applyGrow = (g, time) => {
     const a = g.im.instanceMatrix.array, o = g.o; let dirty = false;
@@ -356,6 +373,24 @@ export function createIntro(world, { hero }) {
     const f0 = driveFov(), f1 = f0 + (BUILD_FOV - f0) * smooth(win(time, T.rise, T.fly0 - T.rise));
     return f1 + ((end ? end.fov : 50) - BUILD_FOV) * smooth(win(time, T.settle, T.end - T.settle));
   };
+  /** the aim is steered, not set: each frame it turns towards where the shot wants to look, easing in and never faster than
+   *  about 170°/s, so no blend of shots (and no shot passing over its subject) can swing or flip the view from one frame to the
+   *  next (it is reset when film time jumps) */
+  let aimDir = null, aimT = -1;
+  const steer = (c, l, time) => {
+    const dx = l[0] - c[0], dy = l[1] - c[1], dz = l[2] - c[2], r = Math.hypot(dx, dy, dz) || 1, w = [dx / r, dy / r, dz / r];
+    const dt = time - aimT; aimT = time;
+    if (!aimDir || dt <= 0 || dt > 0.25) { aimDir = w; return l; }
+    const ang = Math.acos(clamp(aimDir[0] * w[0] + aimDir[1] * w[1] + aimDir[2] * w[2], -1, 1));
+    if (ang > 1e-5) {
+      const f = Math.min(1, Math.min(ang * (1 - Math.exp(-12 * dt)), 3.0 * dt) / ang);
+      let v;
+      if (ang > 3.1) v = [aimDir[0] + (w[0] - aimDir[0]) * f + aimDir[2] * 0.05, aimDir[1] + (w[1] - aimDir[1]) * f, aimDir[2] + (w[2] - aimDir[2]) * f - aimDir[0] * 0.05];
+      else { const sn = Math.sin(ang), a = Math.sin((1 - f) * ang) / sn, b = Math.sin(f * ang) / sn; v = [aimDir[0] * a + w[0] * b, aimDir[1] * a + w[1] * b, aimDir[2] * a + w[2] * b]; }
+      const n = Math.hypot(v[0], v[1], v[2]) || 1; aimDir = [v[0] / n, v[1] / n, v[2] / n];
+    }
+    return [c[0] + aimDir[0] * r, c[1] + aimDir[1] * r, c[2] + aimDir[2] * r];
+  };
   function setState(time) {
     const prev = t; t = time;
     warm(0.62 * (1 - smooth(win(t, T.rise + 0.4, 2.4))));
@@ -378,7 +413,7 @@ export function createIntro(world, { hero }) {
     if (!flying && t < T.fly0) {
       const [c, l, k = 0] = shotAt(t);
       rig.fitOverride = buildFit(t, k); setFov(fovAt(t));
-      rig.jump(poseFrom(c, l)); rig._apply();
+      rig.jump(poseFrom(c, steer(c, l, t))); rig._apply();
     } else if (flying) { rig.fitOverride = buildFit(t); setFov(fovAt(t)); }
     // 08's ground is paved and planted outwards from it as it goes up
     G.pre.value.z = ISLAND * smooth(win(t, T.b08 + 0.2, 1.6)); G.pre.value.w = win(t, T.b08 + 0.2, 1.6);
@@ -442,21 +477,29 @@ export function createIntro(world, { hero }) {
   }
   /** hide what is to be built; call before the loader lifts */
   /** quick: skip the warm-up drawing (a slow device that is already late: better a hitch in the film than a long loader) */
-  api.prepare = ({ quick = false } = {}) => {
+  /** everything the film needs drawn once under the loader. It runs in pieces with a frame between them (the mirror's shaders, the
+   *  pictures a few at a time, the site drawn on the screen, then into the mirror), so the loader keeps moving instead of
+   *  freezing for half a second */
+  api.prepare = async ({ quick = false } = {}) => {
+    const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
     // the wheel bath's mirror draws the scene into a picture of its own, and every surface needs a second shader for that:
     // compile them all now, under the loader (helpers, the car and 08 included), not when the camera first comes near the bath
     if (!quick && E && E.mirror && E.mirror.getRenderTarget) { const r = engine.renderer, was = r.getRenderTarget(), vis = helpers.visible; helpers.visible = true; r.setRenderTarget(E.mirror.getRenderTarget()); try { r.compile(scene, world.camera); } catch (e) { /* only a warm-up */ } r.setRenderTarget(was); helpers.visible = vis; }
     // and send every picture in the scene to the graphics card now (08's screens, panels and photos are big): a texture is otherwise uploaded the first time it is drawn, which stalls that frame
-    if (!quick) { const r = engine.renderer, done = new Set(), up = (tx) => { if (tx && tx.isTexture && !done.has(tx)) { done.add(tx); try { r.initTexture(tx); } catch (e) { /* only a warm-up */ } } };
-      scene.traverse((o) => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const m of ms) { for (const k in m) up(m[k]); if (m.uniforms) for (const k in m.uniforms) up(m.uniforms[k] && m.uniforms[k].value); } }); }
+    if (!quick) { await frame(); const r = engine.renderer, list = new Set(), up = (tx) => { if (tx && tx.isTexture) list.add(tx); };
+      scene.traverse((o) => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const m of ms) { for (const k in m) up(m[k]); if (m.uniforms) for (const k in m.uniforms) up(m.uniforms[k] && m.uniforms[k].value); } });
+      let t0 = performance.now();
+      for (const tx of list) { try { r.initTexture(tx); } catch (e) { /* only a warm-up */ } if (performance.now() - t0 > 40) { await frame(); t0 = performance.now(); } } }
     // let 08's inside run once (its screens draw their first picture, its people take their places)
     for (const u of V.updaters || []) { try { u(1 / 60, 0); } catch (e) { /* only a warm-up */ } }
     // draw the whole site once with 08's inside, the car, the cranes and the stand-ins showing, on the screen (under the loader) and
     // into the mirror's picture: every shape is on the graphics card and every surface prepared before the film starts
     if (!quick) { let iv = false, cv = false, hv = false;
-      world.warm(() => { iv = V.interior ? V.interior.visible : false; cv = craneG.visible; hv = helpers.visible; if (V.interior) V.interior.visible = true; car.group.visible = true; craneG.visible = true; helpers.visible = true; for (const c of cranes) c.root.position.y = 0; },
-        () => { if (V.interior) V.interior.visible = iv; car.group.visible = false; craneG.visible = cv; helpers.visible = hv; for (const c of cranes) c.root.position.y = -400; },
-        E && E.mirror && E.mirror.getRenderTarget ? [null, E.mirror.getRenderTarget()] : [null]); }
+      const show = () => { iv = V.interior ? V.interior.visible : false; cv = craneG.visible; hv = helpers.visible; if (V.interior) V.interior.visible = true; car.group.visible = true; craneG.visible = true; helpers.visible = true; for (const c of cranes) c.root.position.y = 0; };
+      const hide = () => { if (V.interior) V.interior.visible = iv; car.group.visible = false; craneG.visible = cv; helpers.visible = hv; for (const c of cranes) c.root.position.y = -400; };
+      await frame(); world.warm(show, hide, [null]);
+      if (E && E.mirror && E.mirror.getRenderTarget) { await frame(); world.warm(show, hide, [E.mirror.getRenderTarget()]); }
+      await frame(); }
     scene.remove(helpers); if (V.interior) V.interior.visible = false;
     for (const c of cons) remember(c.a.root);
     for (const o of [sea, ...later, ...popped]) remember(o); if (lfc) remember(lfc);
@@ -472,7 +515,7 @@ export function createIntro(world, { hero }) {
     polMax = rig.limits.polMax; distMin = rig.limits.distMin; rig.limits.polMax = 1.66; rig.limits.distMin = 0.5; rig.floorOverride = 0.3; driving = true; lastX = route.at(0); setState(0);
   };
   api.play = () => new Promise((res) => {
-    resolve = res; playing = api.playing = true; t = 0; capI = -1; end = hero();          // captions fire again now that someone is listening
+    resolve = res; playing = api.playing = true; world.filming = true; t = 0; capI = -1; end = hero();          // captions fire again now that someone is listening
     wakeT = { f: -1, r: -1 }; splashed = { f: false, r: false, out: false }; driving = true; flying = false; lastX = route.at(0);
     rig.user = false; rig.limits.polMax = 1.66; rig.limits.distMin = 0.5; rig.floorOverride = 0.3; setState(0);
     stop = engine.onFrame((dt) => {
@@ -497,7 +540,7 @@ export function createIntro(world, { hero }) {
   });
   /** jump to the end (skip button, a scroll, a key) or wrap up when the film is over */
   api.finish = (skipped = true) => {
-    if (!playing) return; playing = api.playing = false; if (stop) stop(); engine.noUp = false; if (avRange) avatars.rangeMax = avRange;
+    if (!playing) return; playing = api.playing = false; world.filming = false; if (stop) stop(); engine.noUp = false; if (avRange) avatars.rangeMax = avRange;
     restore(); scene.remove(sheet); scene.remove(craneG); lg.dispose(); paper.geometry.dispose(); paper.material.dispose(); lines.material.dispose();
     for (const c of cranes) c.root.traverse((m) => { if (m.isMesh) m.geometry.dispose(); });
     for (const s of groundSwaps) s[2].dispose(); for (const c of cons) { for (const s of c.ms) s[2].dispose(); c.depth.dispose(); }

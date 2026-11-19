@@ -187,6 +187,9 @@ export function buildPark(world) {
   // walking in starts on the living floor screen: the view of it from across the hall, with the globe over it and the welcome desk
   // behind (the same view as choosing the screen itself)
   const AQ_VIEW = P(px, 1.1, pz, -0.838, 1.37, 17.9);
+  // choosing 01 by its number shows the building first, from beyond the drop-off at about drone height, looking at the main doors
+  // and the name over them (Jeffry's drone picture), roof on; then the roof lifts (app.js)
+  const FRONT = P(px + DOORU[0] * 30, 5, pz + DOORU[1] * 30, Math.atan2(DOORU[0], DOORU[1]), 1.45, 60);
   // flat roofs
   const flat = (b, pts, y, hex = C.roof) => { b.use('matte').prism(hex, pts, y, y + 0.35); b.use('glow').prism(0xdde2e1, pts, y - 0.07, y - 0.03, { cap: false, sides: false, bottom: true }); };
   // ceilings seen from inside: the hall under the shell, the ring of rooms round it, the two wings
@@ -233,7 +236,7 @@ export function buildPark(world) {
     pose: P(px + 6, 2, pz + 2, -0.82, 1.0, 150), inside: P(px + 3, 1, pz - 3, -0.7, 0.66, 104), plan: P(px + 42, 0, pz - 8, 0, 0.1, 252), planWith: 'research',
     // walking in starts at the main doors (under the name on the glass front, OVAL.door degrees round): just inside them in the
     // foyer at eye height, looking down the line of the doors through the lobby's door and the hall's wide opening to the globe
-    walk: AQ_VIEW, walkDoor: false, walkDirect: true, walls: parkWalls,
+    walk: AQ_VIEW, walkDoor: false, walkDirect: true, front: FRONT, walls: parkWalls,
     // (for the drone: the foyer inside the oval glass is indoors too, under the shell roof)
     envelope: [{ ellipse: true, x: px, z: pz + OVAL.cz, a: OVAL.fa - 0.3, b: OVAL.fb - 0.3, h: OVAL.top - 0.2 }],
     rooms: [{ circle: true, x: 0, z: 0, r: RH - 0.9, h: 8.6, globe: { x: 0, z: 0, y: GLOBE.y, r: GLOBE.r + 0.2 } }, { circle: true, x: 0, z: 0, r: RO - 0.8, h: 6.6 }, { x0: WING.x0, x1: WING.split, z0: WING.z0, z1: WING.zc, h: WING.h }, { x0: WING.x0, x1: 29.1, z0: WING.zc, z1: -18.6, h: 5.2 }, { x0: 26, x1: 47.6, z0: WING.zc, z1: -5, h: 5.5 }, { circle: true, x: DOORU[0] * 28.6, z: DOORU[1] * 28.6, r: 4.4, h: 6 }],      // (the last: the foyer inside the main doors)

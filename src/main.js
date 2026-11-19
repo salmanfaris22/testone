@@ -16,6 +16,7 @@ import Lenis from 'lenis';
 import { SITE, NUMBERS, CYCLE, ABOUT, STORY, VISION, MISSION } from './data/site.js';
 import { SPECIES } from './data/species.js';
 import { TOUR } from './data/areas.js';
+import { GALLERY } from './data/gallery.js';
 
 // kept local so the 3D engine (and three.js) stays out of the first chunk
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -43,6 +44,18 @@ startTranslator(); langButtons();
 
 /* ───── static content from data ───── */
 $('#cycle-list').innerHTML = CYCLE.map((c) => `<li><span class="cy-n">${c.n}</span><div class="cy-name"><h3>${esc(c.name)}</h3><p class="cy-time">${esc(c.time)}</p></div><p class="cy-text">${esc(c.text)}</p><button class="btn btn-ink cy-go" type="button" data-goto="${c.area}"${c.item ? ` data-item="${c.item}"` : ''}>See it in 3D</button></li>`).join('');
+// the client's photographs: small copies in the grid (loaded as they come near), the big one in the viewer
+{
+  const grid = $('#gallery-grid'), view = $('#gal-view'), img = view && view.querySelector('img'), cap = view && view.querySelector('figcaption'); let at = 0;
+  if (grid) grid.innerHTML = GALLERY.map(([id, c, w, h], i) => `<li><button type="button" data-gal="${i}"><img src="./gallery/${id}-s.webp" alt="${esc(c)}" width="${w}" height="${h}" loading="lazy" decoding="async"><span>${esc(c)}</span></button></li>`).join('');
+  const show = (i) => { at = (i + GALLERY.length) % GALLERY.length; const [id, c, w, h] = GALLERY[at]; img.src = `./gallery/${id}.webp`; img.width = w; img.height = h; img.alt = c; cap.textContent = c; };
+  if (grid && view) {
+    grid.addEventListener('click', (e) => { const b = e.target.closest('[data-gal]'); if (!b) return; show(+b.dataset.gal); view.showModal(); if (lenis) lenis.stop(); });
+    view.addEventListener('click', (e) => { const b = e.target.closest('[data-gv]'); if (b) { if (b.dataset.gv === 'close') view.close(); else show(at + (b.dataset.gv === 'next' ? 1 : -1)); } else if (e.target === view) view.close(); });
+    view.addEventListener('close', () => { if (lenis) lenis.start(); });
+    view.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); const fwd = (e.key === 'ArrowRight') !== (document.documentElement.dir === 'rtl'); show(at + (fwd ? 1 : -1)); } });
+  }
+}
 $('#figures-grid').innerHTML = NUMBERS.map((n) => `<div><dt>${esc(n.v)}${n.unit ? `<small>${esc(n.unit)}</small>` : ''}</dt><dd><b>${esc(n.l)}</b><span>${esc(n.note)}</span></dd></div>`).join('');
 $('#f-species').innerHTML = SPECIES.map((s) => `<label><input type="checkbox" name="sp" value="${esc(s.local)}"><span>${esc(s.local)}</span></label>`).join('');
 $('#c-wa').textContent = SITE.whatsappLabel; $('#c-wa').href = `https://wa.me/${SITE.whatsapp}`;
@@ -89,12 +102,15 @@ let shown = 0, target = 0.04;
 const loaderEl = $('#loader'), ldFact = $('#ld-fact');
 const LD_FACTS = NUMBERS.map((n) => `${n.v}${n.unit ? ` ${n.unit}` : ''} · ${n.l}`).concat(['Built in three phases, from the original hatchery to the Innovation Park', 'Native Gulf species, raised from egg to sea cage']);
 let ldFactI = -1, ldFactT = 0;
+// (the drawing runs on with time as well as with the work done, so it never stands still while a step is being built)
+const ldT0 = performance.now();
 const ldTick = setInterval(() => {
-  shown += (target - shown) * 0.2; ldPct.textContent = Math.round(shown * 100); loaderEl.style.setProperty('--p', shown.toFixed(3));
+  const byTime = 0.94 * (1 - Math.exp(-(performance.now() - ldT0) / 1100)), goal = Math.min(0.97, Math.max(target, Math.min(byTime, target + 0.12)));
+  shown += (goal - shown) * 0.3; ldPct.textContent = Math.round(shown * 100); loaderEl.style.setProperty('--p', shown.toFixed(3));
   if (target < 0.9) ldMsg.textContent = shown < 0.3 ? 'Drawing the site' : shown < 0.62 ? 'Building the halls' : 'Filling the tanks';
   if ((ldFactT -= 50) <= 0) { ldFactT = 2600; ldFact.classList.add('is-out'); setTimeout(() => { ldFactI = (ldFactI + 1) % LD_FACTS.length; ldFact.textContent = LD_FACTS[ldFactI]; ldFact.classList.remove('is-out'); }, 420); }
 }, 50);
-const done = () => { clearInterval(ldTick); ldPct.textContent = '100'; loaderEl.style.setProperty('--p', '1'); setTimeout(() => body.classList.remove('is-loading'), 90); };
+const done = () => { clearInterval(ldTick); ldPct.textContent = '100'; loaderEl.style.setProperty('--p', '1'); loaderEl.classList.add('is-done'); setTimeout(() => body.classList.remove('is-loading'), 90); };
 
 async function boot() {
   if (!hasWebGL() || new URLSearchParams(location.search).has('nogl')) { body.classList.add('no-gl'); fallbackSteps(); done(); return; }
@@ -117,7 +133,7 @@ async function boot() {
     const lock = (v) => { if (lenis) (v ? lenis.stop() : lenis.start()); document.documentElement.style.overflow = v ? 'hidden' : ''; };
     story = createStory(world, { onExplore: (id) => app.enter(id, 'walk'), onFocus: (iid) => app.enterItem(iid), scrollTo: (el, at) => scrollTo(el, at) });
     app = createApp(world, {
-      lock, enter: (id, view) => app.enter(id, view),
+      lock, enter: (id, view, front) => app.enter(id, view, front),
       storyOpen: () => (story && !species.active ? story.open : null),      // the area whose roof the scroll tour has lifted: its things can be clicked from the page
       busy: () => !!(intro && intro.playing),
       onExit: (last) => { story.setActive(true); lastY = -1; if (last) { const el = document.getElementById('area-' + last); if (el) scrollTo(el.getBoundingClientRect().top + scrollY + el.offsetHeight * 0.36, 0, true); } },
@@ -127,7 +143,7 @@ async function boot() {
     // on the page, the area pins keep clear of the menu bar and of the hero's words (in the model they go anywhere)
     app.labels.pinClear = (x, y) => app.S.exploring || (y > 100 && !(innerWidth > 900 && x < Math.min(innerWidth * 0.54, 780) && y > 150));
     // entering from far down the page (the cycle list, the footer): the engine sleeps there, so wake it first
-    const enter = app.enter; app.enter = (id, view) => { world.engine.setActive(true); story.setActive(false); species.setActive(false); veil.style.opacity = 0; enter(id, view); };
+    const enter = app.enter; app.enter = (id, view, front) => { world.engine.setActive(true); story.setActive(false); species.setActive(false); veil.style.opacity = 0; enter(id, view, front); };
     species = createSpecies(world, { onGoto: (id) => app.enter(id), onAsk: (name) => { for (const c of form.querySelectorAll('[name=sp]')) c.checked = c.value === name; form.topic.value = 'Fry order'; syncForm(); scrollTo($('#contact').getBoundingClientRect().top + scrollY); } });
     // the language switch in the model's own controls too
     { const lp = document.createElement('button'); lp.type = 'button'; lp.className = 'pill pill-lang'; lp.dataset.lang = ''; const ctl = $('#app-ctrl'); if (ctl) { ctl.appendChild(lp); langButtons(); } }
@@ -138,7 +154,7 @@ async function boot() {
     target = 0.92; ldMsg.textContent = 'Warming up';
     await shaders; await world.engine.renderer.compileAsync(world.scene, world.camera).catch(() => {});
     // a slow phone that is already late skips the film's warm-up drawing: the loader must be gone by 3 s
-    if (intro) { intro.prepare({ quick: performance.now() > 2100 }); body.classList.add('intro'); lock(true); story.setActive(false); }
+    if (intro) { target = 0.96; await intro.prepare({ quick: performance.now() > 2100 }); body.classList.add('intro'); lock(true); story.setActive(false); }
     world.engine.start();
     // let the first two frames draw under the loader, then lift it at once
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));

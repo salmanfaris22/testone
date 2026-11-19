@@ -55,8 +55,8 @@ export function createApp(world, hooks) {
   });
   AREAS.forEach((a, i) => {
     if (i === 0 || AREAS[i - 1].phase !== a.phase) { const t = document.createElement('i'); t.className = 'dock-ph'; t.textContent = `P${a.phase}`; t.title = `Phase ${a.phase}`; dock.appendChild(t); }
-    const b = document.createElement('button'); b.type = 'button'; b.dataset.id = a.id; b.innerHTML = `<b>${a.n}</b><span>${a.short}</span>`; b.setAttribute('aria-label', `${a.n} ${a.name}, Phase ${a.phase}`); b.title = `${a.name} (Phase ${a.phase})`; b.addEventListener('click', () => { stopTour(); goArea(a.id, { view: 'top' }); }); dock.appendChild(b); });
-  labels.buildPins(AREAS.map((a) => ({ ...a, pin: areas.byId[a.id].pin })), (id) => { if (!S.exploring) hooks.enter(id, 'top'); else { stopTour(); goArea(id, { view: 'top' }); } }, (id) => labels.markPin(id));
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.id = a.id; b.innerHTML = `<b>${a.n}</b><span>${a.short}</span>`; b.setAttribute('aria-label', `${a.n} ${a.name}, Phase ${a.phase}`); b.title = `${a.name} (Phase ${a.phase})`; b.addEventListener('click', () => { stopTour(); goArea(a.id, { view: 'top', front: true }); }); dock.appendChild(b); });
+  labels.buildPins(AREAS.map((a) => ({ ...a, pin: areas.byId[a.id].pin })), (id) => { if (!S.exploring) hooks.enter(id, 'top', true); else { stopTour(); goArea(id, { view: 'top', front: true }); } }, (id) => labels.markPin(id));
   appEl.addEventListener('click', (e) => { if (e.target.closest('button')) audio.click(); }, true);
 
   const panel = createPanel(panelEl, {
@@ -145,6 +145,7 @@ export function createApp(world, hooks) {
 
   /* ───── state changes ───── */
   function overview(fly = true) {
+    cancelFront();
     if (S.dive) leaveDive(true);
     S.area = null; S.item = null; S.arrived = false; world.cycleOn = false; select.hide(); labels.focus(null); labels.occl = null; areas.closeAll(); outdoors(); labels.clearTags(); labels.clearDoors(); labels.clearRooms(); labels.tip(null); labels.showPins(true);
     body.classList.remove('has-panel'); panel.clear(); setShift(); setBack(); setDock();
@@ -157,8 +158,12 @@ export function createApp(world, hooks) {
     if (S.area !== a.id || S.view !== 'walk' || S.dive) return;
     rig.room = a.rooms ? a : null; rig.limits.distMax = 28; S.arrived = true;
   }
-  function goArea(id, { view = S.view, instant = false } = {}) {
+  let frontT = 0, frontN = 0;
+  // (stopped by a hand on the view, the roof still comes off where you are, so the view from above matches its button)
+  const cancelFront = () => { frontN++; clearTimeout(frontT); if (S.fronting) { S.fronting = false; labels.hideTags(false); if (S.area && S.view === 'top') { areas.open(S.area); rig.fovGoal = 32; } } };
+  function goArea(id, { view = S.view, instant = false, front = false } = {}) {
     const a = areas.byId[id]; if (!a) return;
+    cancelFront();
     if (S.dive) leaveDive(true);
     const same = S.area === id;
     S.area = id; S.last = id; S.item = null; S.view = view; select.hide(); labels.tip(null); labels.focus(null); labels.occl = view === 'walk' && id !== 'seacages' ? a : null;
@@ -182,6 +187,16 @@ export function createApp(world, hooks) {
         else if (a.walkDirect) rig.flyTo(a.walk, { dur: 2.4, hop: 0.08, done: () => arrive(a) });
         else rig.playPath([{ p: { ...rig.goal } }, { p: { ...a.walk, pol: 1.2, dist: a.walk.dist + 58 }, t: 1.8 }, { p: a.walk, t: 1.6 }], { done: () => arrive(a) });
       }
+    } else if (view === 'top' && front && a.front && !instant && !partner) {
+      // first the building as you arrive at it, roof on, from about drone height and with a drone's wider lens; a moment later
+      // its roof lifts and the camera rises into the view from above (a drag, a click or any other move in between stops that)
+      if (a.peek) areas.peek(id, false); outdoors(); rig.fovGoal = 55; S.fronting = true;
+      rig.limits.distMin = 8; rig.limits.distMax = Math.max(300, a.inside.dist * 2.4); rig.limits.polMax = 1.5; S.arrived = false;
+      const n = frontN;
+      rig.flyTo(a.front, { dur: 2.6, hop: 0.05, done: () => { frontT = setTimeout(() => {
+        if (n !== frontN || S.area !== id || S.view !== 'top' || S.item || S.dive) return;
+        S.fronting = false; labels.hideTags(false); areas.open(id); rig.fovGoal = 32; rig.limits.polMax = 1.36; rig.flyTo(a.inside, { dur: 2.4, hop: 0.12 });
+      }, 1600); } });
     } else {
       if (a.peek) areas.peek(id, false); outdoors(); areas.open(id); if (partner) areas.open(partner.id);
       const pose = view === 'plan' ? a.plan : a.inside;
@@ -195,6 +210,7 @@ export function createApp(world, hooks) {
     else { labels.clearRooms(); labels.setTags(a.items.filter((it) => it.label && !(view === 'walk' && it.door)), (iid) => { stopTour(); openItem(iid); }); }
     if (view === 'walk' && !sea) labels.setDoors(a.items.filter((it) => it.door), (iid) => { stopTour(); goItem(iid); }); else labels.clearDoors();
     setHint(view === 'plan' ? 'Plan view. Click any room or item to inspect it.' : view === 'walk' && !sea ? WALKHINT() : touch ? 'Tap any tank, machine or label.' : 'Click any tank, machine, room or label to inspect it.');
+    if (S.fronting) labels.hideTags(true);            // (the names inside wait until the roof is off)
     audio.scene(SOUND[id] || 'hall'); if (!same) audio.whoosh(); hooks.onArea && hooks.onArea(id);
     world.prebuild && world.prebuild();
   }
@@ -204,6 +220,7 @@ export function createApp(world, hooks) {
   function setView(v) { if (!S.area) return; const it = S.item; S.view = v; goArea(S.area, { view: v }); if (it && v !== 'plan') goItem(it); }
   function goItem(iid) {
     const it = world.items.get(iid); if (!it) return;
+    cancelFront();
     if (S.dive) leaveDive(true);
     if (it.area !== S.area && !(S.view === 'plan' && areas.byId[S.area] && areas.byId[S.area].planWith === it.area)) goArea(it.area, { view: S.view === 'plan' ? 'top' : S.view });
     const a = areas.byId[it.area];
@@ -416,12 +433,12 @@ export function createApp(world, hooks) {
   function setNight(v) { S.night = v; env.setNight(v); body.classList.toggle('night', v); pills.night.setAttribute('aria-pressed', String(v)); pills.night.querySelector('span').textContent = v ? 'Day' : 'Night'; if (!S.area) audio.scene(v ? 'night' : 'outside'); }
 
   /* ───── enter / leave ───── */
-  function enter(areaId, view) {
+  function enter(areaId, view, front = false) {
     if (view) S.view = view;
-    if (S.exploring) { if (areaId) goArea(areaId); return; }
+    if (S.exploring) { if (areaId) goArea(areaId, { front }); return; }
     S.exploring = true; appEl.hidden = false; void appEl.offsetWidth; body.classList.add('exploring');
     rig.user = true; rig.wheelZoom = true; rig.drift = 0; rig.lambda = 6.5; hooks.lock(true);
-    if (areaId) goArea(areaId); else overview();
+    if (areaId) goArea(areaId, { front }); else overview();
     world.prebuild && world.prebuild();
   }
   function exit() {
@@ -467,7 +484,7 @@ export function createApp(world, hooks) {
   });
 
   /* ───── pointer on the model ───── */
-  rig.onUser = () => { if (S.tour) stopTour(); rig.drift = 0; if (coarse() && S.area && !S.dive && rig.pointers.size && !panelEl.classList.contains('is-min') && body.classList.contains('has-panel')) sheet(true); if (S.area && S.view === 'walk' && !S.arrived && S.area !== 'seacages' && !S.dive) arrive(areas.byId[S.area]); };
+  rig.onUser = () => { cancelFront(); if (S.tour) stopTour(); rig.drift = 0; if (coarse() && S.area && !S.dive && rig.pointers.size && !panelEl.classList.contains('is-min') && body.classList.contains('has-panel')) sheet(true); if (S.area && S.view === 'walk' && !S.arrived && S.area !== 'seacages' && !S.dive) arrive(areas.byId[S.area]); };
   rig.onHover = (x, y) => { hoverXY = [x, y]; };
   rig.onTap = (x, y) => {
     if (S.film) return stopFilm(); if (S.drone) return;

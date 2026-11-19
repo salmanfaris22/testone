@@ -73,7 +73,7 @@ export function createAreas(world) {
       a.toWorld = (x, z) => [f.x + x * c + z * s, f.z - x * s + z * c];
       a.toLocal = (X, Z) => { const dx = X - f.x, dz = Z - f.z; return [dx * c - dz * s, dx * s + dz * c]; };
       const W = (p) => { if (!p) return p; const w = a.toWorld(p.x, p.z); return { ...p, x: w[0], z: w[1], az: p.az + f.ry }; };
-      a.pose = W(def.pose); a.inside = W(def.inside); a.plan = W(def.plan); a.walk = W(def.walk);
+      a.pose = W(def.pose); a.inside = W(def.inside); a.plan = W(def.plan); a.walk = W(def.walk); a.front = W(def.front);
       if (def.pin) { const w = a.toWorld(def.pin[0], def.pin[2]); a.pin = [w[0], def.pin[1], w[1]]; }
       a.root = new THREE.Group(); a.root.name = a.id; a.root.position.set(f.x, 0, f.z); a.root.rotation.y = f.ry;
       if (a.low) a.root.add(a.low);

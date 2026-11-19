@@ -46,6 +46,7 @@
   <nav class="nav" aria-label="Sections">
     <a href="#masterplan">Masterplan</a>
     <a href="#species">Species</a>
+    <a href="#gallery">Gallery</a>
     <a href="#cycle">Production cycle</a>
     <a href="#contact">Contact</a>
   </nav>
@@ -115,6 +116,24 @@
       </div>
     </div>
   </section>
+
+  <!-- ───────── the client's photographs (gulfaquaculture.com) ───────── -->
+  <section class="gallery" id="gallery" aria-labelledby="gallery-h">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2 id="gallery-h">The centre in pictures</h2>
+        <p>Photographs from Gulf Aquaculture: the buildings, the laboratories, the tanks, the sea cages and the fish raised here.</p>
+      </div>
+      <ul class="gal" id="gallery-grid"></ul>
+      <p class="gal-credit">Photos: Gulf Aquaculture</p>
+    </div>
+  </section>
+  <dialog class="gal-view" id="gal-view" aria-label="Photo">
+    <figure><img alt=""><figcaption></figcaption></figure>
+    <button class="gal-x" type="button" data-gv="close" aria-label="Close the photo">&times;</button>
+    <button class="gal-nav is-prev" type="button" data-gv="prev" aria-label="Previous photo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 3 4.5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button class="gal-nav is-next" type="button" data-gv="next" aria-label="Next photo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </dialog>
 
   <!-- ───────── production cycle ───────── -->
   <section class="cycle" id="cycle" aria-labelledby="cycle-h">

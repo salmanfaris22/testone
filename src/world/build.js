@@ -43,7 +43,8 @@ function backgroundWork(world) {
   let lastInput = -1e9, pre = null;
   const touch = (e) => { if (e.type !== 'pointermove' || e.buttons) lastInput = performance.now(); };
   for (const ev of ['wheel', 'touchstart', 'touchmove', 'pointerdown', 'pointermove', 'keydown']) addEventListener(ev, touch, { passive: true, capture: true });
-  world.calm = () => performance.now() - lastInput > 400 && world.rig.speed < 6 && !world.animating;
+  // (never while the opening film plays: its slow shots look calm, and a job there is a hitch in the film)
+  world.calm = () => performance.now() - lastInput > 400 && world.rig.speed < 6 && !world.animating && !world.filming;
   E.mayChange = () => world.calm();                 // the picture's resolution changes only at such a moment too (engine.js)
   world.slowJobs = [];                              // (pieces that took over 25 ms, for checking)
   /** any other piece of work that can wait for a calm frame (a picture redrawn once its photos arrive, and sent to the card) */

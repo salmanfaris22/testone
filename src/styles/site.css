@@ -458,3 +458,30 @@ html.ar .sc-count { margin-left: 0; margin-right: auto; }
 /* (figures keep their own reading order in Arabic: "270+" and "20 M" stay as written, Arabic words run right to left) */
 html.ar .hero-facts b, html.ar .figures-grid dt { direction: ltr; unicode-bidi: isolate; display: inline-block; }
 html.ar .sc-stats b, html.ar .p-figs b, html.ar .p-tiles b, html.ar .ft-figs b { unicode-bidi: plaintext; text-align: right; }
+
+/* ───── the client's photographs: a masonry of columns, and a viewer over the page ───── */
+.gallery { background: var(--ink); color: var(--on-ink); padding: clamp(56px, 9vh, 104px) 0; }
+.gallery .sec-head p { color: var(--on-ink-2); }
+.gal { list-style: none; margin: 28px 0 0; padding: 0; columns: 3 300px; column-gap: 12px; }
+.gal li { break-inside: avoid; margin: 0 0 12px; }
+.gal button { position: relative; display: block; width: 100%; padding: 0; border-radius: 14px; overflow: hidden; background: rgba(255, 255, 255, 0.06); cursor: zoom-in; }
+.gal img { display: block; width: 100%; height: auto; transition: transform 0.6s var(--ease), filter 0.3s; }
+.gal button:hover img { transform: scale(1.035); }
+.gal button span { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 14px 11px; font-size: 14px; line-height: 1.35; text-align: start; color: #fff; background: linear-gradient(0deg, rgba(4, 26, 40, 0.78), rgba(4, 26, 40, 0)); opacity: 0; transform: translateY(6px); transition: opacity 0.3s, transform 0.3s var(--ease); }
+.gal button:hover span, .gal button:focus-visible span { opacity: 1; transform: none; }
+.gal button:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
+.gal-credit { margin-top: 6px; font-size: 13px; color: var(--on-ink-2); }
+.gal-view { border: 0; padding: 0; max-width: none; max-height: none; width: 100vw; height: 100svh; background: rgba(3, 18, 28, 0.94); color: #fff; }
+.gal-view::backdrop { background: rgba(3, 18, 28, 0.6); }
+.gal-view[open] { display: grid; place-items: center; animation: galIn 0.25s ease-out; }
+@keyframes galIn { from { opacity: 0; } }
+.gal-view figure { margin: 0; display: grid; justify-items: center; gap: 12px; max-width: min(92vw, 1600px); }
+.gal-view img { display: block; max-width: 100%; max-height: calc(100svh - 120px); width: auto; height: auto; border-radius: 10px; box-shadow: 0 30px 80px -30px #000; }
+.gal-view figcaption { font-size: 15px; color: rgba(234, 243, 244, 0.86); text-align: center; }
+.gal-x { position: absolute; top: 16px; right: 16px; width: 44px; height: 44px; border-radius: 50%; font-size: 26px; line-height: 1; color: #fff; background: rgba(255, 255, 255, 0.1); }
+.gal-nav { position: absolute; top: 50%; width: 48px; height: 48px; margin-top: -24px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: rgba(255, 255, 255, 0.1); }
+.gal-nav svg { width: 18px; height: 18px; }
+.gal-nav.is-prev { left: 16px; } .gal-nav.is-next { right: 16px; }
+.gal-x:hover, .gal-nav:hover { background: rgba(255, 255, 255, 0.22); }
+html.ar .gal-nav svg { transform: scaleX(-1); } html.ar .gal-nav.is-prev { left: auto; right: 16px; } html.ar .gal-nav.is-next { right: auto; left: 16px; } html.ar .gal-x { right: auto; left: 16px; }
+@media (max-width: 760px) { .gal { columns: 2 150px; column-gap: 8px; } .gal li { margin-bottom: 8px; } .gal button { border-radius: 10px; } .gal button span { opacity: 1; transform: none; font-size: 12px; padding: 18px 9px 7px; } .gal-nav { top: auto; bottom: 18px; margin-top: 0; } }

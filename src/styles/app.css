@@ -253,7 +253,12 @@ body:not(.is-loading) #loader { opacity: 0; visibility: hidden; pointer-events: 
 @keyframes ldScan { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 0.7; } 85% { opacity: 0.7; } 100% { transform: translateY(min(54vh, 600px)); opacity: 0; } }
 .ld-name { margin-top: 4px; font-weight: 300; font-size: clamp(20px, 3vw, 30px); letter-spacing: -0.015em; line-height: 1.1; }
 .ld-bar { width: min(70vw, 340px); height: 2px; border-radius: 2px; background: rgba(255, 255, 255, 0.14); overflow: hidden; margin-top: 4px; }
-.ld-bar i { display: block; height: 100%; width: calc(var(--p, 0) * 100%); background: linear-gradient(90deg, var(--lagoon), var(--signal)); box-shadow: 0 0 10px rgba(91, 192, 235, 0.7); }
+.ld-bar i { display: block; height: 100%; width: 100%; transform-origin: 0 50%; transform: scaleX(0.02); background: linear-gradient(90deg, var(--lagoon), var(--signal)); box-shadow: 0 0 10px rgba(91, 192, 235, 0.7);
+  animation: ldBar 2.4s cubic-bezier(0.16, 0.84, 0.3, 1) forwards; }
+/* (the bar glides on the graphics card's own thread from the first paint, so it keeps moving while the page builds the model;
+   when the model is ready it runs out to the end in a quarter of a second) */
+@keyframes ldBar { to { transform: scaleX(0.9); } }
+#loader.is-done .ld-bar i { animation: none; transform: scaleX(1); transition: transform 0.25s ease-out; }
 .ld-sub { font-family: var(--fc); font-size: 15px; color: var(--on-ink-2); font-variant-numeric: tabular-nums; }
 .ld-fact { min-height: 1.4em; font-size: 14px; line-height: 1.4; color: #9fd6ef; transition: opacity 0.45s; max-width: 30rem; }
 .ld-fact.is-out { opacity: 0; }

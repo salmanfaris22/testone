@@ -59,6 +59,15 @@ const PAGE = {
   'The 3D model is an illustration built from the site plan. Readings shown on tanks and machines are examples, not live data. Fish photographs: Gulf Aquaculture, Jean-Lou Justine (CC BY-SA 3.0), Hamid Badar Osmany (CC BY 3.0), Totti (CC BY-SA 4.0) and D. Ross Robertson.': 'المجسّم ثلاثي الأبعاد رسم توضيحي مبني على مخطط الموقع. القراءات المعروضة على الأحواض والآلات أمثلة وليست بيانات مباشرة. صور الأسماك: الخليج للاستزراع المائي، وJean-Lou Justine ‏(CC BY-SA 3.0)، وHamid Badar Osmany ‏(CC BY 3.0)، وTotti ‏(CC BY-SA 4.0)، وD. Ross Robertson.',
   'Photo credits': 'حقوق الصور',
   'This page needs JavaScript for the 3D model. The text content is still available above.': 'تحتاج هذه الصفحة إلى جافاسكربت لعرض المجسّم ثلاثي الأبعاد. النص ما زال متاحًا أعلاه.',
+  // the gallery
+  Gallery: 'معرض الصور', 'The centre in pictures': 'المركز بالصور', Photo: 'صورة', 'Close the photo': 'أغلق الصورة', 'Previous photo': 'الصورة السابقة', 'Next photo': 'الصورة التالية', 'Photos: Gulf Aquaculture': 'الصور: الخليج للاستزراع المائي',
+  'Photographs from Gulf Aquaculture: the buildings, the laboratories, the tanks, the sea cages and the fish raised here.': 'صور من الخليج للاستزراع المائي: المباني والمختبرات والأحواض والأقفاص البحرية والأسماك التي تُربّى هنا.',
+  'The Education and Visitor Centre at dusk': 'مركز التعليم والزوار عند الغروب', 'Sea cages off the coast, with the work boat': 'الأقفاص البحرية قبالة الساحل، مع قارب العمل', 'Fry in a nursery tank': 'إصبعيات في حوض حضانة',
+  'Laboratory work at the clean bench': 'العمل المخبري على المنضدة المعقّمة', 'Hamour and red snapper, raised here': 'هامور ونهّاش أحمر، تربّيا هنا', 'Breeders in the raceways': 'الأمهات في قنوات التربية',
+  'The visitor centre and its shell roof': 'مركز الزوار وسقفه الصدفي', 'A school under the tank lights': 'سرب تحت أضواء الحوض', 'Checking the fish in a nursery tank': 'فحص الأسماك في حوض حضانة', 'Red snapper fry': 'إصبعيات النهّاش الأحمر',
+  'Under water with the school': 'تحت الماء مع السرب', 'The hatchery building': 'مبنى المفقس', 'Juveniles at feeding time': 'أسماك صغيرة وقت التغذية', 'The team: laboratories, visits and the hatchery': 'الفريق: المختبرات والزيارات والمفقس',
+  'Broodstock in a holding tank': 'الأمهات في حوض حفظ', 'A school of farmed fish': 'سرب من الأسماك المستزرعة', 'A hybrid grouper (tiger × giant grouper)': 'هامور هجين (النمري × العملاق)', 'Hybrid grouper, young': 'هامور هجين صغير',
+  'Hamour, the orange-spotted grouper': 'الهامور برتقالي البقع', 'Malabar red snapper (Hamra)': 'نهّاش مالابار الأحمر (الحمرا)', 'Mangrove red snapper (Shiqra)': 'نهّاش المانجروف الأحمر (الشقرة)',
   // the loader
   'Drawing the site': 'نرسم الموقع', 'Building the halls': 'نبني القاعات', 'Filling the tanks': 'نملأ الأحواض', 'Warming up': 'نستعد',
   'Built in three phases, from the original hatchery to the Innovation Park': 'بُني على ثلاث مراحل، من المفقس الأصلي إلى حديقة الابتكار',

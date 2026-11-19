@@ -157,8 +157,13 @@ export class Rig {
       this.idle += dt; if (this.idle > 3.5) this.goal.az += this.drift * dt * Math.min(1, (this.idle - 3.5) / 2);
     }
     const g = this.goal, c = this.cur;
-    g.pol = clamp(g.pol, L.polMin, L.polMax); g.dist = clamp(g.dist, L.distMin, L.distMax);
-    g.x = clamp(g.x, L.box[0], L.box[1]); g.z = clamp(g.z, L.box[2], L.box[3]);
+    // (a flight runs free between its two ends: limits set for where it is going must not snap where it starts from, or a click
+    // on an area from the overview first dives at the middle of the old view and only then crosses to the area)
+    const F = this.flight;
+    if (F) { g.pol = clamp(g.pol, Math.min(L.polMin, F.from.pol, F.to.pol), Math.max(L.polMax, F.from.pol, F.to.pol)); g.dist = clamp(g.dist, Math.min(L.distMin, F.from.dist, F.to.dist), Math.max(L.distMax, F.from.dist, F.to.dist)); }
+    else { g.pol = clamp(g.pol, L.polMin, L.polMax); g.dist = clamp(g.dist, L.distMin, L.distMax); }
+    if (F) { g.x = clamp(g.x, Math.min(L.box[0], F.from.x, F.to.x), Math.max(L.box[1], F.from.x, F.to.x)); g.z = clamp(g.z, Math.min(L.box[2], F.from.z, F.to.z), Math.max(L.box[3], F.from.z, F.to.z)); }
+    else { g.x = clamp(g.x, L.box[0], L.box[1]); g.z = clamp(g.z, L.box[2], L.box[3]); }
     if (this.room && this.user) this._walk(dt);
     if (this.room && !this.flight && !this.path) this._keepIn(g);
     if (Math.abs(this.fov - this.fovGoal) > 0.02) { this.fov = damp(this.fov, this.fovGoal, 4.5, dt); this.cam.fov = this.fov; this.cam.updateProjectionMatrix(); this.onFov && this.onFov(this.fov); this.moved = true; }

@@ -2,7 +2,7 @@
 // the view from under water, and one fish with its age slider.
 import { value, format, history, spark } from '../data/sim.js';
 import { speciesById, OTHER_FISH } from '../data/species.js';
-import { areaById, AREAS } from '../data/areas.js';
+import { areaById, AREAS, PHASES } from '../data/areas.js';
 import { AREA_PHOTO, ITEM_PHOTO, SPECIES_PHOTO, FISH_CUT } from '../data/photos.js';
 import { itemIcon } from './icons.js';
 import { lengthAt, weightAt, stageAt, maxAge, fmtAge, fmtLen, fmtWeight, GROWTH } from '../data/growth.js';
@@ -28,12 +28,26 @@ const views = (view, sea) => `<div class="p-views" role="group" aria-label="How 
 export function createPanel(el, { onAct, thumb = () => '' }) {
   const pic = (id) => FISH_CUT[id] || thumb(id);
   let timer = null, current = null;
-  el.addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (b && b.tagName !== 'INPUT') { e.preventDefault(); onAct(b.dataset.act, b.dataset.arg); } });
+  // "Read more" (and "+N more") open the rest of the card inside it, above its foot, as the scroll tour's cards do
+  const setMore = (open, toList = false) => {
+    const box = el.querySelector('.p-more'), btn = el.querySelector('[data-more]'); if (!box) return;
+    box.hidden = !open; el.classList.toggle('is-more', open); if (btn) { btn.setAttribute('aria-expanded', String(open)); btn.textContent = open ? 'Show less' : 'Read more'; }
+    if (open) { box.scrollTop = 0; if (toList) { const l = box.querySelector('.p-groups'); if (l) box.scrollTop = Math.max(0, l.offsetTop - box.offsetTop - 8); } }
+  };
+  el.addEventListener('click', (e) => {
+    const m = e.target.closest('[data-more]'); if (m) { e.preventDefault(); setMore(el.querySelector('.p-more').hidden, m.classList.contains('is-more')); return; }
+    const b = e.target.closest('[data-act]'); if (b && b.tagName !== 'INPUT') { e.preventDefault(); onAct(b.dataset.act, b.dataset.arg); }
+  });
   el.addEventListener('input', (e) => { if (e.target.matches('[data-act="age"]')) onAct('age', +e.target.value / 1000); });
   el.addEventListener('pointerover', (e) => { const b = e.target.closest('[data-act="item"]'); if (b) onAct('hover', b.dataset.arg); });
   el.addEventListener('pointerout', (e) => { const b = e.target.closest('[data-act="item"]'); if (b) onAct('hover', ''); });
-  const head = (crumb, num, line, isCode) => `<div class="p-head"><div class="p-crumb">${crumb}</div><div class="p-title"><span class="p-num${isCode ? ' is-code' : ''}">${esc(num)}</span><span class="p-line">${esc(line)}</span></div><button class="p-close" data-act="close" type="button" aria-label="Close panel">${ICON.close}</button></div>`;
-  const liveBlock = (it) => it.live && it.live.length ? `<div class="live"><div class="live-head"><b>Readings</b><span>updated <span data-now></span></span></div><div class="live-rows">${it.live.map((s, i) => s.text !== undefined ? `<div class="live-row is-text"><span>${esc(s.k)}</span><b>${esc(s.text)}</b></div>` : `<div class="live-row"><span>${esc(s.k)}</span>${s.d ? `<svg viewBox="0 0 76 22" aria-hidden="true"><path data-sp="${i}" fill="none" stroke="#0e6e7e" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>` : '<i></i>'}<b><span data-v="${i}"></span><small>${esc(s.u || '')}</small></b></div>`).join('')}</div><p class="live-note">Example readings for illustration, not a live feed from the plant.</p></div>` : '';
+  /** the card's head, as on the scroll tour: the big number (or code), an eyebrow line and the name; a way back over it */
+  const head = ({ crumb = '', num, eye = '', title, sub = '', isCode = false }) => `<header class="p-head"><i class="p-bar" aria-hidden="true"></i>${crumb ? `<div class="p-crumb">${crumb}</div>` : ''}<div class="p-title"><span class="p-num${isCode ? ' is-code' : ''}">${esc(num)}</span><div class="p-meta">${eye ? `<p class="p-eye">${eye}</p>` : ''}<h2>${esc(title)}</h2>${sub ? `<p class="p-kind">${esc(sub)}</p>` : ''}</div></div><button class="p-close" data-act="close" type="button" aria-label="Close the card">${ICON.close}</button></header>`;
+  /** the foot: back, "Read more", where you are in the list, on */
+  const foot = (prev, count, next, more = true) => `<footer class="p-foot">${prev || '<span></span>'}<span class="p-mid">${more ? '<button class="p-morebtn" type="button" data-more aria-expanded="false">Read more</button>' : ''}${count ? `<span class="p-count">${count}</span>` : ''}</span>${next || '<span></span>'}</footer>`;
+  const figs = (list) => (list && list.length ? `<ul class="p-figs">${list.slice(0, 3).map(([v, l]) => `<li><b>${esc(v)}</b><span>${esc(l)}</span></li>`).join('')}</ul>` : '');
+  const chips = (list, more) => `<div class="p-chiprow">${list.map((it) => `<button type="button" data-act="item" data-arg="${esc(it.id)}" title="${esc(it.name)}">${itemIcon(it)}<span>${esc(shortName(it))}</span></button>`).join('')}${more > 0 ? `<button type="button" class="is-more" data-more>+${more} more</button>` : ''}</div>`;
+  const liveBlock = (it) => it.live && it.live.length ? `<div class="live"><div class="live-head"><b>Readings</b><span>updated <span data-now></span></span></div><div class="live-rows">${it.live.map((s, i) => s.text !== undefined ? `<div class="live-row is-text"><span>${esc(s.k)}</span><b>${esc(s.text)}</b></div>` : `<div class="live-row"><span>${esc(s.k)}</span>${s.d ? `<svg viewBox="0 0 76 22" aria-hidden="true"><path data-sp="${i}" fill="none" stroke="#7fe6e2" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>` : '<i></i>'}<b><span data-v="${i}"></span><small>${esc(s.u || '')}</small></b></div>`).join('')}</div><p class="live-note">Example readings for illustration, not a live feed from the plant.</p></div>` : '';
   const startLive = (it) => {
     if (!it.live || !it.live.length) return;
     const tick = () => {
@@ -42,11 +56,12 @@ export function createPanel(el, { onAct, thumb = () => '' }) {
     };
     tick(); timer = setInterval(tick, 1000);
   };
+  const shown = () => { el.scrollTop = 0; el.classList.remove('is-min', 'is-more'); };
 
   const api = {
     area(a, items, { view = 'walk' } = {}) {
       api.stopLive(); current = { type: 'area', id: a.id };
-      const d = areaById[a.id], i = AREAS.findIndex((x) => x.id === a.id);
+      const d = areaById[a.id], i = AREAS.findIndex((x) => x.id === a.id), ph = PHASES[d.phase - 1];
       const groups = new Map(); for (const it of items) { if (!groups.has(it.group)) groups.set(it.group, []); groups.get(it.group).push(it); }
       // named things get a tile with an icon; long runs of numbered tanks stay as small chips so the list keeps short
       const gh = [...groups].map(([g, list]) => {
@@ -55,57 +70,59 @@ export function createPanel(el, { onAct, thumb = () => '' }) {
           ? `<button type="button" data-act="item" data-arg="${esc(it.id)}" title="${esc(it.name)}"><b>${esc(it.code)}</b></button>`
           : `<button type="button" data-act="item" data-arg="${esc(it.id)}">${itemIcon(it)}<span><b>${esc(tileName(it))}</b><em>${esc(it.code || '')}</em></span></button>`)).join('')}</div></section>`;
       }).join('');
-      el.innerHTML = head(`<span>Phase ${d.phase}</span><span>Area ${d.n} of ${AREAS.length}</span>`, d.n, d.line) + `<div class="p-body">
-        <p class="p-tag">${esc(d.tag)}</p><h2>${esc(d.name)}</h2>
+      const named = items.filter((it) => it.label).sort((p, q) => (q.prio || 0) - (p.prio || 0)), first = (named.length ? named : items).slice(0, 2);
+      el.innerHTML = head({ num: d.n, eye: `${esc(ph ? ph.name : `Phase ${d.phase}`)} · ${esc(d.tag)}`, title: d.name }) + `<div class="p-body">
+        ${figs(d.stats)}
         ${views(view, a.id === 'seacages')}
-        <div class="p-sub is-top"><h3>What is here</h3><span>${items.length} things to open</span></div>
-        <div class="p-groups">${gh}</div>
-        <div class="p-sub"><h3>About this area</h3></div>
-        <p class="p-desc">${esc(d.desc)}</p>
-        ${figure(AREA_PHOTO[a.id])}
-        <ul class="p-bul">${d.bullets.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
-        <div class="p-stats">${d.stats.map(([v, l]) => `<div><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('')}</div>
-        <div class="p-actions"><button class="btn btn-ink" data-act="orbit" type="button">Look around</button><button class="btn btn-ink" data-act="tourhere" type="button">Tour from here</button></div></div>
-        <div class="p-foot"><button data-act="prev" type="button">${ICON.back} Previous area</button><span>${i + 1} / ${AREAS.length}</span><button data-act="next" type="button">Next area ${ICON.next}</button></div>`;
-      el.scrollTop = 0; el.classList.remove('is-min');
+        ${items.length ? chips(first, items.length - first.length) : ''}
+        <div class="p-more" hidden>
+          <p class="p-lead">${esc(d.line)}</p>
+          <p class="p-desc">${esc(d.desc)}</p>
+          <div class="p-sub"><h3>What is here</h3><span>${items.length} things to open</span></div>
+          <div class="p-groups">${gh}</div>
+          ${figure(AREA_PHOTO[a.id])}
+          <ul class="p-bul">${d.bullets.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>
+          <div class="p-actions"><button class="btn" data-act="orbit" type="button">Look around</button><button class="btn" data-act="tourhere" type="button">Tour from here</button></div>
+        </div></div>` + foot(`<button data-act="prev" type="button" aria-label="Previous area">${ICON.back}</button>`, `<b>${esc(d.n)}</b> / ${AREAS.length}`, `<button data-act="next" type="button" aria-label="Next area">${ICON.next}</button>`);
+      shown();
     },
     item(it, list, { view = 'walk' } = {}) {
       api.stopLive(); current = { type: 'item', id: it.id };
-      const d = areaById[it.area], k = list.indexOf(it);
+      const d = areaById[it.area], k = list.indexOf(it), isCode = !!(it.code && it.code.length <= 7);
       const sp = it.species && speciesById[it.species];
       const links = [];
       if (sp) links.push(`<button type="button" data-act="species" data-arg="${sp.id}">About ${esc(sp.local)}</button>`);
       if (it.stage && STAGE_AREA[it.stage] && STAGE_AREA[it.stage] !== it.area) links.push(`<button type="button" data-act="area" data-arg="${STAGE_AREA[it.stage]}">Go to ${esc(areaById[STAGE_AREA[it.stage]].short)}</button>`);
       if (it.link && areaById[it.link] && it.link !== it.area) links.push(`<button type="button" data-act="area" data-arg="${it.link}">See it for real: ${esc(areaById[it.link].short)}</button>`);
-      el.innerHTML = head(`<button data-act="up" type="button">${ICON.back}<span>${esc(d.short)}</span></button><span>${esc(it.group)}</span>`, it.code && it.code.length <= 7 ? it.code : d.n, it.kind, !!(it.code && it.code.length <= 7)) + `<div class="p-body">
-        <div class="p-chips"><span>${esc(d.short)}</span><span>${esc(it.group)}</span><span>${k + 1} of ${list.length}</span></div>
-        <div class="p-titlerow">${itemIcon(it)}<h2>${esc(it.name)}</h2></div><p class="p-desc">${esc(it.desc)}</p>
-        ${it.specs ? `<div class="p-tiles">${it.specs.map(([v, l]) => `<div><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('')}</div>` : ''}
-        ${it.swim ? `<div class="p-cta"><button class="btn btn-solid p-dive" data-act="dive" data-arg="${esc(it.id)}" type="button">${ICON.dive}<span>See the fish under water</span></button></div>` : ''}
-        ${it.control ? `<div class="p-cta"><button class="btn btn-solid p-dive" data-act="control" data-arg="${esc(it.id)}" type="button">${ICON.screen}<span>Open the control screen</span></button><p class="p-ctanote">Every system, tank and machine, live on one big screen.</p></div>` : ''}
-        ${figure(ITEM_PHOTO[it.id])}
-        ${it.card ? `<div class="tagcard is-rows"><h3>Details</h3><dl>${it.card.map(([a, b]) => `<dt>${esc(a)}</dt><dd>${esc(b)}</dd>`).join('')}</dl></div>` : ''}
-        ${liveBlock(it)}${links.length ? `<div class="p-links">${links.join('')}</div>` : ''}
-        <div class="p-sub"><h3>Look at it</h3></div>${views(view === 'plan' ? 'top' : view, false).replace(/<button[^>]*data-arg="plan".*?<\/button>/, '')}</div>
-        <div class="p-foot"><button data-act="iprev" type="button">${ICON.back} Previous</button><span>${k + 1} / ${list.length}</span><button data-act="inext" type="button">Next ${ICON.next}</button></div>`;
-      el.scrollTop = 0; el.classList.remove('is-min');
-      startLive(it);
+      el.innerHTML = head({ crumb: `<button data-act="up" type="button">${ICON.back}<span>${esc(d.short)}</span></button>`, num: isCode ? it.code : d.n, eye: `${esc(d.short)} · ${esc(it.group)}`, title: it.name, sub: it.kind, isCode }) + `<div class="p-body">
+        ${figs(it.specs)}
+        ${it.swim ? `<button class="p-go" data-act="dive" data-arg="${esc(it.id)}" type="button">${ICON.dive}<span>See the fish under water</span></button>` : ''}
+        ${it.control ? `<button class="p-go" data-act="control" data-arg="${esc(it.id)}" type="button">${ICON.screen}<span>Open the control screen</span></button>` : ''}
+        ${views(view === 'plan' ? 'top' : view, false).replace(/<button[^>]*data-arg="plan".*?<\/button>/, '')}
+        <div class="p-more" hidden>
+          <p class="p-desc">${esc(it.desc)}</p>
+          ${it.control ? '<p class="p-note">Every system, tank and machine, live on one big screen.</p>' : ''}
+          ${figure(ITEM_PHOTO[it.id])}
+          ${it.card ? `<div class="tagcard is-rows"><h3>Details</h3><dl>${it.card.map(([a, b]) => `<dt>${esc(a)}</dt><dd>${esc(b)}</dd>`).join('')}</dl></div>` : ''}
+          ${liveBlock(it)}${links.length ? `<div class="p-links">${links.join('')}</div>` : ''}
+        </div></div>` + foot(`<button data-act="iprev" type="button" aria-label="Previous">${ICON.back}</button>`, `<b>${k + 1}</b> / ${list.length}`, `<button data-act="inext" type="button" aria-label="Next">${ICON.next}</button>`);
+      shown(); startLive(it);
     },
     pic,
     /** under water in a cage or tank, nobody picked yet */
     dive(it, species) {
       api.stopLive(); current = { type: 'dive', id: it.id };
-      const d = areaById[it.area];
-      const rows = species.map((id) => { const s = speciesById[id] || OTHER_FISH[id]; return `<button type="button" class="fishrow" data-act="pickfish" data-arg="${esc(id)}">${pic(id) ? `<img src="${pic(id)}" alt="" loading="lazy">` : '<i></i>'}<span><b>${esc(s ? s.local : id)}</b><em>${esc(s ? s.common : '')}</em></span>${ICON.next}</button>`; }).join('');
-      el.innerHTML = head(`<button data-act="surface" type="button">${ICON.back}<span>Back to the surface</span></button><span>${esc(d.short)}</span>`, it.code && it.code.length <= 7 ? it.code : d.n, 'Under water', !!(it.code && it.code.length <= 7)) + `<div class="p-body">
-        <h2>${esc(it.name)}</h2>
-        <p class="p-desc">You are below the surface, inside the ${it.swim.net ? 'net' : it.swim.glass ? 'aquarium' : 'tank'}. Drag to look round. Click any fish to swim beside it, read about it and see how it grows.</p>
-        <div class="p-sub"><h3>Living here</h3><span>${it.swim.n} shown</span></div><div class="fishrows">${rows}</div>
-        ${it.card ? `<div class="tagcard"><dl>${it.card.map(([a, b]) => `<dt>${esc(a)}</dt><dd>${esc(b)}</dd>`).join('')}</dl></div>` : ''}
-        ${it.specs ? `<div class="p-stats">${it.specs.map(([v, l]) => `<div><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('')}</div>` : ''}
-        ${liveBlock(it)}</div>
-        <div class="p-foot"><button data-act="surface" type="button">${ICON.back} Back to the surface</button><span></span><span></span></div>`;
-      el.scrollTop = 0; el.classList.remove('is-min'); startLive(it);
+      const d = areaById[it.area], isCode = !!(it.code && it.code.length <= 7);
+      const rows = species.map((id) => { const s = speciesById[id] || OTHER_FISH[id]; return `<button type="button" class="fishchip" data-act="pickfish" data-arg="${esc(id)}">${pic(id) ? `<img src="${pic(id)}" alt="" loading="lazy">` : '<i></i>'}<span>${esc(s ? s.local : id)}</span></button>`; }).join('');
+      el.innerHTML = head({ crumb: `<button data-act="surface" type="button">${ICON.back}<span>Back to the surface</span></button>`, num: isCode ? it.code : d.n, eye: `${esc(d.short)} · Under water`, title: it.name, isCode }) + `<div class="p-body">
+        <div class="p-sub"><h3>Living here</h3><span>${it.swim.n} shown</span></div><div class="fishchips">${rows}</div>
+        <div class="p-more" hidden>
+          <p class="p-desc">You are below the surface, inside the ${it.swim.net ? 'net' : it.swim.glass ? 'aquarium' : 'tank'}. Drag to look round. Click any fish to swim beside it, read about it and see how it grows.</p>
+          ${it.card ? `<div class="tagcard"><dl>${it.card.map(([a, b]) => `<dt>${esc(a)}</dt><dd>${esc(b)}</dd>`).join('')}</dl></div>` : ''}
+          ${figs(it.specs)}
+          ${liveBlock(it)}
+        </div></div>` + foot(`<button data-act="surface" type="button" aria-label="Back to the surface">${ICON.back}</button>`, '', '');
+      shown(); startLive(it);
     },
     /** one fish: who it is, and a slider that takes it from egg to breeding age */
     fish(info, it) {
@@ -113,26 +130,27 @@ export function createPanel(el, { onAct, thumb = () => '' }) {
       const s = speciesById[info.sp] || { local: info.sp, common: '', sci: null, about: '', facts: [], ...OTHER_FISH[info.sp] }, g = GROWTH[info.sp] || GROWTH.naisrah, max = maxAge(info.sp);
       // growth curve
       const W = 320, H = 96, pts = []; for (let i = 0; i <= 60; i++) { const a = max * Math.pow(i / 60, 1.6); pts.push(`${i ? 'L' : 'M'}${((a / max) * W).toFixed(1)} ${(H - 6 - (lengthAt(info.sp, a) / g.Linf) * (H - 14)).toFixed(1)}`); }
-      el.innerHTML = head(`<button data-act="fishback" type="button">${ICON.back}<span>Back to the school</span></button><span>${esc(it ? it.name : '')}</span>`, s.local, s.common, true) + `<div class="p-body">
-        <h2>${esc(s.local)}</h2><p class="sp-names">${esc(s.common)}${s.sci ? `, <i>${esc(s.sci)}</i>` : ''}</p>
-        ${info.n > 1 ? `<p class="fishgroup"><b>${info.n} ${esc(s.local)}</b> selected together: the whole group in this ${it && it.swim && it.swim.net ? 'cage' : it && it.swim && it.swim.glass ? 'aquarium' : 'tank'} is one batch of one age. Move the slider and they all grow.</p>` : ''}
+      el.innerHTML = head({ crumb: `<button data-act="fishback" type="button">${ICON.back}<span>Back to the school</span></button>`, num: s.local, eye: esc(it ? it.name : 'Under water'), title: s.common || s.local, isCode: true }) + `<div class="p-body">
         <div class="age">
           <div class="age-top"><span>Age</span><b data-f="age"></b></div>
           <input type="range" min="0" max="1000" step="1" value="0" data-act="age" aria-label="Age of this group of fish, from egg to breeding age">
           <div class="age-ends"><span>Egg</span><span>${max} years</span></div>
           <ol class="age-stages">${STAGES.map(([k, l]) => `<li data-st="${k}">${l}</li>`).join('')}</ol>
         </div>
-        <div class="p-stats"><div><b data-f="len"></b><span>Length</span></div><div><b data-f="wt"></b><span>Weight</span></div><div><b data-f="stage"></b><span>Life stage</span></div></div>
-        ${info.n > 1 ? `<div class="p-stats p-stats-group"><div><b>${info.n}</b><span>Fish in the group</span></div><div><b data-f="avglen"></b><span>Average length</span></div><div><b data-f="avgwt"></b><span>Average weight</span></div></div>` : ''}
-        <div class="tagcard"><dl><dt>Lives in</dt><dd data-f="where"></dd><dt>At this age</dt><dd class="is-plain" data-f="text"></dd></dl></div>
-        <div class="p-links"><button type="button" data-act="fisharea" data-f="go"></button></div>
-        <figure class="growth"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Length against age"><path d="${pts.join('')}" fill="none" stroke="#0e6e7e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line data-f="gx" y1="0" y2="${H}" stroke="#1a7fb8" stroke-width="1.5"/><circle data-f="gd" r="4.5" fill="#1a7fb8" stroke="#fff" stroke-width="1.5"/></svg><figcaption>Length against age. Typical growth for farmed fish in warm water, not this hatchery's own records.</figcaption></figure>
-        ${figure(SPECIES_PHOTO[info.sp])}
-        <p class="p-desc">${esc(s.about || '')}</p>
-        ${s.facts && s.facts.length ? `<dl class="sp-facts">${s.facts.map(([v, l]) => `<div><dt>${esc(l)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}
-        ${speciesById[info.sp] ? `<div class="p-links"><button type="button" data-act="species" data-arg="${esc(info.sp)}">More about ${esc(s.local)}</button></div>` : ''}</div>
-        <div class="p-foot"><button data-act="fishback" type="button">${ICON.back} Back to the school</button><span></span><button data-act="fishnext" type="button">Another fish ${ICON.next}</button></div>`;
-      el.scrollTop = 0; el.classList.remove('is-min');
+        <ul class="p-figs"><li><b data-f="len"></b><span>Length</span></li><li><b data-f="wt"></b><span>Weight</span></li><li><b data-f="stage"></b><span>Life stage</span></li></ul>
+        <div class="p-more" hidden>
+          <p class="sp-names">${esc(s.common)}${s.sci ? `, <i>${esc(s.sci)}</i>` : ''}</p>
+          ${info.n > 1 ? `<p class="fishgroup"><b>${info.n} ${esc(s.local)}</b> selected together: the whole group in this ${it && it.swim && it.swim.net ? 'cage' : it && it.swim && it.swim.glass ? 'aquarium' : 'tank'} is one batch of one age. Move the slider and they all grow.</p>
+          <ul class="p-figs p-figs-group"><li><b>${info.n}</b><span>Fish in the group</span></li><li><b data-f="avglen"></b><span>Average length</span></li><li><b data-f="avgwt"></b><span>Average weight</span></li></ul>` : ''}
+          <div class="tagcard"><dl><dt>Lives in</dt><dd data-f="where"></dd><dt>At this age</dt><dd class="is-plain" data-f="text"></dd></dl></div>
+          <div class="p-links"><button type="button" data-act="fisharea" data-f="go"></button></div>
+          <figure class="growth"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Length against age"><path d="${pts.join('')}" fill="none" stroke="#7fe6e2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line data-f="gx" y1="0" y2="${H}" stroke="#5bc0eb" stroke-width="1.5"/><circle data-f="gd" r="4.5" fill="#5bc0eb" stroke="#fff" stroke-width="1.5"/></svg><figcaption>Length against age. Typical growth for farmed fish in warm water, not this hatchery's own records.</figcaption></figure>
+          ${figure(SPECIES_PHOTO[info.sp])}
+          <p class="p-desc">${esc(s.about || '')}</p>
+          ${s.facts && s.facts.length ? `<dl class="sp-facts">${s.facts.map(([v, l]) => `<div><dt>${esc(l)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}
+          ${speciesById[info.sp] ? `<div class="p-links"><button type="button" data-act="species" data-arg="${esc(info.sp)}">More about ${esc(s.local)}</button></div>` : ''}
+        </div></div>` + foot(`<button data-act="fishback" type="button" aria-label="Back to the school">${ICON.back}</button>`, '', `<button data-act="fishnext" type="button" aria-label="Another fish">${ICON.next}</button>`);
+      shown();
       el.querySelector('[data-act="age"]').value = Math.round(Math.pow(info.age / max, 1 / U_POW) * 1000);
       api.fishUpdate(info);
     },

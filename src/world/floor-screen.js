@@ -107,6 +107,7 @@ export function createFloorScreen({ radius, y }) {
 
   // the fish: [species, ring radius, speed (m/s, + anticlockwise seen from above), length (m), opacity]
   const R = rng(909);
+  const SIZE = 0.78;                    // every fish a little smaller than first drawn (Jeffry, 19 Nov), so the screen reads as water, not a poster
   const plan = [
     // near and big (the TVs' hero fish), in two rings going opposite ways
     ['hamour', 3.4, -0.46, 2.7, 1], ['shaari', 3.4, -0.46, 2.3, 1], ['mullet', 3.4, -0.46, 1.9, 1],
@@ -117,7 +118,7 @@ export function createFloorScreen({ radius, y }) {
   ];
   const rings = {}; for (const f of plan) (rings[f[1]] = rings[f[1]] || []).push(f);
   const fish = [];
-  for (const r0 of Object.keys(rings)) { const list = rings[r0]; list.forEach((f, k) => { const school = Number(r0) < 2.5; fish.push({ sp: f[0], r0: f[1], v: f[2], len: f[3], alpha: f[4], a0: school ? 0.62 * k + R() * 0.15 : (k / list.length) * TAU + R() * 0.4, ph: R() * TAU, wob: R() * TAU }); }); }
+  for (const r0 of Object.keys(rings)) { const list = rings[r0]; list.forEach((f, k) => { const school = Number(r0) < 2.5; fish.push({ sp: f[0], r0: f[1], v: f[2], len: f[3] * SIZE, alpha: f[4], a0: school ? 0.62 * k + R() * 0.15 : (k / list.length) * TAU + R() * 0.4, ph: R() * TAU, wob: R() * TAU }); }); }
   const batches = {};
   for (const id of new Set(fish.map((f) => f.sp))) { const b = speciesBatch(id, fish.filter((f) => f.sp === id).length, uTime); batches[id] = b; group.add(b.mesh); }
   for (const f of fish) { const b = batches[f.sp]; f.b = b; f.i = b.n++; b.mesh.geometry.attributes.aPhase.setX(f.i, f.ph); b.mesh.geometry.attributes.aAlpha.setX(f.i, f.alpha); b.mesh.renderOrder = f.alpha < 1 ? 2 : 3; }

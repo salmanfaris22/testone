@@ -23,7 +23,7 @@ export function lagoons() {
   const blob = (cx, cz, rx, rz, seed) => { const R = rng(seed), a = R() * TAU, b = R() * TAU, c = R() * TAU, out = [];
     for (let i = 0; i < 96; i++) { const t = (i / 96) * TAU, r = 1 + 0.16 * Math.sin(3 * t + a) + 0.09 * Math.sin(5 * t + b) + 0.05 * Math.sin(9 * t + c); out.push(clear([cx + Math.cos(t) * rx * r, cz + Math.sin(t) * rz * r])); }
     return out; };
-  return [blob(-322, -24, 44, 26, 3), blob(-330, -124, 38, 19, 8), blob(-300, -40, 13, 9, 12)];
+  return [blob(-322, -24, 44, 26, 3), blob(-330, -124, 38, 19, 8)];
 }
 export function inPolygon(p, x, z) { let c = false; for (let i = 0, j = p.length - 1; i < p.length; j = i++) { const a = p[i], b = p[j]; if ((a[1] > z) !== (b[1] > z) && x < ((b[0] - a[0]) * (z - a[1])) / (b[1] - a[1]) + a[0]) c = !c; } return c; }
 

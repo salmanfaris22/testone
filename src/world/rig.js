@@ -62,7 +62,10 @@ export class Rig {
     const from = copy({}, this.goal), to = copy({}, p); to.az = near(from.az, to.az);
     const travel = Math.hypot(to.x - from.x, to.z - from.z);
     const bump = hop * Math.max(0, travel - Math.abs(to.dist - from.dist) * 0.4);
-    this.flight = { from, to, t: 0, dur, ease, bump, done };
+    // a long zoom in looks at where it is going first and comes down to it after (a long zoom out goes up first, then across), so
+    // the camera never seems to head for the middle of the old view on its way (and the zoom runs at an even rate)
+    const lead = from.dist > to.dist * 2.2 && travel > to.dist * 0.3 ? 1 : to.dist > from.dist * 2.2 && travel > from.dist * 0.3 ? -1 : 0;
+    this.flight = { from, to, t: 0, dur, ease, bump, done, lead };
     return this;
   }
   /** continuous film move through key poses: [{p, t}] with t = seconds for the leg that ends at this key */
@@ -139,9 +142,10 @@ export class Rig {
     else if (this.flight) {
       const f = this.flight; f.t += dt / f.dur; const k = f.ease(clamp(f.t, 0, 1));
       const g = this.goal, a = f.from, b = f.to;
-      g.x = lerp(a.x, b.x, k); g.y = lerp(a.y, b.y, k); g.z = lerp(a.z, b.z, k);
+      const kt = f.lead > 0 ? 1 - Math.pow(1 - k, 2.4) : f.lead < 0 ? Math.pow(k, 2.4) : k;
+      g.x = lerp(a.x, b.x, kt); g.y = lerp(a.y, b.y, kt); g.z = lerp(a.z, b.z, kt);
       g.az = lerp(a.az, b.az, k); g.pol = lerp(a.pol, b.pol, k) - Math.sin(Math.PI * k) * Math.min(0.12, f.bump * 0.0006);
-      g.dist = lerp(a.dist, b.dist, k) + Math.sin(Math.PI * k) * f.bump;
+      g.dist = (f.lead ? a.dist * Math.pow(b.dist / Math.max(1e-3, a.dist), k) : lerp(a.dist, b.dist, k)) + Math.sin(Math.PI * k) * f.bump;
       if (f.t >= 1) { this.flight = null; f.done && f.done(); }
     } else if (this.fling && !this.pointers.size) {
       // the glide after a flick: the view runs on and slows to a stop

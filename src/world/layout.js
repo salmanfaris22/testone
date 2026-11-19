@@ -100,12 +100,13 @@ export const CAGES = {
 };
 /** LFC Hamour, the live fish carrier, lies alongside the west face of the jetty, bow out to sea (its local +x is the bow) */
 export const LFC_BERTH = { x: JETTY.u - JETTY.w / 2 - 1.6 - 7, z: LANDLINE.south + 32, ry: -Math.PI / 2 };
-/** the helipad (helipad.js), where the client's Google Maps view puts it: right by the west roundabout, on the side across from
- *  the round shell-roofed building (08/09 is north-east of the roundabout, the pad 64 m south-west of its middle), between the
- *  west road and the salt lagoon, which comes up to its far edge (`lagoons()` in entrance.js keeps the water clear of it).
+/** the helipad (helipad.js), where the client's Google Maps view puts it: right by the west roundabout, on the LEFT of the way in
+ *  as you drive up it (the north side of the entry road), in the corner between the entry road and the drive up to the visitor
+ *  centre, with the salt lagoon coming up to its far side (`lagoons()` in entrance.js keeps the water clear of it). (It stood on
+ *  the right of the road, across from here, until Jeffry checked it against the map again, 19 Nov 2026.)
  *  r: the paver ring; fato: the concrete disc; D: the D-value (the longest helicopter it takes, rotors turning); ry: the turn of
  *  the H (its uprights run along the way in); sock: where the windsock stands (angle a, radius r) and the way the wind blows it;
- *  path: the short paved way in from the west road's footway */
-export const HELI = { x: -273, z: -18, r: 20, fato: 14.5, D: 16, ry: 0, sock: { a: 2.36, r: 23, wind: 0.6 }, path: { x0: -254, x1: RB_W.x - ROADS.w / 2 - ROADS.walk + 0.25, z: -18, w: 6 } };
+ *  path: the short paved way in from the drive's footway; craft: where the parked helicopter stands (its heading, in radians) */
+export const HELI = { x: -276, z: -110, r: 20, fato: 14.5, D: 16, ry: 0, sock: { a: 2.5, r: 23, wind: 0.6 }, path: { x0: -257, x1: -251.2, z: -110, w: 6 }, craft: { ry: 0.42 } };
 export const OVERVIEW = { x: -20, y: 0, z: 90, az: -0.85, pol: 0.98, dist: 900 };
 export const CAM_BOX = [-520, 430, -560, 520];

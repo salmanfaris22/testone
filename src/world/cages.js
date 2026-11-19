@@ -9,6 +9,7 @@ import { makeLFC, animateLFC, LFC_ITEM } from './lfc.js';
 import { CAGES, JETTY, LFC_BERTH, south } from './layout.js';
 import { SEA_Y, terrainH } from './terrain-fn.js';
 import { P } from './rig.js';
+import { buildCycleRing } from './cycle-ring.js';
 
 const BIG_SP = [['hamour', 'Hamour'], ['hamra', 'Hamra, red snapper'], ['shiqra', 'Shiqra, mangrove snapper'], ['seabream', 'Seabream'], ['hamour', 'Hamour'], ['shaari', 'Shaari'], ['hamra', 'Hamra, red snapper'], ['shiqra', 'Shiqra, mangrove snapper'], ['hamour', 'Hamour'], ['seabream', 'Seabream'], ['hamra', 'Hamra, red snapper'], ['hamour', 'Hamour']];
 
@@ -191,6 +192,8 @@ export function buildCages(world) {
           live: [{ k: 'Water temperature', u: '°C', v: 28.6, d: 0.15, lo: 18, hi: 35, p: 1 }, { k: 'Dissolved oxygen', u: 'mg/L', v: 6.1, d: 0.25, lo: 4, hi: 8, p: 1 }, { k: 'Current', u: 'cm/s', v: 11, d: 2, lo: 0, hi: 40, p: 0 }, { k: 'Feeding response', text: ['Strong', 'Strong', 'Good', 'Strong'][i % 4] }],
           species: ['hamour', 'hamra', 'shaari', 'seabream', 'shiqra'].includes(sp) ? sp : null, stage: 'seacages', swim: { sp, n: 150, net: c.r, depth: c.depth, grams: w }, cage: c });
       });
+      // the five phases from egg to sea, round the middle cage, as the client's film draws them (cycle-ring.js)
+      buildCycleRing(world, cages[4], Y, -2.65, ctx);
       ctx.item({ code: 'FB', group: 'Support', name: 'Feed barge', kind: 'Feed store and control', box: [fb[0] - 9, Y - 1, fb[1] - 9, fb[0] + 9, Y + 7.4, fb[1] + 9], label: true,
         desc: 'A moored barge carrying feed silos and the feeding controls. Pellets are blown to each cage through floating pipes, and cameras under the nets show when the fish stop eating so nothing is wasted.',
         specs: [['3', 'Silos'], ['Air blown', 'Feed delivery'], ['Camera', 'Controlled']], live: [{ k: 'Feed delivered today', u: 'kg', v: 1840, d: 12, lo: 0, hi: 4000, p: 0, rise: true }, { k: 'Silo level', u: '%', v: 64, d: 0.4, lo: 10, hi: 100, p: 0 }] });

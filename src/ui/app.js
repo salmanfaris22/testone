@@ -55,8 +55,8 @@ export function createApp(world, hooks) {
   });
   AREAS.forEach((a, i) => {
     if (i === 0 || AREAS[i - 1].phase !== a.phase) { const t = document.createElement('i'); t.className = 'dock-ph'; t.textContent = `P${a.phase}`; t.title = `Phase ${a.phase}`; dock.appendChild(t); }
-    const b = document.createElement('button'); b.type = 'button'; b.dataset.id = a.id; b.innerHTML = `<b>${a.n}</b><span>${a.short}</span>`; b.setAttribute('aria-label', `${a.n} ${a.name}, Phase ${a.phase}`); b.title = `${a.name} (Phase ${a.phase})`; b.addEventListener('click', () => { stopTour(); goArea(a.id); }); dock.appendChild(b); });
-  labels.buildPins(AREAS.map((a) => ({ ...a, pin: areas.byId[a.id].pin })), (id) => { if (!S.exploring) hooks.enter(id); else { stopTour(); goArea(id); } }, (id) => labels.markPin(id));
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.id = a.id; b.innerHTML = `<b>${a.n}</b><span>${a.short}</span>`; b.setAttribute('aria-label', `${a.n} ${a.name}, Phase ${a.phase}`); b.title = `${a.name} (Phase ${a.phase})`; b.addEventListener('click', () => { stopTour(); goArea(a.id, { view: 'top' }); }); dock.appendChild(b); });
+  labels.buildPins(AREAS.map((a) => ({ ...a, pin: areas.byId[a.id].pin })), (id) => { if (!S.exploring) hooks.enter(id, 'top'); else { stopTour(); goArea(id, { view: 'top' }); } }, (id) => labels.markPin(id));
   appEl.addEventListener('click', (e) => { if (e.target.closest('button')) audio.click(); }, true);
 
   const panel = createPanel(panelEl, {
@@ -64,7 +64,7 @@ export function createApp(world, hooks) {
     onAct(a, arg) {
       if (a !== 'hover' && a !== 'age') stopTour();
       if (a === 'close') { if (S.fish) selectFish(null); else if (S.dive) leaveDive(); else if (S.item) upToArea(); else overview(); }
-      else if (a === 'item') goItem(arg);
+      else if (a === 'item') openItem(arg);
       else if (a === 'hover') { const it = arg && world.items.get(arg); if (it) { select.show(it); labels.tip(it); } else if (!S.item) { select.hide(); labels.tip(null); } else { select.show(world.items.get(S.item)); labels.tip(null); } }
       else if (a === 'prev' || a === 'next') stepArea(a === 'next' ? 1 : -1);
       else if (a === 'iprev' || a === 'inext') stepItem(a === 'inext' ? 1 : -1);
@@ -107,7 +107,7 @@ export function createApp(world, hooks) {
   };
 
   /* ───── helpers ───── */
-  const setShift = () => { const open = body.classList.contains('has-panel'), min = panelEl.classList.contains('is-min'); if (coarse()) { rig.setShift(0, open ? engine.h * (min ? 0.05 : 0.2) : 0); dive.shift(0, open ? engine.h * (min ? 0.06 : 0.24) : 0); } else { rig.setShift(open ? 203 : 0, 0); dive.shift(open ? 203 : 0, 0); } };
+  const setShift = () => { const open = body.classList.contains('has-panel'), min = panelEl.classList.contains('is-min'); if (coarse()) { rig.setShift(0, open ? engine.h * (min ? 0.05 : 0.2) : 0); dive.shift(0, open ? engine.h * (min ? 0.06 : 0.24) : 0); } else { rig.setShift(open ? 195 : 0, 0); dive.shift(open ? 195 : 0, 0); } };
   const WFOV = (zone) => (coarse() ? 76 : zone ? 62 : 56);                 // a phone held upright needs a wider lens indoors
   const sheet = (min) => { if (!coarse()) return; panelEl.classList.toggle('is-min', min); setShift(); };
   const WALKHINT = () => (touch ? 'Drag to look round. Use the stick to walk. Tap a tank or a machine to go to it.' : 'Drag to look round. W A S D to walk. Click a tank, a machine or the floor to go there.');
@@ -146,7 +146,7 @@ export function createApp(world, hooks) {
   /* ───── state changes ───── */
   function overview(fly = true) {
     if (S.dive) leaveDive(true);
-    S.area = null; S.item = null; S.arrived = false; select.hide(); labels.focus(null); labels.occl = null; areas.closeAll(); outdoors(); labels.clearTags(); labels.clearDoors(); labels.clearRooms(); labels.tip(null); labels.showPins(true);
+    S.area = null; S.item = null; S.arrived = false; world.cycleOn = false; select.hide(); labels.focus(null); labels.occl = null; areas.closeAll(); outdoors(); labels.clearTags(); labels.clearDoors(); labels.clearRooms(); labels.tip(null); labels.showPins(true);
     body.classList.remove('has-panel'); panel.clear(); setShift(); setBack(); setDock();
     rig.limits.distMin = 30; rig.limits.distMax = 1250; rig.limits.box = CAM_BOX.slice(); rig.limits.polMax = 1.4;
     if (fly) rig.flyTo(OVERVIEW, { dur: 2.0 });
@@ -178,6 +178,8 @@ export function createApp(world, hooks) {
       else {
         rig.room = null; S.arrived = false; rig.limits.distMax = 1250;
         if (instant) { rig.jump(a.walk); arrive(a); }
+        // (an area whose walk-in starts inside, on a view of its own, flies straight there; the others come down outside the door first)
+        else if (a.walkDirect) rig.flyTo(a.walk, { dur: 2.4, hop: 0.08, done: () => arrive(a) });
         else rig.playPath([{ p: { ...rig.goal } }, { p: { ...a.walk, pol: 1.2, dist: a.walk.dist + 58 }, t: 1.8 }, { p: a.walk, t: 1.6 }], { done: () => arrive(a) });
       }
     } else {
@@ -187,14 +189,18 @@ export function createApp(world, hooks) {
       rig.flyTo(pose, { dur: instant ? 0.01 : 1.9, hop: 0.2 });
     }
     panel.area(a, a.items, { view }); setBack(); setDock();
+    world.cycleOn = id === 'seacages' && view !== 'walk';
     labels.showPins(false);
     if (view === 'plan') { labels.clearTags(); labels.setRooms(itemsOf(a).filter((it) => !/^(EX-|SPN|EC$|CW$|SW$|F-0|CY$)/.test(it.code)).map((it) => (a.planWith ? it : { ...it, short: it.code }))); }
-    else { labels.clearRooms(); labels.setTags(a.items.filter((it) => it.label && !(view === 'walk' && it.door)), (iid) => { stopTour(); goItem(iid); }); }
+    else { labels.clearRooms(); labels.setTags(a.items.filter((it) => it.label && !(view === 'walk' && it.door)), (iid) => { stopTour(); openItem(iid); }); }
     if (view === 'walk' && !sea) labels.setDoors(a.items.filter((it) => it.door), (iid) => { stopTour(); goItem(iid); }); else labels.clearDoors();
     setHint(view === 'plan' ? 'Plan view. Click any room or item to inspect it.' : view === 'walk' && !sea ? WALKHINT() : touch ? 'Tap any tank, machine or label.' : 'Click any tank, machine, room or label to inspect it.');
     audio.scene(SOUND[id] || 'hall'); if (!same) audio.whoosh(); hooks.onArea && hooks.onArea(id);
     world.prebuild && world.prebuild();
   }
+  /** a click on a thing: a sea cage takes you straight in under water, anything else is shown in its place */
+  const dives = (it) => !!(it && it.swim && it.area === 'seacages');
+  function openItem(iid) { const it = world.items.get(iid); if (dives(it) && S.dive !== it) { if (S.dive) leaveDive(true); diveInto(it); } else goItem(iid); }
   function setView(v) { if (!S.area) return; const it = S.item; S.view = v; goArea(S.area, { view: v }); if (it && v !== 'plan') goItem(it); }
   function goItem(iid) {
     const it = world.items.get(iid); if (!it) return;
@@ -225,7 +231,8 @@ export function createApp(world, hooks) {
       }
     } else {
       const pol = clamp(rig.goal.pol, 0.6, 1.02);
-      rig.flyTo(P(c[0], clamp(c[1], 0, 3), c[2], rig.goal.az, pol, clamp(size * 2.5 + 9, 15, 150)), { dur: 1.2, hop: 0 });
+      // (a thing that is part of a picture, like a badge on the ring of the five phases, keeps the whole picture in view)
+      rig.flyTo(it.look || P(c[0], clamp(c[1], 0, 3), c[2], rig.goal.az, pol, clamp(size * 2.5 + 9, 15, 150)), { dur: 1.2, hop: 0 });
     }
     body.classList.add('has-panel'); panel.item(it, a.items, { view: S.view });
     panelEl.classList.toggle('is-min', coarse() && !!it.isDisplay); setShift(); setBack(); audio.select();
@@ -420,7 +427,7 @@ export function createApp(world, hooks) {
   function exit() {
     if (!S.exploring) return;
     stopTour(); stopFilm(); stopDrone(); clearTimeout(ctlT); control.close(); if (S.dive) leaveDive(true); const last = S.area || S.last; S.last = null;
-    S.exploring = false; S.area = null; S.item = null; S.view = 'walk'; select.hide(); labels.focus(null); labels.occl = null; areas.closeAll(); outdoors(); labels.clearTags(); labels.clearDoors(); labels.clearRooms(); labels.tip(null);
+    S.exploring = false; S.area = null; S.item = null; S.view = 'walk'; world.cycleOn = false; select.hide(); labels.focus(null); labels.occl = null; areas.closeAll(); outdoors(); labels.clearTags(); labels.clearDoors(); labels.clearRooms(); labels.tip(null);
     body.classList.remove('exploring', 'has-panel', 'pointing'); panel.clear(); rig.setShift(0, 0); rig.user = false; rig.wheelZoom = false;
     rig.limits.distMin = 9; rig.limits.distMax = 1250; rig.limits.box = CAM_BOX.slice(); rig.limits.polMax = 1.4;
     if (S.night) setNight(false);
@@ -432,7 +439,7 @@ export function createApp(world, hooks) {
   function enterItem(iid) {
     const it = world.items.get(iid); if (!it) return false;
     if (!S.exploring) hooks.enter(it.area, 'top');
-    goItem(iid); return true;
+    openItem(iid); return true;
   }
   const stepBack = () => { if (S.fish) selectFish(null); else if (S.dive) leaveDive(); else if (S.item) upToArea(); else if (S.area) overview(); else exit(); };
   backBtn.addEventListener('click', () => { stopTour(); stepBack(); });
@@ -476,7 +483,7 @@ export function createApp(world, hooks) {
     if (S.area) {
       const a = areas.byId[S.area], it = pickItem(world, itemsOf(a), x, y);
       if (it && it.control && it.id === S.item) { clearTimeout(ctlT); control.open(it); return; }      // the console you are standing at: its screen
-      if (it) return goItem(it.id);
+      if (it) return openItem(it.id);
       if (S.view === 'walk' && rig.room === a) { const f = pickFloor(world, x, y, 0.1); if (f && inRooms(a, f[0], f[1])) { if (S.item) { S.item = null; select.hide(); labels.focus(null); panel.area(a, a.items, { view: S.view }); setBack(); } rig.flyTo({ ...rig.goal, x: f[0], z: f[1], y: 1.5, dist: clamp(rig.goal.dist, 6, 14) }, { dur: 1.1, hop: 0 }); } return; }
       const o = pickArea(world, x, y);
       if (o && o.id !== S.area && !(S.view === 'plan' && a.planWith === o.id)) return goArea(o.id);

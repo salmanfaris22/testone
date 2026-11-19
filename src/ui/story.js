@@ -142,7 +142,7 @@ export function createStory(world, { onExplore, onFocus, scrollTo }) {
       if (open !== api.open) { api.open = open; for (const a of areas.list) { if (a.id === open) areas.open(a.id); else if (a.goal) areas.close(a.id); } if (open) fill(open); }
       const on = tau >= N ? -1 : clamp(Math.floor(tau + 0.06), -1, N - 1);          // past the last area no card is up (phones hold the card on screen)
       if (on !== cur) {
-        cur = on; rail.forEach((b, i) => b.classList.toggle('is-on', i === on)); steps.forEach((s, i) => s.classList.toggle('is-on', i === on)); if (on >= 0) fill(TOUR[on].id); api.onStep && api.onStep(on);
+        cur = on; world.cycleOn = on >= 0 && TOUR[on].id === 'seacages'; rail.forEach((b, i) => b.classList.toggle('is-on', i === on)); steps.forEach((s, i) => s.classList.toggle('is-on', i === on)); if (on >= 0) fill(TOUR[on].id); api.onStep && api.onStep(on);
         if (world.soon && on + 1 < N) world.soon(TOUR[on + 1].id);              // the next area's inside is built while this card is read
       }
       // the line along the top of the card fills as you scroll through its area

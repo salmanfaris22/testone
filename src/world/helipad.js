@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { canvasTex, rng, TAU } from './kit.js';
 import { glowPointsMat, radialTex } from './props.js';
 import { HELI } from './layout.js';
+import { makeHelicopter } from './helicopter.js';
 
 const PAD_Y = 0.1, RING_Y = 0.075;
 
@@ -147,6 +148,12 @@ export function buildHelipad(world) {
 
   world.land.hardscape.add(g);
   for (const h of halos) world.scene.add(h);
+  // the helicopter parked on the pad, its mast over the touchdown circle, turned a little off the H (its own group, so the opening
+  // film does not pave it with the ground: it comes with the people and the traffic)
+  const heli = makeHelicopter(mats, { tier: world.engine && world.engine.tier });
+  const hr = HELI.craft ? HELI.craft.ry : 0;
+  heli.position.set(x - Math.cos(hr) * 0.9, PAD_Y, z + Math.sin(hr) * 0.9); heli.rotation.y = hr;
+  world.scene.add(heli);
   return g;
 }
 

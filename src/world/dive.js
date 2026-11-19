@@ -89,7 +89,11 @@ export function createDive(world) {
   aura.renderOrder = 3; aura.visible = false; aura.frustumCulled = false; scene.add(aura);
   const _qz = new THREE.Quaternion(), _zAxis = new THREE.Vector3(0, 0, 1), _qi = new THREE.Quaternion();
   let glow = null, glowOf = null, glowK = 0, glowIdx = null;
-  const S = { active: false, kind: 'cage', r: 19.5, depth: 9, fish: [], sel: null, mix: 0, yaw: 0, gy: 0, pitch: -0.02, gp: -0.02, ang: 0, rc: 4, yc: -3.5, zoom: 1, gz: 1, orb: 0.5, gorb: 0.5, lift: 0.1, glift: 0.1, D: 3, idle: 0, look: new THREE.Vector3(), ready: false, meshes: [] };
+  // under water the camera keeps level, looking along the school at the net round it: dragging turns it round the cage, never up
+  // to the surface or down to the floor (PITCH, radians either way when looking round; LIFT, how far above or below a followed
+  // fish it may move, in fish lengths of camera distance)
+  const PITCH = 0.1, LIFT = 0.1;
+  const S = { active: false, kind: 'cage', r: 19.5, depth: 9, fish: [], sel: null, mix: 0, yaw: 0, gy: 0, pitch: -0.02, gp: -0.02, ang: 0, rc: 4, yc: -3.5, zoom: 1, gz: 1, orb: 0.5, gorb: 0.5, lift: 0.04, glift: 0.04, D: 3, idle: 0, look: new THREE.Vector3(), ready: false, meshes: [] };
 
   function clear() {
     for (const o of [...holder.children]) { holder.remove(o); o.geometry && o.geometry.dispose(); if (o.material && o.material.dispose && !o.material.userData.keep) o.material.dispose(); }
@@ -154,7 +158,7 @@ export function createDive(world) {
     const ids = o.sp === 'mix' ? MIX.filter((v, i, a) => a.indexOf(v) === i) : [world.fish.FISH[o.sp] ? o.sp : 'naisrah'], n = o.n || 40;
     const refLen = (sp) => lengthAt(sp, o.grams ? ageAtWeight(sp, o.grams) : o.age || 2.4) / 100;
     const L0 = refLen(ids[0]);
-    S.rc = clamp(r * 0.2, 0.7, 5); S.yc = -Math.min(depth * 0.45, 1.4 + 6 * L0); S.L0 = L0;
+    S.rc = clamp(r * 0.2, 0.7, 5); S.yc = -Math.min(depth * 0.55, 2.4 + 7 * L0);       // deep enough that, looking level, the school is seen against the dark net, not the bright surface S.L0 = L0;
     // the school keeps to a band round the camera, thickest close in, so there is always something swimming past
     const rho0 = Math.min(r * 0.55, S.rc + 0.9 + 0.6 * L0), rho1 = Math.max(rho0 + 0.5, Math.min(r * 0.9, rho0 + 7 * L0 + 2)), half = Math.min(depth * 0.42, 0.7 + 3.6 * L0), y0 = Math.min(-0.4, S.yc + half), y1 = Math.max(-depth * 0.92, S.yc - half);
     const per = ids.map((sp, k) => ({ sp, rows: [], list: [], count: Math.round(n / ids.length) + (k === 0 ? n % ids.length : 0) }));
@@ -229,7 +233,7 @@ export function createDive(world) {
     /** keep the subject clear of the panel: shift the picture by this many pixels */
     shift(x, y) { S.sx = x; S.sy = y; },
     /** drag: look round, or swing round the fish being followed */
-    look(dx, dy) { S.idle = 0; if (S.sel) { S.gorb = clamp(S.gorb - dx * 0.006, -1.25, 1.25); S.glift = clamp(S.glift + dy * 0.004, -0.5, 0.6); } else { S.gy += dx * 0.0042; S.gp = clamp(S.gp + dy * 0.003, -0.7, 0.85); } },
+    look(dx, dy) { S.idle = 0; if (S.sel) { S.gorb = clamp(S.gorb - dx * 0.006, -1.25, 1.25); S.glift = clamp(S.glift + dy * 0.004, -LIFT, LIFT); } else { S.gy += dx * 0.0042; S.gp = clamp(S.gp + dy * 0.003, -PITCH, PITCH); } },
     zoom(d) { S.idle = 0; S.gz = clamp(S.gz * Math.exp(d * 0.0012), 0.55, 2.2); },
     pick(cx, cy) {
       const r = engine.canvas.getBoundingClientRect(); _ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); _rc.setFromCamera(_ndc, camera); _ray.copy(_rc.ray);
@@ -240,7 +244,7 @@ export function createDive(world) {
     /** selecting one fish selects its whole group: the school of the same species in this cage or tank, one batch of one age */
     select(f) {
       S.sel = f || null; S.idle = 0; S.group = f ? ((S.per || []).find((g) => g.sp === f.sp) || { list: [f] }).list : null;
-      if (f) { S.gorb = 0.5; S.glift = 0.1; S.gz = 1; S.zoom = 1; api.frame(); }
+      if (f) { S.gorb = 0.5; S.glift = 0.04; S.gz = 1; S.zoom = 1; api.frame(); }
       // every fish of the group wears the glow (one instanced skin of light over the whole school)
       if (f && f !== glowOf) { if (glow) { glowGroup.remove(glow); glow.geometry.dispose(); } const G = S.group || [f]; glow = world.fish.glowMany(f.sp, G.map((g) => g.gait || 0)); glowIdx = new Map(G.map((g, i) => [g, i])); glow.visible = false; glowGroup.add(glow); glowOf = f; glowK = 0; }
       api.onSelect && api.onSelect(S.sel);

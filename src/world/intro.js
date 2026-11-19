@@ -88,7 +88,9 @@ export function createIntro(world, { hero }) {
   const carAt = (t) => { const x = route.at(t); return [x + 1.4, 1.0, LANE]; };
   const bez = (p0, p1, p2, p3, u) => { const v = 1 - u; return [0, 1, 2].map((i) => v * v * v * p0[i] + 3 * v * v * u * p1[i] + 3 * v * u * u * p2[i] + u * u * u * p3[i]); };
   // 1, the car: low on the verge ahead of it, its front coming at us as it slows for the gate
-  const carCam = (t) => { const k = smooth(win(t, 0, T.board)); return [GX - 15.5 + 2.2 * k, 1.15 + 0.2 * k, Z0 - 6.2 * narrow()]; };
+  // (on a narrow screen it stands further off the road, but never past the roadside wall 12.4 m from the centre line: from behind
+  // it the first seconds of the film were a grey wall)
+  const carCam = (t) => { const k = smooth(win(t, 0, T.board)); return [GX - 15.5 + 2.2 * k, 1.15 + 0.2 * k, Z0 - Math.min(8.4, 6.2 * narrow())]; };
   // 2, the name board: the camera turns from the car to the plaque and slides along it, reading it
   const boardCam = (t) => { const k = smooth(win(t, T.board + 0.3, T.over - T.board - 0.3)), n = narrow(); return onWall(-1.9 + 4.3 * k, (3.5 + 2.0 * k) * n, 1.6 + 0.32 * k); };
   const boardLook = (t) => { const k = smooth(win(t, T.board + 0.3, T.over - T.board - 0.3)); return onWall((-1.9 + 4.3 * k) * 0.3, 0, 1.78); };
@@ -102,7 +104,12 @@ export function createIntro(world, { hero }) {
   /** shot 5, the drone: it lifts off behind and above the car, over the guard cabin and the boom, as it drives through the bath */
   const chase = (t, x) => { const k = smooth(win(t, T.chase, T.rise - T.chase + 1.2)); return [[x - 10 - 7 * k, 2.4 + 15 * k, LANE - 8 - 6 * k], [x + 3.5 + 6 * k, 0.9, LANE - 0.4]]; };
   // where the crane-up comes to rest: high over the flag road, looking along it past 08's plot to the sea
-  const vantage = [[GX + 10, 128, Z0 - 132], [vc[0] - 26, 0, vc[1] + 66]], vantageP = poseFrom(...vantage);
+  const upright = engine.h > engine.w * 1.1;
+  const vantage = [[GX + 10, 128, Z0 - 132], upright ? [vc[0] - 8, 0, vc[1] + 22] : [vc[0] - 26, 0, vc[1] + 66]], vantageP = poseFrom(...vantage);
+  /** how far the camera steps back for a narrow screen while the site is built: half the rig's usual step-back (which fits the
+   *  site's whole width into an upright phone and turns it into a flat road map), growing to all of it as the camera comes down
+   *  into the hero view, so the film hands over to the page without a jump */
+  const buildFit = (time, k = 1) => 1 + (rig.fit - 1) * k * (0.5 + 0.5 * smooth(win(time, T.settle, T.end - T.settle)));
   /** the camera for film time t: [position, point looked at, how far the crane-up has come]; the shots glide into each other */
   const shotAt = (t) => {
     const x = route.at(t);
@@ -296,9 +303,9 @@ export function createIntro(world, { hero }) {
   /* ───── what comes to life at the end; anything new in the scene that we do not know joins it ───── */
   const KNOWN = new Set(['terrain', 'hardscape', 'rocks', 'ao', 'plants', 'lights', 'gate', 'host', 'flags-road', 'flags-drop', 'blueprint', 'intro-helpers', 'intro-cranes', 'intro-car', 'drone', 'drone-shadow', ...AREAS.map((d) => d.id)]);
   const flagDrop = named('flags-drop');
-  const grown = ['site', ...scene.children.filter((o) => o.name && o.visible && !KNOWN.has(o.name) && !['people', 'traffic', 'gulls', 'led-boards', 'site'].includes(o.name) && (o.isGroup || o.isMesh) && !o.isLight).map((o) => o.name)];
+  const grown = ['site', ...scene.children.filter((o) => o.name && o.visible && !KNOWN.has(o.name) && !['people', 'traffic', 'gulls', 'led-boards', 'site', 'helicopter'].includes(o.name) && (o.isGroup || o.isMesh) && !o.isLight).map((o) => o.name)];
   const later = [...new Set(grown)].map(named).filter(Boolean);
-  const popped = ['people', 'traffic', 'gulls', 'led-boards'].map(named).filter(Boolean);
+  const popped = ['people', 'traffic', 'gulls', 'led-boards', 'helicopter'].map(named).filter(Boolean);
 
   /* ───── light: a warmer, low-contrast sun at the gate, back to the normal day as the camera rises ───── */
   const GOLD = new THREE.Color(0xffc68a), HAZE = new THREE.Color(0xf4dfc4); let warmOn = false;
@@ -370,9 +377,9 @@ export function createIntro(world, { hero }) {
     }
     if (!flying && t < T.fly0) {
       const [c, l, k = 0] = shotAt(t);
-      rig.fitOverride = 1 + (rig.fit - 1) * k; setFov(fovAt(t));
+      rig.fitOverride = buildFit(t, k); setFov(fovAt(t));
       rig.jump(poseFrom(c, l)); rig._apply();
-    } else if (flying) setFov(fovAt(t));
+    } else if (flying) { rig.fitOverride = buildFit(t); setFov(fovAt(t)); }
     // 08's ground is paved and planted outwards from it as it goes up
     G.pre.value.z = ISLAND * smooth(win(t, T.b08 + 0.2, 1.6)); G.pre.value.w = win(t, T.b08 + 0.2, 1.6);
     if (flagDrop) { const r = remember(flagDrop), k = win(t, T.b08 + 1.4, 1.0); flagDrop.visible = k > 0 && r.v; flagDrop.scale.y = Math.max(TINY, backOut(k)) * r.s.y; }
@@ -474,7 +481,7 @@ export function createIntro(world, { hero }) {
       if (!flying && t >= T.fly0) {
         // the crane-up has come to rest high over the flag road: from here the camera flies the path, starting from exactly that pose;
         // it drifts round to the north-west of the site while everything goes up, then comes down over 08's drop-off into the hero
-        flying = true; rig.fitOverride = null; rig.floorOverride = null; rig.limits.distMin = distMin; rig.limits.polMax = 1.56;
+        flying = true; rig.fitOverride = buildFit(t); rig.floorOverride = null; rig.limits.distMin = distMin; rig.limits.polMax = 1.56;
         end = hero();
         const keys = [
           { p: vantageP },

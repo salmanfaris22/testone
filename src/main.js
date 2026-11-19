@@ -5,6 +5,10 @@ import '@fontsource/ibm-plex-sans/500.css';
 import '@fontsource/ibm-plex-sans/600.css';
 import '@fontsource/ibm-plex-sans-condensed/500.css';
 import '@fontsource/ibm-plex-sans-condensed/600.css';
+import '@fontsource/ibm-plex-sans-arabic/400.css';
+import '@fontsource/ibm-plex-sans-arabic/500.css';
+import '@fontsource/ibm-plex-sans-arabic/600.css';
+import { startTranslator, langButtons, isAr } from './i18n.js';
 import './styles/base.css';
 import './styles/site.css';
 import './styles/app.css';
@@ -23,6 +27,8 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const body = document.body;
 history.scrollRestoration = 'manual';
+// English or Arabic (i18n.js): the page is put into Arabic now, and whatever the model writes later as it appears
+startTranslator(); langButtons();
 // the look of the scroll tour's cards: glass (default), caption or paper. ?card=caption previews one, ?pick shows a switch.
 {
   const q = new URLSearchParams(location.search), LOOKS = ['glass', 'caption', 'paper'];
@@ -123,6 +129,8 @@ async function boot() {
     // entering from far down the page (the cycle list, the footer): the engine sleeps there, so wake it first
     const enter = app.enter; app.enter = (id, view) => { world.engine.setActive(true); story.setActive(false); species.setActive(false); veil.style.opacity = 0; enter(id, view); };
     species = createSpecies(world, { onGoto: (id) => app.enter(id), onAsk: (name) => { for (const c of form.querySelectorAll('[name=sp]')) c.checked = c.value === name; form.topic.value = 'Fry order'; syncForm(); scrollTo($('#contact').getBoundingClientRect().top + scrollY); } });
+    // the language switch in the model's own controls too
+    { const lp = document.createElement('button'); lp.type = 'button'; lp.className = 'pill pill-lang'; lp.dataset.lang = ''; const ctl = $('#app-ctrl'); if (ctl) { ctl.appendChild(lp); langButtons(); } }
     if (introMod) { const { createIntro } = await introMod; intro = createIntro(world, { hero }); window.__intro = intro; }
     // otherwise open a little high and wide, then settle into the hero view as the loader lifts
     else if (reduced) { world.rig.jump(hero()); heroLens(); world.rig.lambda = 4.2; }

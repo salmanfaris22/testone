@@ -10,6 +10,12 @@
 <meta property="og:title" content="Sheikh Khalifa Marine Research Centre in 3D">
 <meta property="og:description" content="Twelve areas, every tank and machine, and the native Gulf species raised there.">
 <meta property="og:image" content="./poster.jpg">
+<script>
+  /* the language, before anything paints: ?lang=ar or the last choice made in this browser (i18n.js reads it from <html>) */
+  (function () { var q = new URLSearchParams(location.search).get('lang'), s = null; try { s = localStorage.getItem('lang'); } catch (e) {}
+    var l = (q || s) === 'ar' ? 'ar' : 'en'; if (q) { try { localStorage.setItem('lang', l); } catch (e) {} }
+    if (l === 'ar') { var h = document.documentElement; h.lang = 'ar'; h.dir = 'rtl'; h.className += ' ar'; } })();
+</script>
 <link rel="icon" href="./brand/favicon-64.png" type="image/png">
 <link rel="apple-touch-icon" href="./brand/favicon-64.png">
 <style>
@@ -43,6 +49,7 @@
     <a href="#cycle">Production cycle</a>
     <a href="#contact">Contact</a>
   </nav>
+  <button class="lang-btn" data-lang type="button">عربي</button>
   <button class="btn btn-solid" data-explore type="button">Start virtual tour</button>
 </header>
 

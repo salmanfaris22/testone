@@ -436,3 +436,25 @@ body.intro .hero::before { opacity: 0; }
   .intro-phases { bottom: 20px; }
 }
 
+
+/* ───── the language button, and the site in Arabic: right to left, IBM Plex Sans Arabic, no letter-spacing (Arabic letters
+   join, so spacing them breaks the words), arrows turned round, counts kept in reading order ───── */
+.lang-btn { flex: none; min-height: 40px; padding: 0 14px; margin-right: 10px; border-radius: 999px; font-size: 15px; font-weight: 500; color: inherit; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); transition: background-color 0.2s, border-color 0.2s; }
+.lang-btn:hover { background: rgba(127, 150, 160, 0.2); border-color: currentColor; }
+.lang-btn[lang='ar'], .pill-lang[lang='ar'] { font-family: 'IBM Plex Sans Arabic', var(--f); }
+html.ar { --f: 'IBM Plex Sans Arabic', 'IBM Plex Sans', 'Geeza Pro', 'Segoe UI', Tahoma, sans-serif; --fc: 'IBM Plex Sans Arabic', 'IBM Plex Sans Condensed', 'IBM Plex Sans', 'Geeza Pro', sans-serif; }
+html.ar body, html.ar button, html.ar input, html.ar select, html.ar textarea { font-family: var(--f); }
+html.ar *, html.ar *::before, html.ar *::after { letter-spacing: 0 !important; }
+html.ar .lang-btn { margin-right: 0; margin-left: 10px; }
+html.ar .brand { margin-right: 0; margin-left: auto; }
+html.ar .brand-text { padding-left: 0; border-left: 0; padding-right: 14px; border-right: 1px solid color-mix(in srgb, currentColor 35%, transparent); }
+html.ar .hero::before { transform: scaleX(-1); }
+html.ar .sc-go svg, html.ar .p-foot svg, html.ar .p-crumb svg, html.ar .pill-back svg, html.ar .fishrow svg { transform: scaleX(-1); }
+html.ar .sc-go:hover svg { transform: scaleX(-1) translateX(3px); }
+html.ar .sc-count, html.ar .p-count, html.ar .sc-n, html.ar .p-num, html.ar .dock button b, html.ar .live-row b { direction: ltr; unicode-bidi: isolate; }
+html.ar .sc-count { margin-left: 0; margin-right: auto; }
+@media (max-width: 480px) { html.ar .lang-btn { padding: 0 11px; min-height: 38px; font-size: 14px; } }
+@media (max-width: 380px) { .lang-btn { padding: 0 10px; margin-right: 6px; } }
+/* (figures keep their own reading order in Arabic: "270+" and "20 M" stay as written, Arabic words run right to left) */
+html.ar .hero-facts b, html.ar .figures-grid dt { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+html.ar .sc-stats b, html.ar .p-figs b, html.ar .p-tiles b, html.ar .ft-figs b { unicode-bidi: plaintext; text-align: right; }

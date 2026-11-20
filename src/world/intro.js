@@ -100,13 +100,14 @@ export function createIntro(world, { hero }) {
   const boardCam = (t) => { const k = smooth(win(t, T.board + 0.3, T.over - T.board - 0.3)), n = narrow(), s = -1.9 + 4.3 * k; return onWall(s, offWall(s, (3.5 + 2.0 * k) * n), 1.6 + 0.32 * k); };
   const boardLook = (t) => { const k = smooth(win(t, T.board + 0.3, T.over - T.board - 0.3)); return onWall((-1.9 + 4.3 * k) * 0.3, 0, 1.78); };
   // 3, over the gate: the camera lifts off the end of the wall, turning to the car waiting at the gate, rises back over the
-  // opening gate and comes down low on the road inside it, looking back out at the car
-  const IN = [GX + 11.8, 0.86, Z0 - 0.75];
-  const overCam = (t) => { const p0 = boardCam(T.over), u = smooth(win(t, T.over + 0.3, 2.3)); return bez(p0, [p0[0] + 2.5, 7.2, p0[2] + 1.5], [GX + 6.5, 7.0, Z0 - 2.2], IN, u); };
-  // 4, inside: the car comes through the gate at the camera and past it on the left; the eye follows it
+  // opening gate and hovers inside it, about 5 m up, looking back out at the car (it no longer dives to the road there: Jeffry,
+  // 20 Nov, 'camera moving to the bottom, don't need')
+  const IN = [GX + 10.5, 5.0, Z0 - 1.6];
+  const overCam = (t) => { const p0 = boardCam(T.over), u = smooth(win(t, T.over + 0.3, 2.3)); return bez(p0, [p0[0] + 2.5, 6.2, p0[2] + 1.2], [GX + 5.5, 5.6, Z0 - 2.4], IN, u); };
+  // 4, inside: the car comes through the gate towards the camera and drives on below it on the left; the eye follows it
   const inLook = (t) => { const x = route.at(t), k = smooth(win(x, GX - 12, 22)); return mix3([GX - 9, 1.5, Z0 + 0.4], [x + 0.6, 1.0, LANE], 0.3 + 0.62 * k); };
   /** shot 5, the drone: it lifts off behind and above the car, over the guard cabin and the boom, as it drives through the bath */
-  const chase = (t, x) => { const k = smooth(win(t, T.chase, T.rise - T.chase + 1.2)); return [[x - 10 - 7 * k, 2.4 + 15 * k, LANE - 8 - 6 * k], [x + 3.5 + 6 * k, 0.9, LANE - 0.4]]; };
+  const chase = (t, x) => { const k = smooth(win(t, T.chase, T.rise - T.chase + 1.2)); return [[x - 10 - 7 * k, IN[1] + (17.4 - IN[1]) * k, LANE - 8 - 6 * k], [x + 3.5 + 6 * k, 0.9, LANE - 0.4]]; };      // (it only climbs from the hover)
   // where the crane-up comes to rest: high over the flag road, looking along it past 08's plot to the sea
   const upright = engine.h > engine.w * 1.1;
   /** a look point turned from l0 to l1 by k, as seen from c: the heading and the tilt turn evenly (the short way round), so the
@@ -139,7 +140,7 @@ export function createIntro(world, { hero }) {
     }
     if (t < T.chase) {
       const c = t < T.over + 2.6 ? overCam(t) : [IN[0] - 1.4 * smooth(win(t, T.over + 2.6, T.chase - T.over - 2.6)), IN[1], IN[2]];
-      const l = t < T.over + 2.6 ? aimMix(c, aimMix(c, boardLook(t), gateLook(t), kGate(t), -1), inLook(t), smooth(win(t, T.over + 1.4, 1.2))) : inLook(t);
+      const l = t < T.over + 2.6 ? aimMix(c, aimMix(c, boardLook(t), gateLook(t), kGate(t), -1), inLook(t), smooth(win(t, T.over + 0.8, 1.6))) : inLook(t);      // (it turns to the car as it rises, not down at the paving)
       return [c, l, 0];
     }
     const e = easeIO(win(t, T.chase, 2.3)), ch = chase(t, x), c0 = [IN[0] - 1.4, IN[1], IN[2]];

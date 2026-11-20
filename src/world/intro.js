@@ -319,7 +319,7 @@ export function createIntro(world, { hero }) {
   };
 
   /* ───── state ───── */
-  let avRange = 0, t = 0, playing = false, resolve = null, stop = null, polMax = 1.4, distMin = 9, warmObj = [], driving = false, flying = false, end = null;
+  let avRange = 0, t = 0, playing = false, resolve = null, stop = null, calmTick = () => {}, polMax = 1.4, distMin = 9, warmObj = [], driving = false, flying = false, end = null;
   const keep = new Map(); const remember = (o) => { if (!keep.has(o)) keep.set(o, { s: o.scale.clone(), p: o.position.clone(), v: o.visible }); return keep.get(o); };
   const first = areaById[FIRST];
   // (the welcome comes with the car; it goes while the name board is read, the plaque says it already)
@@ -492,9 +492,13 @@ export function createIntro(world, { hero }) {
     resolve = res; playing = api.playing = true; world.filming = true; t = 0; capI = -1; end = hero();          // captions fire again now that someone is listening
     wakeT = { f: -1, r: -1 }; splashed = { f: false, r: false, out: false }; driving = true; flying = false; lastX = route.at(0);
     rig.user = false; rig.limits.polMax = 1.66; rig.limits.distMin = 0.5; rig.floorOverride = 0.3; setState(0);
+    // the governor may lower the resolution only while the camera is nearly still (the slow slide along the name wall), never mid-pan
+    { const cam = world.camera, d0 = new THREE.Vector3(), d1 = new THREE.Vector3(), p0 = new THREE.Vector3(); let has = false; api.calm = true;
+      engine.judgeFrom = engine.frames + 60; engine.mayDrop = () => !playing || api.calm;
+      calmTick = (dt) => { cam.getWorldDirection(d1); if (has && dt > 0) { const turn = (Math.acos(Math.min(1, d0.dot(d1))) * 180) / Math.PI / dt, mv = p0.distanceTo(cam.position) / dt; api.calm = turn < 35 && mv < 3.2; } d0.copy(d1); p0.copy(cam.position); has = true; }; }
     stop = engine.onFrame((dt) => {
       if (!playing) return;
-      setState(t + dt);
+      setState(t + dt); calmTick(dt);
       if (!flying && t >= T.fly0) {
         // the crane-up has come to rest high over the flag road: from here the camera flies the path, starting from exactly that pose;
         // it drifts round to the north-west of the site while everything goes up, then comes down over 08's drop-off into the hero
@@ -514,7 +518,7 @@ export function createIntro(world, { hero }) {
   });
   /** jump to the end (skip button, a scroll, a key) or wrap up when the film is over */
   api.finish = (skipped = true) => {
-    if (!playing) return; playing = api.playing = false; world.filming = false; if (stop) stop(); engine.noUp = false; if (avRange) avatars.rangeMax = avRange;
+    if (!playing) return; playing = api.playing = false; world.filming = false; if (stop) stop(); engine.noUp = false; engine.mayDrop = () => true; engine.judgeFrom = undefined; if (avRange) avatars.rangeMax = avRange;
     restore(); scene.remove(sheet); lg.dispose(); paper.geometry.dispose(); paper.material.dispose(); lines.material.dispose();
     for (const s of groundSwaps) s[2].dispose(); for (const c of cons) { for (const s of c.ms) s[2].dispose(); c.depth.dispose(); }
     map.tex.dispose(); rig.limits.polMax = polMax; scene.remove(car.group); car.dispose();

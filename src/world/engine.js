@@ -66,6 +66,9 @@ export class Engine {
   stop() { this.running = false; }
   /** may the resolution go up now? (world.js: only when the camera is at rest and nobody is scrolling) */
   mayChange() { return true; }
+  /** may it go down now? (the opening film: only while the camera is nearly still, never in the middle of a pan, where the
+   *  canvas being made anew, 30 to 65 ms, shows as a jump) */
+  mayDrop() { return true; }
   /** known heavy work is coming (building an inside, a first upload): the governor does not judge the next `ms` by it */
   hold(ms = 400) { this.holdUntil = Math.max(this.holdUntil, performance.now() + ms); }
   _frame(now) {
@@ -93,14 +96,19 @@ export class Engine {
     const W = this.win;
     if (now < this.holdUntil || raw > 250) { W.length = 0; this.calmSince = 0; return; }
     W.push(raw); if (W.length > 40) W.shift();
-    if (W.length < 40 || this.frames < 200 || this.lockDpr || now - this.lastDprChange < 2500) return;
+    if (W.length < 40 || this.frames < (this.judgeFrom ?? 200) || this.lockDpr || now - this.lastDprChange < 2500) return;
     const med = median(W, this._tmp);
     if (med > 21.5) {
       this.calmSince = 0;
-      if (this.dpr <= this.minDpr) return;
+      if (this.dpr <= this.minDpr || now < (this.noDropUntil || 0)) return;
+      // the last step down won nothing (the slowness is not the pixels: another program on the machine, the processor): stop there
+      // for a minute rather than pay one more hitch for a softer picture that is no faster
+      if (this.dropMed && med > this.dropMed * 0.88) { this.dropMed = 0; this.noDropUntil = now + 60000; return; }
+      if (!this.mayDrop()) return;
       if (this.probe && now - this.probe < 5000) { this.ceil = this.dpr - 0.125; this.ceilUntil = now + 300000; }      // the last step up was one too many
-      this.probe = 0; this._setDpr(this.dpr - (med > 30 ? 0.25 : 0.125), now); return;
+      this.probe = 0; this.dropMed = med; this._setDpr(this.dpr - (med > 30 ? 0.25 : 0.125), now); return;
     }
+    this.dropMed = 0;
     if (!this.calmSince) this.calmSince = now;
     if (this.noUp || this.dpr >= this.maxDpr || now - this.calmSince < 12000 || now - this.lastUp < 30000 || !this.mayChange()) return;
     const up = Math.min(this.maxDpr, this.dpr + 0.125);

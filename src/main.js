@@ -159,6 +159,8 @@ async function boot() {
     world.engine.start();
     // let the first two frames draw under the loader, then lift it at once
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    // sound is on from the start unless the visitor turned it off last time: made here, under the loader, where its set-up costs nothing
+    if (soundWanted()) app.setSound(true);
     target = 1; done();
     lastY = -1; window.__app = app;
     setTimeout(() => app.audio.prime(), 1500);                    // the first sound then starts at once (audio.js)
@@ -173,6 +175,7 @@ async function boot() {
    (the first sound a page loads wakes the browser's audio service, which can stop the page for half a second: better there than
    in the film). A browser that will not play sound before the visitor touches the page (every phone) gets a Sound button
    beside Skip intro, and any tap on the film plays it from where the film is */
+const soundWanted = () => { try { return localStorage.getItem('skmrc-sound') !== 'off'; } catch (e) { return true; } };
 const VOICE_AT = 0.5;                       // film seconds: with the 'Marhaba. Welcome…' caption
 let introVoice = null;
 function loadVoice() {
@@ -194,7 +197,7 @@ function introSound(el) {
   btn.addEventListener('click', () => play(true));
   addEventListener('pointerup', onTap); addEventListener('touchend', onTap, { passive: true });
   return {
-    start: () => play(false),
+    start: () => (soundWanted() ? play(false) : (btn.hidden = false)),      // (sound turned off last visit: only the button)
     /** the film is over or skipped: the voice fades out over 0.7 s */
     stop() {
       removeEventListener('pointerup', onTap); removeEventListener('touchend', onTap); btn.hidden = true;

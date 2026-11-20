@@ -54,7 +54,8 @@ export function createAudio() {
   const CHORDS = { day: [[146.83, 220, 293.66, 369.99, 440], [123.47, 185, 246.94, 293.66, 369.99], [98, 146.83, 196, 246.94, 293.66], [110, 164.81, 220, 277.18, 329.63]], deep: [[73.42, 110, 146.83, 174.61, 220], [65.41, 98, 130.81, 155.56, 196], [82.41, 123.47, 164.81, 196, 246.94]] };
   let ci = 0;
   function padNote() {
-    if (!on) return; const set = scene === 'under' ? CHORDS.deep : CHORDS.day, ch = set[ci % set.length], t = ctx.currentTime;
+    // (notes made while the browser holds the sound back would all sound at once on the first tap)
+    if (!on) return; if (ctx.state !== 'running') { timers.pad = setTimeout(padNote, 1000); return; } const set = scene === 'under' ? CHORDS.deep : CHORDS.day, ch = set[ci % set.length], t = ctx.currentTime;
     for (let k = 0; k < 2; k++) { const f = ch[Math.floor(Math.random() * ch.length)] * (Math.random() < 0.25 ? 2 : 1);
       for (const det of [-3, 4]) { const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f; o.detune.value = det; const g = gain(0); o.connect(g); g.connect(L.padIn);
         g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.035, t + 2.6); g.gain.linearRampToValueAtTime(0, t + 8.5); o.start(t); o.stop(t + 9); } }
@@ -62,12 +63,12 @@ export function createAudio() {
     timers.pad = setTimeout(padNote, 3200 + Math.random() * 2600);
   }
   function bubble() {
-    if (!on) return;
+    if (!on) return; if (ctx.state !== 'running') { timers.bubble = setTimeout(bubble, 600); return; }
     if (scene === 'hall' || scene === 'under' || scene === 'lab') { const t = ctx.currentTime, o = ctx.createOscillator(), g = gain(0), f = (scene === 'under' ? 260 : 500) + Math.random() * 900; o.type = 'sine'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 1.9, t + 0.09); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.05, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0008, t + 0.13); o.connect(g); g.connect(L.bubble); o.start(t); o.stop(t + 0.16); }
     timers.bubble = setTimeout(bubble, 90 + Math.random() * (scene === 'under' ? 420 : scene === 'lab' ? 1400 : 340));
   }
   function gull() {
-    if (!on) return;
+    if (!on) return; if (ctx.state !== 'running') { timers.gull = setTimeout(gull, 2500); return; }
     if (scene === 'outside' || scene === 'sea') { const t = ctx.currentTime, n = 2 + Math.floor(Math.random() * 3), pan = ctx.createStereoPanner ? ctx.createStereoPanner() : gain(1); if (pan.pan) pan.pan.value = Math.random() * 1.6 - 0.8; pan.connect(L.fx);
       for (let k = 0; k < n; k++) { const s = t + k * 0.34, o = ctx.createOscillator(), g = gain(0), f = 1500 + Math.random() * 500; o.type = 'sawtooth'; const bp = filt('bandpass', 2400, 3); o.frequency.setValueAtTime(f, s); o.frequency.linearRampToValueAtTime(f * 1.45, s + 0.08); o.frequency.exponentialRampToValueAtTime(f * 0.72, s + 0.3);
         g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(0.012 * (scene === 'sea' ? 1.5 : 1), s + 0.04); g.gain.exponentialRampToValueAtTime(0.0004, s + 0.31); o.connect(bp); bp.connect(g); g.connect(pan); o.start(s); o.stop(s + 0.34); } }
@@ -84,6 +85,12 @@ export function createAudio() {
   }
   const burst = (dur, f0, f1, q, vol, type = 'bandpass') => { const t = ctx.currentTime, n = Math.ceil(ctx.sampleRate * dur), buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; const src = ctx.createBufferSource(); src.buffer = buf; const bp = filt(type, f0, q), g = gain(0); bp.frequency.setValueAtTime(f0, t); bp.frequency.exponentialRampToValueAtTime(f1, t + dur); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + Math.min(0.02, dur * 0.2)); g.gain.exponentialRampToValueAtTime(0.0006, t + dur); src.connect(bp); bp.connect(g); g.connect(L.fx); src.start(t); src.stop(t + dur + 0.02); };
   const tone = (f0, f1, dur, vol, type = 'sine', at = 0) => { const t = ctx.currentTime + at, o = ctx.createOscillator(), g = gain(0); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0005, t + dur); o.connect(g); g.connect(L.fx); o.start(t); o.stop(t + dur + 0.02); };
+  /** sound is on from the start (Jeffry, 20 Nov), but a browser holds it back until the visitor first touches the page (every
+   *  phone, and Chrome on a first visit): the first tap, click or key lets it out */
+  let waiting = false;
+  const EV = ['pointerup', 'touchend', 'keydown', 'click'];
+  const unlock = () => { if (ctx && ctx.state !== 'running') ctx.resume().then(() => { if (ctx.state === 'running') { for (const e of EV) removeEventListener(e, unlock, true); waiting = false; } }, () => {}); };
+  function waitTap() { if (waiting) return; waiting = true; for (const e of EV) addEventListener(e, unlock, { capture: true, passive: true }); }
   return {
     get on() { return on; },
     /** call once the page has loaded and gone quiet: wakes the audio service and makes the noise beds ahead of time */
@@ -99,7 +106,7 @@ export function createAudio() {
       if (!ctx) return false;
       on = v;
       for (const k in timers) clearTimeout(timers[k]);
-      if (on) { await ctx.resume(); ramp(master.gain, 0.55, 1.5); apply(); padNote(); bubble(); timers.gull = setTimeout(gull, 2500); }
+      if (on) { if (ctx.state !== 'running') { waitTap(); await Promise.race([ctx.resume().catch(() => {}), new Promise((r) => setTimeout(r, 250))]); } ramp(master.gain, 0.55, 1.5); apply(); padNote(); bubble(); timers.gull = setTimeout(gull, 2500); }
       else { ramp(master.gain, 0, 0.6); setTimeout(() => { if (!on && ctx) ctx.suspend(); }, 900); }
       return on;
     },

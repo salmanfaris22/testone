@@ -378,7 +378,7 @@ export function createApp(world, hooks) {
   const setSpeed = (i) => { const d = rig.drone; if (!d) return; d.level = clamp(i, 0, DRONE_SPEED.length - 1); d.boost = 1; for (const b of hudSpeed.children) b.setAttribute('aria-pressed', String(+b.dataset.speed === d.level)); };
   hudSpeed.addEventListener('click', (e) => { const b = e.target.closest('[data-speed]'); if (b) setSpeed(+b.dataset.speed); });
   const syncSnd = () => { pills.sound.setAttribute('aria-pressed', String(audio.on)); hudSnd.setAttribute('aria-pressed', String(audio.on)); };
-  hudSnd.addEventListener('click', () => { droneSnd = false; audio.toggle().then(() => { syncSnd(); if (audio.on) { audio.scene('outside'); droneOn = false; } }); });
+  hudSnd.addEventListener('click', () => { droneSnd = false; try { localStorage.setItem('skmrc-sound', audio.on ? 'off' : 'on'); } catch (e) { /* not remembered */ } audio.toggle().then(() => { syncSnd(); if (audio.on) { audio.scene('outside'); droneOn = false; } }); });
   function startDrone() {
     stopTour(); stopFilm(); if (S.area || S.dive) overview(false); labels.showPins(false); select.hide(); labels.tip(null);
     S.drone = true; body.classList.add('droning'); hud.hidden = false; droneT0 = performance.now(); droneThr = -1; droneOn = false;
@@ -424,12 +424,17 @@ export function createApp(world, hooks) {
     audio.drone(false); droneOn = false; if (droneSnd && audio.on) audio.toggle(false).then(syncSnd); droneSnd = false;
     if (S.exploring) { labels.showPins(true); rig.limits.distMin = 30; setHint(touch ? 'Drag to orbit. Pinch to zoom. Tap a pin.' : 'Drag to orbit. Scroll to zoom. Click a pin or a building.'); if (rig.fpv && inside) overview(); }
   }
+  /** sound on or off; a visitor's own choice is remembered for the next visit (sound is on unless they turned it off) */
+  function setSound(v, mine = false) {
+    if (mine) { try { localStorage.setItem('skmrc-sound', v ? 'on' : 'off'); } catch (e) { /* private window: not remembered */ } }
+    return audio.toggle(v).then((on) => { pills.sound.setAttribute('aria-pressed', String(!!on)); $('#hud-snd').setAttribute('aria-pressed', String(!!on)); if (on) { audio.scene(S.dive ? 'under' : S.area ? SOUND[S.area] : S.night ? 'night' : 'outside'); if (mine) audio.click(); } return on; });
+  }
   function act(k) {
     if (k === 'film') startFilm();
     else if (k === 'drone') startDrone();
     else if (k === 'tour') (S.tour ? stopTour() : runTour(0));
     else if (k === 'night') setNight(!S.night);
-    else if (k === 'sound') audio.toggle().then((v) => { pills.sound.setAttribute('aria-pressed', String(!!v)); if (v) { audio.scene(S.dive ? 'under' : S.area ? SOUND[S.area] : S.night ? 'night' : 'outside'); audio.click(); } });
+    else if (k === 'sound') setSound(!audio.on, true);
     else if (k === 'home') { stopTour(); overview(); }
   }
   function setNight(v) { S.night = v; env.setNight(v); body.classList.toggle('night', v); pills.night.setAttribute('aria-pressed', String(v)); pills.night.querySelector('span').textContent = v ? 'Day' : 'Night'; if (!S.area) audio.scene(v ? 'night' : 'outside'); }
@@ -560,5 +565,5 @@ export function createApp(world, hooks) {
   });
   addEventListener('resize', () => { if (S.exploring) setShift(); if (S.dive) dive.resize(); });
 
-  return { S, enter, enterItem, exit, control, goArea, goItem, overview, setView, diveInto, leaveDive, selectFish, runTour, stopTour, labels, audio, setNight, dive };
+  return { S, enter, enterItem, exit, control, goArea, goItem, overview, setView, diveInto, leaveDive, selectFish, runTour, stopTour, labels, audio, setNight, setSound, dive };
 }

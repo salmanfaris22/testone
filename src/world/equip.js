@@ -169,12 +169,16 @@ export function panel(b, x, z, { ry = 0, w = 1.6, h = 2.0, hex = C.clayCool, scr
 /** operator desk with a wall of screens (SCADA) */
 // which dashboard each next monitor or wall display shows
 const SCR = [2, 0, 13, 3, 10, 7, 1, 14, 2, 6, 0, 12], WALL = [0, 1, 3, 15, 14, 7, 5]; let deskN = 0, wallN = 0;
+/** a seat at a controlDesk placed at x, z, ry: lx along the console (its chairs are at ±0.8), d out from its middle;
+ *  returns [x, z, the way the sitter faces] */
+export function controlSeat(x, z, ry, lx, d = 0.69) { const s = Math.sin(ry), c = Math.cos(ry); return [x + lx * c + d * s, z - lx * s + d * c, ry + Math.PI]; }
 export function controlDesk(b, x, z, { ry = 0, w = 4.2, y = F } = {}) {
   b.push(x, 0, z, ry);
   b.use('satin').box(C.clayCool, w, 0.78, 1.0, 0, y, 0); b.use('matte').box(C.ink, w + 0.1, 0.05, 1.1, 0, y + 0.78, 0);
   for (let i = 0; i < 3; i++) { const xx = (i - 1) * (w / 3.2); b.use('matte').box(C.black, 1.05, 0.62, 0.05, xx, y + 0.95, -0.25, 0, -0.12); b.use('glow').box(i === 1 ? C.screen : 0x8fd0ff, 0.96, 0.54, 0.02, xx, y + 0.99, -0.21, 0, -0.12); b.screen([4, 1, 12][i], 0.94, 0.52, xx, y + 0.995, -0.192, 0, -0.12); }
-  b.use('matte').box(C.navy, 0.5, 0.5, 0.5, -0.8, y, 0.95); b.box(C.navy, 0.5, 0.5, 0.5, 0.8, y, 0.95);
   b.pop();
+  // two operator chairs pulled up to the console, facing the screens (see controlSeat for where someone sits on one)
+  for (const lx of [-0.8, 0.8]) { const [cx, cz] = controlSeat(x, z, ry, lx, 0.75); chair(b, cx, cz, ry + Math.PI, C.navy, y); }
   return rot([-w / 2, 0, -0.6, w / 2, y + 1.6, 1.2], x, z, ry);
 }
 

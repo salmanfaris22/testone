@@ -1,11 +1,11 @@
 // The opening. It starts on the name wall at the gate: the camera slides slowly along the brushed-steel plaque (Arabic and English),
 // then turns to the gate as its lattice leaves swing open and a black Defender drives in past the camera. The camera lifts off
-// behind the car like a drone, over the gate, the guard cabin and the boom, while the car drives through the wheel bath, and cranes
+// behind the car like a drone, over the gate, the guard cabin and the boom, while the car drives through the wheel bath, and rises
 // up over the flag road. From there the site is built on the sand in front of it: area 08, the Education and Visitor Centre,
-// goes up first (its ground paved outwards, the building rising from its slab with a crane), a blueprint is drawn over the rest,
+// goes up first (its ground paved outwards, the building rising from its slab), a blueprint is drawn over the rest,
 // services are laid in (sea water from the intake, power from the generators), the roads are paved from the gate inward, the
 // paving flows out to the apron, plazas, lawns and parking and the street lights go up behind it. The buildings rise phase by
-// phase (1, 2, 3), each from its slab with a glowing cut line and a tower crane beside each phase; the cages come up out of the
+// phase (1, 2, 3), each from its slab with a glowing cut line; the cages come up out of the
 // sea, LFC Hamour sails in, the planting grows and the site comes to life. Last, the camera comes down over the drop-off of the
 // Innovation Park into the hero view: across the shell roof of 08 and the arch to the halls and the sea (the view Jeffry picked).
 import * as THREE from 'three';
@@ -13,7 +13,7 @@ import { P } from './rig.js';
 import { clamp, easeIO, easeOut, smooth } from './kit.js';
 import { AREAS, PHASES, areaById } from '../data/areas.js';
 import * as L from './layout.js';
-import { revealMap, groundMat, riseMat, riseDepth, makeCrane, RV_GLSL } from './intro-build.js';
+import { revealMap, groundMat, riseMat, riseDepth, RV_GLSL } from './intro-build.js';
 import { makeDefender } from './defender.js';
 import { avatars } from './avatars.js';
 
@@ -33,8 +33,9 @@ const T = {
   b08: 17.4,                                 // 08 goes up first (its slab, then the walls over B08_RISE s)
   bp: 18.0, draw0: 18.3, draw1: 21.6,        // the blueprint: the paper, then every line drawn on it
   util0: 19.6, util1: 22.0,                  // sea water and power drawn in
-  infra: 19.2, pace: 1.35,                   // the roads paved outward from the gate, the drive in and 08's ground, the paving flowing out behind them
-  p1: 22.8, p2: 24.4, p3: 26.2,              // the buildings, phase by phase
+  road0: 15.4, road1: 25.4,                  // the roads: paved out from the car's route in one slow, steady run, from the crane-up after the wheel bath
+  infra: 20.0, pace: 1.35,                   // the roads paved outward from the gate, the drive in and 08's ground, the paving flowing out behind them
+  p1: 23.4, p2: 24.8, p3: 26.4,              // the buildings, phase by phase
   sea: 27.2, boat: 27.4, life: 28.4,         // the cages, LFC Hamour, then the trees, people and traffic
   settle: 29.2, end: 34.0,                   // the camera comes down into the hero view
 };
@@ -59,7 +60,7 @@ export function createIntro(world, { hero }) {
   const Z0 = L.RB_W.z, LANE = Z0 + L.GATE.lane, X0 = GX - 34;
   const segD = (x, z, a, b) => { const dx = b[0] - a[0], dz = b[1] - a[1], l = dx * dx + dz * dz || 1, u = clamp(((x - a[0]) * dx + (z - a[1]) * dz) / l, 0, 1); return Math.hypot(x - a[0] - dx * u, z - a[1] - dz * u); };
   const drive = L.ROADS.drive;
-  const onRoute = (x, z) => (x > GX - 6 && x < L.RB_W.x && Math.abs(z - Z0) < 13) || Math.hypot(x - L.RB_W.x, z - Z0) < L.RB_W.r + 13 || drive.some((p, i) => i > 0 && segD(x, z, drive[i - 1], p) < 11.5);
+  const onRoute = (x, z) => (x > GX - 6 && x < L.RB_W.x && Math.abs(z - Z0) < 13) || Math.hypot(x - L.RB_W.x, z - Z0) < L.RB_W.r + L.ROADS.w / 2 + L.ROADS.walk + 0.6 || drive.some((p, i) => i > 0 && segD(x, z, drive[i - 1], p) < 11.5);
   // where the car is along the road against film time: the speed keys integrated (before CAR0 it is further out, coming in at its first speed)
   const route = (() => {
     const tMax = 40, dt = 1 / 240, n = Math.ceil(tMax / dt) + 1, s = new Float32Array(n);
@@ -156,8 +157,10 @@ export function createIntro(world, { hero }) {
   /* ───── where and when the ground gets built ───── */
   // every road stands complete on the sand from the first frame (Jeffry: no half-built roads, no cut-off arms at the roundabout):
   // the paving, lawns and buildings fill in round them as the film goes on
-  const map = revealMap(world, { gateX: GX, pre: () => true, island: { x: vc[0], z: vc[1], r: ISLAND } });
-  const G = { map: { value: map.tex }, box: { value: map.uBox }, p: { value: -1 }, rise: { value: 3.2 }, pre: { value: new THREE.Vector4(vc[0], vc[1], ISLAND, 0) } };
+  // only the road the car drives is there from the first frame; every other road is paved out from it, a glowing edge running
+  // along it, once the camera is up and the blueprint is down (Jeffry, 20 Nov: the roads build like everything else)
+  const map = revealMap(world, { gateX: GX, pre: (x, z) => onRoute(x, z) || Math.hypot(x - L.DROP.x, z - L.DROP.z) < L.DROP.r + 3.5, roadDur: 3.6, island: { x: vc[0], z: vc[1], r: ISLAND } });
+  const G = { map: { value: map.tex }, box: { value: map.uBox }, p: { value: -1 }, rise: { value: 3.2 }, pr: { value: -1 }, pre: { value: new THREE.Vector4(vc[0], vc[1], ISLAND, 0) } };
   const hard = world.land.hardscape;
   const helpers = new THREE.Group(); helpers.name = 'intro-helpers'; helpers.visible = false;
   // one stand-in per kind of surface, so its shaders are compiled under the loader rather than in the middle of the film
@@ -188,28 +191,10 @@ export function createIntro(world, { hero }) {
   const phaseDone = { 0: 0, 1: 0, 2: 0, 3: 0 }; for (const c of cons) phaseDone[c.k] = Math.max(phaseDone[c.k], c.done);
   scene.add(helpers);                                        // compiled with the rest by compileAsync, removed in prepare()
 
-  /* ───── tower cranes, one per phase, on clear ground near the middle of the phase ───── */
-  const roadsW = Object.values(world.land.roads || {});
-  const clearAt = (x, z) => {
-    for (const a of builds) for (const b of a.hit || []) { const [lx, lz] = a.toLocal(x, z); if (Math.hypot(Math.max(b[0] - lx, 0, lx - b[3]), Math.max(b[2] - lz, 0, lz - b[5])) < 5.5) return false; }
-    for (const p of roadsW) for (let i = 0; i < p.length - 1; i++) if (segD(x, z, p[i], p[i + 1]) < 10.5) return false;
-    return true;
-  };
-  const spot = (x, z) => { if (clearAt(x, z)) return [x, z]; for (let r = 4; r <= 110; r += 4) { const n = Math.ceil((Math.PI * 2 * r) / 4); for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r; if (clearAt(px, pz)) return [px, pz]; } } return [x, z]; };
-  const craneG = new THREE.Group(); craneG.name = 'intro-cranes'; craneG.visible = false;
-  const cranes = [0, 1, 2, 3].map((k) => {
-    const list = cons.filter((c) => c.k === k); if (!list.length) return null;
-    let cx = 0, cz = 0; for (const c of list) { cx += c.box.x; cz += c.box.z; } cx /= list.length; cz /= list.length;
-    const [x, z] = spot(cx, cz), tall = Math.max(...list.map((c) => c.top)), span = Math.max(...list.map((c) => Math.max(c.box.x1 - c.box.x0, c.box.z1 - c.box.z0)));
-    const cr = makeCrane(world.mats, { H: Math.round(tall + 28), jib: clamp(span * 0.45, 36, 54), cjib: 14 });
-    cr.root.position.set(x, -400, z); craneG.add(cr.root);
-    return { ...cr, k, x, z, base: Math.atan2(-(cz - z), cx - x), t0: (k ? T['p' + k] : T.b08) - 0.45, t1: phaseDone[k] + 0.15 };
-  }).filter(Boolean);
-  scene.add(craneG);
 
   /* ───── the blueprint: a sheet of drawing paper laid over the site with a grid, and every line drawn on it ───── */
   const BP = { x: -40, z: 70, r0: 300, r1: 430 };
-  const U = { uOp: { value: 0 }, uLop: { value: 0 }, uUop: { value: 0 }, uDraw: { value: 0 }, uUtil: { value: 0 }, uT: { value: 0 }, uRvMap: G.map, uRvBox: G.box, uRvP: G.p, uRvPre: G.pre };
+  const U = { uOp: { value: 0 }, uLop: { value: 0 }, uUop: { value: 0 }, uDraw: { value: 0 }, uUtil: { value: 0 }, uT: { value: 0 }, uRvMap: G.map, uRvBox: G.box, uRvP: G.p, uRvPR: G.pr, uRvPre: G.pre };
   const paper = new THREE.Mesh(new THREE.PlaneGeometry(BP.r1 * 2.2, BP.r1 * 2.2).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({
     uniforms: U, transparent: true, depthWrite: false,
     vertexShader: 'varying vec2 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xz; gl_Position = projectionMatrix * viewMatrix * w; }',
@@ -297,7 +282,7 @@ export function createIntro(world, { hero }) {
   };
   const lightsG = named('lights'), plantsG = named('plants');
   const islandAt = (x, z) => T.b08 + 0.5 + 1.3 * clamp(Math.hypot(x - vc[0], z - vc[1]) / ISLAND, 0, 1);
-  if (lightsG) addGrow(lightsG.children.find((c) => c.isInstancedMesh && c.visible), (x, z) => (x < GX || onRoute(x, z) || map.sample(x, z) < -1 ? -10 : inIsland(x, z) ? islandAt(x, z) : T.infra + Math.max(0, map.sample(x, z)) / T.pace + 0.12), 0.5, true);
+  if (lightsG) addGrow(lightsG.children.find((c) => c.isInstancedMesh && c.visible), (x, z) => { const v = map.sample(x, z); return x < GX || onRoute(x, z) || v < -1 ? -10 : v <= map.roadDur ? T.road0 + (Math.max(0, v) / map.roadDur) * (T.road1 - T.road0) + 0.3 : T.infra + v / T.pace + 0.12; }, 0.5, true);      // (street lights go up just behind their road)
   if (plantsG) for (const im of plantsG.children) addGrow(im, (x, z) => (x < GX || onRoute(x, z) ? -10 : inIsland(x, z) ? islandAt(x, z) + 0.4 : T.life + 0.95 * clamp(map.sample(x, z) / Math.max(1, map.end), 0, 1)), 1.1, false);
   const applyGrow = (g, time) => {
     const a = g.im.instanceMatrix.array, o = g.o; let dirty = false;
@@ -318,7 +303,7 @@ export function createIntro(world, { hero }) {
   });
 
   /* ───── what comes to life at the end; anything new in the scene that we do not know joins it ───── */
-  const KNOWN = new Set(['terrain', 'hardscape', 'rocks', 'ao', 'plants', 'lights', 'gate', 'host', 'flags-road', 'flags-drop', 'blueprint', 'intro-helpers', 'intro-cranes', 'intro-car', 'drone', 'drone-shadow', ...AREAS.map((d) => d.id)]);
+  const KNOWN = new Set(['terrain', 'hardscape', 'rocks', 'ao', 'plants', 'lights', 'gate', 'host', 'flags-road', 'flags-drop', 'blueprint', 'intro-helpers', 'intro-car', 'drone', 'drone-shadow', ...AREAS.map((d) => d.id)]);
   const flagDrop = named('flags-drop');
   const grown = ['site', ...scene.children.filter((o) => o.name && o.visible && !KNOWN.has(o.name) && !['people', 'traffic', 'gulls', 'led-boards', 'site', 'helicopter'].includes(o.name) && (o.isGroup || o.isMesh) && !o.isLight).map((o) => o.name)];
   const later = [...new Set(grown)].map(named).filter(Boolean);
@@ -428,26 +413,15 @@ export function createIntro(world, { hero }) {
     U.uT.value = t;
     sheet.visible = Math.max(U.uOp.value, U.uLop.value, U.uUop.value) > 0.002;
     // infrastructure: the reveal map runs on film time after T.infra
-    G.p.value = t < T.infra ? -1 : (t - T.infra) * T.pace;
+    G.pr.value = t < T.road0 ? -1 : map.roadDur * clamp((t - T.road0) / (T.road1 - T.road0), 0, 1) + (t > T.road1 ? 9 : 0);
+    G.p.value = t < T.infra ? -1 : Math.min((t - T.infra) * T.pace, G.pr.value);      // (the paving never runs ahead of its road)
     // the buildings: 08 first, then phase by phase
     for (const c of cons) buildState(c, t);
     for (const a of aos) a.o.material.opacity = a.op * smooth(win(t, a.at - 0.2, 0.9));
-    // cranes rise out of the ground at the start of their phase, work, and go when the phase is up
-    let anyCrane = false;
-    for (const c of cranes) {
-      const up = easeOut(win(t, c.t0, 0.75)), down = easeIO(win(t, c.t1, 0.7)), k = up * (1 - down);
-      c.root.visible = k > 0.002; anyCrane = anyCrane || c.root.visible;
-      c.root.position.y = -(c.H + 14) * (1 - k);
-      c.top.rotation.y = c.base + 0.5 * Math.sin((t - c.t0) * 0.8);
-      c.hook.position.x = c.jib * (0.42 + 0.22 * Math.sin((t - c.t0) * 1.3 + 1));
-    }
-    craneG.visible = anyCrane;
     // the cages come up out of the sea
     { const k = easeOut(win(t, T.sea, 1.8)), r = remember(sea); sea.position.y = r.p.y - 16 * (1 - k); sea.visible = k > 0 || r.v; world.sea.uniforms.uCageN.value = k > 0.5 ? cages.length : 0; }
-    // LFC Hamour sails in from the open sea to the jetty, bow first, its wake behind it (it lies bow-out once the film is over,
-    // turned round off camera)
-    if (lfc) { const k = win(t, T.boat, 3.2), e = easeOut(k); lfc.visible = k > 0; lfc.position.x = L.LFC_BERTH.x; lfc.position.z = L.LFC_BERTH.z + 190 * (1 - e); lfc.rotation.y = L.LFC_BERTH.ry + Math.PI;
-      if (k > 0 && k < 1 && world.cages.kick) world.cages.kick(0.85 * (1 - k)); }
+    // LFC Hamour is simply moored at its berth, bow out, once the cages are up (no sailing in at speed: it looked like a game)
+    if (lfc) { lfc.visible = t >= T.sea; lfc.position.x = L.LFC_BERTH.x; lfc.position.z = L.LFC_BERTH.z; lfc.rotation.y = L.LFC_BERTH.ry; }
     // street lights and trees
     for (const g of grows) applyGrow(g, t);
     // the rest grows, lights and screens go up, people and traffic come out
@@ -473,7 +447,7 @@ export function createIntro(world, { hero }) {
     warm(0); if (warmOn) env.apply();
     if (E) { E.setGate(1); E.setBoom(1); E.wash.reset(); } driving = false; car.group.visible = false; G.pre.value.z = ISLAND; G.pre.value.w = 1;
     const h = hero(); rig.fitOverride = null; rig.floorOverride = null; rig.fovGoal = h.fov; rig.limits.distMin = distMin;
-    sheet.visible = false; craneG.visible = false; engine.shadowDirty = true;
+    sheet.visible = false; engine.shadowDirty = true;
   }
   /** hide what is to be built; call before the loader lifts */
   /** quick: skip the warm-up drawing (a slow device that is already late: better a hitch in the film than a long loader) */
@@ -492,11 +466,11 @@ export function createIntro(world, { hero }) {
       for (const tx of list) { try { r.initTexture(tx); } catch (e) { /* only a warm-up */ } if (performance.now() - t0 > 40) { await frame(); t0 = performance.now(); } } }
     // let 08's inside run once (its screens draw their first picture, its people take their places)
     for (const u of V.updaters || []) { try { u(1 / 60, 0); } catch (e) { /* only a warm-up */ } }
-    // draw the whole site once with 08's inside, the car, the cranes and the stand-ins showing, on the screen (under the loader) and
+    // draw the whole site once with 08's inside, the car and the stand-ins showing, on the screen (under the loader) and
     // into the mirror's picture: every shape is on the graphics card and every surface prepared before the film starts
-    if (!quick) { let iv = false, cv = false, hv = false;
-      const show = () => { iv = V.interior ? V.interior.visible : false; cv = craneG.visible; hv = helpers.visible; if (V.interior) V.interior.visible = true; car.group.visible = true; craneG.visible = true; helpers.visible = true; for (const c of cranes) c.root.position.y = 0; };
-      const hide = () => { if (V.interior) V.interior.visible = iv; car.group.visible = false; craneG.visible = cv; helpers.visible = hv; for (const c of cranes) c.root.position.y = -400; };
+    if (!quick) { let iv = false, hv = false;
+      const show = () => { iv = V.interior ? V.interior.visible : false; hv = helpers.visible; if (V.interior) V.interior.visible = true; car.group.visible = true; helpers.visible = true; };
+      const hide = () => { if (V.interior) V.interior.visible = iv; car.group.visible = false; helpers.visible = hv; };
       await frame(); world.warm(show, hide, [null]);
       if (E && E.mirror && E.mirror.getRenderTarget) { await frame(); world.warm(show, hide, [E.mirror.getRenderTarget()]); }
       await frame(); }
@@ -541,8 +515,7 @@ export function createIntro(world, { hero }) {
   /** jump to the end (skip button, a scroll, a key) or wrap up when the film is over */
   api.finish = (skipped = true) => {
     if (!playing) return; playing = api.playing = false; world.filming = false; if (stop) stop(); engine.noUp = false; if (avRange) avatars.rangeMax = avRange;
-    restore(); scene.remove(sheet); scene.remove(craneG); lg.dispose(); paper.geometry.dispose(); paper.material.dispose(); lines.material.dispose();
-    for (const c of cranes) c.root.traverse((m) => { if (m.isMesh) m.geometry.dispose(); });
+    restore(); scene.remove(sheet); lg.dispose(); paper.geometry.dispose(); paper.material.dispose(); lines.material.dispose();
     for (const s of groundSwaps) s[2].dispose(); for (const c of cons) { for (const s of c.ms) s[2].dispose(); c.depth.dispose(); }
     map.tex.dispose(); rig.limits.polMax = polMax; scene.remove(car.group); car.dispose();
     const h = hero();

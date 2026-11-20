@@ -53,7 +53,8 @@ export function createDive(world) {
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }` }));
-  surf.scale.set(1400, 1, 1400); surf.frustumCulled = false; scene.add(surf);
+  surf.scale.set(1400, 1, 1400); surf.frustumCulled = false; surf.renderOrder = -1; scene.add(surf);
+  scene.children[0].renderOrder = -2;      // (the water all round first, then the surface, then everything in the water)
   const hemi = new THREE.HemisphereLight(0xffffff, 0x2b6f8c, 1.9), key = new THREE.DirectionalLight(0xfffaf0, 2.9), rim = new THREE.DirectionalLight(0xd8f4ff, 0.8);
   key.position.set(0.6, 5, 1.2); rim.position.set(-3, 0.6, -4); scene.add(hemi, key, rim);
   // shafts of light
@@ -114,6 +115,7 @@ export function createDive(world) {
     uSnell.value = scr ? 1 : 0;
     hemi.color.setHex(kind === 'tank' ? 0xdfe9ff : scr ? 0xc4ecff : 0xffffff); hemi.groundColor.setHex(kind === 'tank' ? 0x1f3f86 : scr ? 0x0a2c42 : 0x2b6f8c); key.color.setHex(kind === 'tank' ? 0xf2f6ff : scr ? 0xeaf8ff : 0xfffaf0);
     hemi.intensity = scr ? 1.45 : 1.9; key.intensity = scr ? 2.2 : 2.9; S.caus = null;
+    surf.material.depthWrite = kind !== 'cage';          // (a cage: what is over the water, the bird net, shows up through the surface)
     if (kind === 'cage') {
       const mat = new THREE.MeshBasicMaterial({ map: netTex.clone(), transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false, color: 0x5d7480, fog: true });
       mat.map.wrapS = mat.map.wrapT = THREE.RepeatWrapping; mat.map.repeat.set(Math.round((TAU * r) / 0.55), Math.round(depth / 0.55)); mat.map.needsUpdate = true;
@@ -123,6 +125,16 @@ export function createDive(world) {
       const dark = new THREE.MeshStandardMaterial({ color: 0x10202b, roughness: 0.7 });
       for (const [rr, y, t] of [[r, 0.02, 0.34], [r + 1.15, 0.02, 0.34], [r * 0.96, -depth, 0.12]]) { const ring = new THREE.Mesh(new THREE.TorusGeometry(rr, t, 8, 96).rotateX(Math.PI / 2), dark); ring.position.y = y; holder.add(ring); }
       for (let k = 0; k < 16; k++) { const a = (k / 16) * TAU, rope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, depth, 5), dark); rope.position.set(Math.cos(a) * r * 0.985, -depth / 2, Math.sin(a) * r * 0.985); holder.add(rope); }
+      // overhead, seen up through the surface: the bird net over the cage (as on the site, cages.js), drawn up from the handrail
+      // to a ring on the central pole, with the pole, the handrail and its posts (the surface lets it show: see depthWrite below)
+      { const BH = 3.3, rb = r + 0.12, y0 = 1.1, slant = Math.hypot(BH, rb), g = new THREE.CylinderGeometry(0.42, rb, BH, 96, 1, true).translate(0, y0 + BH / 2, 0), uv = g.attributes.uv;
+        for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * Math.round((TAU * rb) / 0.55), uv.getY(i) * Math.round(slant / 0.55));
+        const bm = new THREE.MeshBasicMaterial({ map: netTex.clone(), transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false, color: 0x2c3c45, fog: true }); bm.map.wrapS = bm.map.wrapT = THREE.RepeatWrapping; bm.map.needsUpdate = true;
+        const bird = new THREE.Mesh(g, bm); bird.renderOrder = 1; holder.add(bird);
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, y0 + BH + 0.6, 8).translate(0, (y0 + BH + 0.6) / 2 - 0.2, 0), dark); holder.add(pole);
+        const top = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.05, 5, 16).rotateX(Math.PI / 2), dark); top.position.y = y0 + BH; holder.add(top);
+        const rail = new THREE.Mesh(new THREE.TorusGeometry(rb, 0.05, 5, 96).rotateX(Math.PI / 2), dark); rail.position.y = y0; holder.add(rail);
+        for (let k = 0; k < 32; k++) { const a = (k / 32) * TAU, post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, y0, 5), dark); post.position.set(Math.cos(a) * rb, y0 / 2, Math.sin(a) * rb); holder.add(post); } }
     } else if (scr) {
       // open water, as on the screens: a sandy floor with gentle ripples running out into the blue, a reef of rocks just past
       // where the fish swim, sea grass that sways, a few sponges and corals, and sunlight playing over the sand

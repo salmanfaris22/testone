@@ -201,7 +201,7 @@ export function createApp(world, hooks) {
       } });
     } else {
       if (a.peek) areas.peek(id, false); outdoors(); areas.open(id); if (partner) areas.open(partner.id);
-      const pose = view === 'plan' ? a.plan : a.inside;
+      const pose = view === 'plan' ? a.plan : a.top || a.inside;
       rig.limits.distMin = 8; rig.limits.distMax = Math.max(300, pose.dist * 2.4); rig.limits.polMax = sea ? 1.42 : 1.36; S.arrived = false;
       rig.flyTo(pose, { dur: instant ? 0.01 : 1.9, hop: 0.2 });
     }
@@ -262,7 +262,7 @@ export function createApp(world, hooks) {
     if (!S.area) return overview(); S.item = null; select.hide(); labels.focus(null); const a = areas.byId[S.area];
     panel.area(a, a.items, { view: S.view }); setBack();
     if (S.view === 'walk' && S.area !== 'seacages') { rig.room = a.rooms ? a : null; rig.fovGoal = WFOV(); rig.limits.polMin = 0.5; rig.limits.polMax = 1.56; rig.limits.distMin = 1.6; rig.limits.distMax = 28; rig.flyTo(a.walk, { dur: 1.4, hop: 0 }); }
-    else rig.flyTo(S.view === 'plan' ? a.plan : S.view === 'walk' ? a.walk : a.inside, { dur: 1.3, hop: 0 });
+    else rig.flyTo(S.view === 'plan' ? a.plan : S.view === 'walk' ? a.walk : a.top || a.inside, { dur: 1.3, hop: 0 });
   }
   function stepArea(d) { const i = AREAS.findIndex((a) => a.id === S.area); goArea(AREAS[(i + d + AREAS.length) % AREAS.length].id); }
   function stepItem(d) { const it = world.items.get(S.item); if (!it) return; const list = areas.byId[it.area].items, i = list.indexOf(it); goItem(list[(i + d + list.length) % list.length].id); }

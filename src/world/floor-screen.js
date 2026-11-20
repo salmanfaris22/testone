@@ -7,6 +7,56 @@ import * as THREE from 'three';
 import { FISH_CUT } from '../data/photos.js';
 import { loadPhoto, rng, TAU } from './kit.js';
 import { causticTexture } from './reef.js';
+import { PHOTO, FISH } from './fish.js';
+
+/**
+ * A fish seen from above, made from its side photograph: the floor is looked down on, so every fish shows its back.
+ * Each point of the back is read off the photo where the body's round section meets that height (the middle line of the top
+ * view is the photo's back line, its edges the photo's middle), shaded round, with the pectoral fins out to the sides, the eyes
+ * on the sides of the head and the tail fin edge-on behind. Head to the left, like the photos. Returns a canvas.
+ */
+export function dorsalPicture(id, img) {
+  const S = PHOTO[id], F = FISH[id], E = S.env, A = S.aspect, iw = img.width, ih = img.height;
+  const sc = document.createElement('canvas'); sc.width = iw; sc.height = ih; const sg = sc.getContext('2d', { willReadFrequently: true }); sg.drawImage(img, 0, 0);
+  const src = sg.getImageData(0, 0, iw, ih).data;
+  const cl = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const at = (x) => { let i = 0; while (i < E.length - 2 && x > E[i + 1][0]) i++; const a = E[i], b = E[i + 1], k = cl((x - a[0]) / (b[0] - a[0]), 0, 1), q = k * k * (3 - 2 * k) * 0.35 + k * 0.65; return [a[1] + (b[1] - a[1]) * q, a[2] + (b[2] - a[2]) * q]; };
+  const x0 = E[0][0], x1 = E[E.length - 1][0]; let hmax = 0; for (const e of E) hmax = Math.max(hmax, (e[1] - e[2]) / 2);
+  const px = (xs, y) => { const c = cl(Math.round(xs * iw), 0, iw - 1), r = cl(Math.round((0.5 - y / A) * ih), 0, ih - 1); return (r * iw + c) * 4; };
+  const OW = 512, OH = Math.round(OW * 0.34), cy = OH / 2, out = new ImageData(OW, OH), d = out.data;
+  const fin = new THREE.Color(F.c.fin), eyeX = (F.eye ? F.eye[0] : 0.1), pf0 = Math.max(x0 + 0.16, eyeX + 0.1);
+  // where the tail fin ends: the last column with picture along the body's middle line
+  const [tpE, btE] = at(x1), cE = (tpE + btE) / 2; let tailEnd = x1; for (let xs = x1; xs < 1; xs += 1 / OW) if (src[px(xs, cE) + 3] > 100) tailEnd = xs;
+  const last = new Int32Array(OH).fill(-1);          // per row, where the last colour came from (the thin tail stalk carries it on)
+  for (let i = 0; i < OW; i++) {
+    const xs = (i + 0.5) / OW;
+    let hw = 0, c = 0, hh = 0;
+    if (xs >= x0 && xs <= x1) { const t = Math.pow((xs - x0) / (x1 - x0), 1 / 1.1), [tp, bt] = at(xs); c = (tp + bt) / 2; hh = Math.max(0.002, (tp - bt) / 2);
+      hw = (Math.max(0.004, hmax * S.wr * Math.pow(Math.sin(Math.PI * Math.pow(t, 0.72)), 0.62) * (0.55 + 0.45 * hh / hmax)) + 0.006 * (1 - Math.abs(2 * t - 1))) * OW; }
+    const tail = xs > x1 && xs <= tailEnd, tw = tail ? (1.2 + 3.2 * Math.pow((xs - x1) / Math.max(0.01, tailEnd - x1), 1.4)) : 0;      // the fin edge-on, flaring a little
+    const pk = (xs - pf0) / 0.13, pfw = pk > 0 && pk < 1 ? 0.085 * OW * Math.pow(Math.sin(Math.PI * Math.pow(pk, 0.7)), 0.9) : 0;   // pectoral fins
+    for (let j = 0; j < OH; j++) {
+      const o = (j * OW + i) * 4, dy = Math.abs(j + 0.5 - cy);
+      if (hw > 0 && dy < hw + 1) {
+        // (just inside the back line, and on down towards the middle if that point of the picture is clear: fin gaps, the snout)
+        const l = Math.min(1, dy / hw), round = Math.sqrt(1 - l * l), sh = (0.6 + 0.4 * round) * (1 + 0.1 * Math.exp(-(l * l) / 0.05));
+        let yq = c + hh * 0.86 * round, k = px(xs, yq); for (let q = 0; q < 14 && src[k + 3] < 200; q++) { yq -= hh * 0.07; k = px(xs, yq); }
+        if (src[k + 3] < 200) { k = px(xs, c); if (src[k + 3] < 120) { if (last[j] < 0) continue; k = last[j]; } }      // (the thin tail stalk)
+        last[j] = k;
+        d[o] = cl(src[k] * sh, 0, 255); d[o + 1] = cl(src[k + 1] * sh, 0, 255); d[o + 2] = cl(src[k + 2] * sh, 0, 255); d[o + 3] = 255 * cl(hw + 0.5 - dy, 0, 1);
+        // the eyes, on the sides of the head
+        const ex = (xs - eyeX) * OW, ey = dy - hw * 0.74, er = Math.max(1.6, 0.0085 * OW);
+        if (ex * ex + ey * ey < er * er) { d[o] = 14; d[o + 1] = 16; d[o + 2] = 18; }
+      } else if (pfw > 0 && dy < hw + pfw) {
+        const u = (dy - hw) / pfw, a = (1 - u) * 0.6; d[o] = fin.r * 255; d[o + 1] = fin.g * 255; d[o + 2] = fin.b * 255; d[o + 3] = 255 * a;
+      } else if (tail && dy < tw) {
+        const k = px(xs, cE); d[o] = src[k] * 0.8; d[o + 1] = src[k + 1] * 0.8; d[o + 2] = src[k + 2] * 0.8; d[o + 3] = 230 * cl(tw - dy, 0, 1);
+      }
+    }
+  }
+  const cv = document.createElement('canvas'); cv.width = OW; cv.height = OH; cv.getContext('2d').putImageData(out, 0, 0);
+  return cv;
+}
 
 const lin = (hex) => new THREE.Color(hex);                        // (a colour in the renderer's working space)
 
@@ -64,29 +114,59 @@ function letteringTexture() {
 }
 
 /**
- * The fish of one species, as one batch of flat photo cut-outs lying on the screen. Each body waves as it swims: the wave runs
- * from head to tail and grows towards the tail, as on the TVs (the photos face left: the head is at the low end of the picture).
+ * The fish of one species, as one batch of photo cut-outs on the screen. Each body waves as it swims: the wave runs from head to
+ * tail and grows towards the tail, as on the TVs (the photos face left: the head is at the low end of the picture).
+ * They are drawn as if seen down through the water, as under water (dive.js): the deeper a fish swims the more the sea's colour
+ * takes it, the sunlight net drifts over its back, and it throws a soft shadow on the bottom, further off the higher it swims.
  */
-function speciesBatch(id, count, uTime) {
+const WATER_TINT = 0x15718a;
+function speciesBatch(id, count, uTime, U) {
   const dot = document.createElement('canvas'); dot.width = dot.height = 2;                // (transparent until the photo is in)
   const tex = new THREE.Texture(dot); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; tex.needsUpdate = true;
   const uAmp = { value: 0.03 / 0.45 };
   const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, alphaTest: 0.02, side: THREE.DoubleSide, toneMapped: false });
   mat.onBeforeCompile = (sh) => {
-    sh.uniforms.uTime = uTime; sh.uniforms.uAmp = uAmp;
-    sh.vertexShader = 'uniform float uTime, uAmp;\nattribute float aPhase, aAlpha;\nvarying float vAlpha;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-      { float u = clamp(position.x + 0.5, 0.0, 1.0); transformed.y += sin(uTime * 3.6 + aPhase - u * 6.0) * u * u * uAmp; vAlpha = aAlpha; }`);
-    sh.fragmentShader = 'varying float vAlpha;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n  diffuseColor.a *= vAlpha;');
+    Object.assign(sh.uniforms, { uTime, uAmp, uCaus: U.caus, uWater: U.water, uR: U.r });
+    sh.vertexShader = 'uniform float uTime, uAmp;\nattribute float aPhase, aAlpha, aDepth;\nvarying float vAlpha, vDepth;\nvarying vec2 vFxz;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      { float u = clamp(position.x + 0.5, 0.0, 1.0); transformed.y += sin(uTime * 3.6 + aPhase - u * 6.0) * u * u * uAmp; vAlpha = aAlpha; vDepth = aDepth;
+        vec4 fw = vec4(transformed, 1.0);
+        #ifdef USE_INSTANCING
+          fw = instanceMatrix * fw;
+        #endif
+        vFxz = fw.xz; }`);
+    sh.fragmentShader = 'uniform float uTime, uR;\nuniform sampler2D uCaus;\nuniform vec3 uWater;\nvarying float vAlpha, vDepth;\nvarying vec2 vFxz;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+  diffuseColor.a *= vAlpha;
+  // the same sunlight net as on the bottom (SCREEN_FS), playing over the fish; the sea's colour over it, more the deeper it swims
+  { vec2 fuv = vFxz / (2.0 * uR) + 0.5, cu = fuv * 3.4 + vec2(uTime * 0.013, uTime * 0.009) + 0.05 * vec2(sin(uTime * 0.11), cos(uTime * 0.09));
+    float caus = texture2D(uCaus, cu).r * 0.62 + texture2D(uCaus, cu * 1.41 + vec2(0.31, 0.17) - uTime * 0.007).r * 0.38;
+    diffuseColor.rgb *= 0.78 + caus * 0.55 * (1.0 - vDepth);
+    diffuseColor.rgb = mix(diffuseColor.rgb, uWater, 0.2 + vDepth * 0.6); }`);
   };
-  mat.customProgramCacheKey = () => 'floor-fish';
+  mat.customProgramCacheKey = () => 'floor-fish-water';
   const geo = new THREE.PlaneGeometry(1, 1, 20, 1);
   geo.setAttribute('aPhase', new THREE.InstancedBufferAttribute(new Float32Array(count), 1));
   geo.setAttribute('aAlpha', new THREE.InstancedBufferAttribute(new Float32Array(count).fill(1), 1));
+  geo.setAttribute('aDepth', new THREE.InstancedBufferAttribute(new Float32Array(count), 1));
   const mesh = new THREE.InstancedMesh(geo, mat, count); mesh.frustumCulled = false; mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.name = `floor-fish-${id}`;
-  const batch = { mesh, aspect: 0.45, n: 0 };
+  // its shadow on the bottom: the same outline, soft (a blurred level of the picture), dark and faint
+  const shMat = new THREE.ShaderMaterial({
+    uniforms: { map: { value: tex }, uTime, uAmp }, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
+    vertexShader: `uniform float uTime, uAmp; attribute float aPhase, aAlpha, aDepth; varying vec2 vUv; varying float vA;
+      void main() { vUv = uv; vec3 p = position; float u = clamp(p.x + 0.5, 0.0, 1.0); p.y += sin(uTime * 3.6 + aPhase - u * 6.0) * u * u * uAmp;
+        vA = aAlpha * (1.0 - 0.7 * aDepth); gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(p, 1.0); }`,
+    fragmentShader: `uniform sampler2D map; varying vec2 vUv; varying float vA;
+      void main() { float a = texture2D(map, vUv, 2.5).a; gl_FragColor = vec4(0.0, 0.04, 0.08, a * 0.42 * vA); }`,
+  });
+  const shadow = new THREE.InstancedMesh(geo, shMat, count); shadow.frustumCulled = false; shadow.instanceMatrix.setUsage(THREE.DynamicDrawUsage); shadow.name = `floor-fish-shadow-${id}`; shadow.renderOrder = 2;
+  const batch = { mesh, shadow, aspect: 0.45, n: 0 };
   loadPhoto(FISH_CUT[id]).then((p) => {
-    if (!p) return; tex.image = p.image; tex.flipY = p.flipY; tex.needsUpdate = true;
-    batch.aspect = p.image.height / p.image.width; uAmp.value = 0.03 / batch.aspect;
+    if (!p) return;
+    // (made a moment later, one species at a time, so no frame waits on all seven)
+    // (a new texture, not a new picture in the old one: that one may already be on the graphics card at its 2 × 2 size)
+    setTimeout(() => { let cv = null; try { cv = dorsalPicture(id, p.image); } catch (e) { /* the side view stays */ }
+      const nt = new THREE.Texture(cv || p.image); nt.colorSpace = THREE.SRGBColorSpace; nt.anisotropy = 8; nt.flipY = cv ? true : p.flipY; nt.needsUpdate = true;
+      batch.aspect = cv ? cv.height / cv.width : p.image.height / p.image.width; uAmp.value = 0.03 / batch.aspect;
+      mat.map = nt; shMat.uniforms.map.value = nt; tex.dispose(); }, 60 + Object.keys(PHOTO).indexOf(id) * 50);
   });
   return batch;
 }
@@ -119,9 +199,10 @@ export function createFloorScreen({ radius, y }) {
   const rings = {}; for (const f of plan) (rings[f[1]] = rings[f[1]] || []).push(f);
   const fish = [];
   for (const r0 of Object.keys(rings)) { const list = rings[r0]; list.forEach((f, k) => { const school = Number(r0) < 2.5; fish.push({ sp: f[0], r0: f[1], v: f[2], len: f[3] * SIZE, alpha: f[4], a0: school ? 0.62 * k + R() * 0.15 : (k / list.length) * TAU + R() * 0.4, ph: R() * TAU, wob: R() * TAU }); }); }
-  const batches = {};
-  for (const id of new Set(fish.map((f) => f.sp))) { const b = speciesBatch(id, fish.filter((f) => f.sp === id).length, uTime); batches[id] = b; group.add(b.mesh); }
-  for (const f of fish) { const b = batches[f.sp]; f.b = b; f.i = b.n++; b.mesh.geometry.attributes.aPhase.setX(f.i, f.ph); b.mesh.geometry.attributes.aAlpha.setX(f.i, f.alpha); b.mesh.renderOrder = f.alpha < 1 ? 2 : 3; }
+  const batches = {}, U = { caus: screen.material.uniforms.uCaus, water: { value: lin(WATER_TINT) }, r: { value: radius } };
+  for (const id of new Set(fish.map((f) => f.sp))) { const b = speciesBatch(id, fish.filter((f) => f.sp === id).length, uTime, U); batches[id] = b; group.add(b.shadow, b.mesh); }
+  // how deep each swims (0 just under the glass, 1 down by the bottom): the big near ones high, the small faint ones low
+  for (const f of fish) { const b = batches[f.sp]; f.b = b; f.i = b.n++; f.depth = f.alpha < 1 ? 0.62 + (1 - f.alpha) * 0.5 : 0.08 + R() * 0.12; const A = b.mesh.geometry.attributes; A.aPhase.setX(f.i, f.ph); A.aAlpha.setX(f.i, f.alpha); A.aDepth.setX(f.i, f.depth); b.mesh.renderOrder = f.alpha < 1 ? 3 : 4; }
 
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2), qy = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(), S = new THREE.Vector3();
   const place = (f, t) => {
@@ -136,16 +217,20 @@ export function createFloorScreen({ radius, y }) {
     const flip = (-dz * -x + dx * -z) > 0 ? 1 : -1;
     P.set(x, y + (f.alpha < 1 ? 0.003 : 0.005), z); S.set(f.len, f.len * f.b.aspect * flip, 1);
     f.b.mesh.setMatrixAt(f.i, m.compose(P, q, S));
+    // the shadow: out from the middle (the light is over the globe), further and a touch bigger the higher the fish swims
+    const off = 0.12 + 0.42 * (1 - f.depth), rl = Math.hypot(x, z) || 1, k = 1.04 + 0.08 * (1 - f.depth);
+    P.set(x + (x / rl) * off, y + 0.002, z + (z / rl) * off); S.multiplyScalar(k); S.z = 1;
+    f.b.shadow.setMatrixAt(f.i, m.compose(P, q, S));
   };
   for (const f of fish) place(f, 0);
-  for (const b of Object.values(batches)) { b.mesh.instanceMatrix.needsUpdate = true; b.mesh.geometry.attributes.aPhase.needsUpdate = true; b.mesh.geometry.attributes.aAlpha.needsUpdate = true; }
+  for (const b of Object.values(batches)) { b.mesh.instanceMatrix.needsUpdate = true; b.shadow.instanceMatrix.needsUpdate = true; const A = b.mesh.geometry.attributes; A.aPhase.needsUpdate = true; A.aAlpha.needsUpdate = true; A.aDepth.needsUpdate = true; }
 
   return {
     group,
     update(dt, t) {
       uTime.value = t; words.offset.x = -t * 0.004;
       for (const f of fish) place(f, t);
-      for (const b of Object.values(batches)) b.mesh.instanceMatrix.needsUpdate = true;
+      for (const b of Object.values(batches)) { b.mesh.instanceMatrix.needsUpdate = true; b.shadow.instanceMatrix.needsUpdate = true; }
     },
   };
 }

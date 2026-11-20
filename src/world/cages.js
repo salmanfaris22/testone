@@ -214,7 +214,8 @@ export function buildCages(world) {
     id: 'lfc', low: lfcLow, high: null, alwaysOpen: true, pin: [LFC_BERTH.x, 15, LFC_BERTH.z],
     hit: [lfcWorldBox()],
     pose: P(LFC_BERTH.x + 4, Y + 3, LFC_BERTH.z + 6, -0.62, 1.12, 105),
-    inside: P(-110, Y, 252, -0.8, 1.0, 235),                                            // frames its trip out to the cages
+    inside: P(-110, Y, 252, -0.8, 1.0, 235),                                            // frames its trip out to the cages (the scroll tour)
+    top: P(LFC_BERTH.x + 2, Y + 3, LFC_BERTH.z + 2, -0.62, 1.08, 62),                   // a click on 11: straight to the ship at its berth
     plan: P(LFC_BERTH.x, Y, LFC_BERTH.z, 0, 0.14, 160),
     walk: P(LFC_BERTH.x, Y + 5, LFC_BERTH.z, -0.62, 1.32, 46),
     makeInterior(_b, ctx) { ctx.item({ ...LFC_ITEM, box: lfcWorldBox(), label: true, prio: 1 }); },

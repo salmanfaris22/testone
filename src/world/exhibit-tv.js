@@ -14,7 +14,6 @@ const PROGRAMMES = [
   ['Restocking the Gulf', 'إثراء مخزون الخليج', 'Native species, local waters', 'shiqra'],
 ];
 const FONT = '"IBM Plex Sans", Arial, sans-serif';
-const AR = '"Geeza Pro", "Noto Sans Arabic", Tahoma, sans-serif';
 const TAU = Math.PI * 2;
 
 function backdrop(w, h, k) {
@@ -66,7 +65,7 @@ export function createExhibitTVs(list, engine) {
   let dirty = true, last = -Infinity;
 
   const draw = (time) => {
-    PROGRAMMES.forEach(([title, arabic, sub, id], k) => {
+    PROGRAMMES.forEach(([, , , id], k) => {
       const t = time + k * 2.3, sx = (k % cols) * w, sy = Math.floor(k / cols) * h;
       g.save(); g.translate(sx, sy); g.beginPath(); g.rect(0, 0, w, h); g.clip();
       g.drawImage(backgrounds[k], 0, 0);
@@ -92,17 +91,10 @@ export function createExhibitTVs(list, engine) {
       }
       const growth = k === 4 ? 0.78 + Math.sin(time * 0.18) * 0.2 : 1;
       fish(g, img, w * (0.5 + Math.sin(t * 0.22) * 0.09), h * (0.51 + Math.sin(t * 0.55) * 0.03), w * 0.58 * growth, t);
-      const shade = g.createLinearGradient(0, h * 0.57, 0, h);
-      shade.addColorStop(0, 'rgba(2,15,28,0)'); shade.addColorStop(1, 'rgba(2,15,28,.88)');
-      g.fillStyle = shade; g.fillRect(0, h * 0.57, w, h * 0.43);
-      const scale = w / 512; g.scale(scale, scale); g.textBaseline = 'alphabetic'; g.textAlign = 'left';
-      g.fillStyle = '#b4e8e7'; g.font = `500 11px ${FONT}`; g.fillText('GULF AQUACULTURE  /  MARINE LIFE', 20, 25);
+      // (no caption band along the bottom: the fish and the sea floor fill the screen; the printed panel above carries the title)
+      const scale = w / 512; g.scale(scale, scale); g.textBaseline = 'alphabetic';
+      g.fillStyle = '#b4e8e7'; g.font = `500 11px ${FONT}`; g.textAlign = 'left'; g.fillText('GULF AQUACULTURE  /  MARINE LIFE', 20, 25);
       g.textAlign = 'right'; g.fillText(`${String(k + 1).padStart(2, '0')} / 08`, 492, 25);
-      g.textAlign = 'left'; g.fillStyle = '#fff'; g.font = `500 ${title.length > 16 ? 23 : 27}px ${FONT}`; g.fillText(title, 20, 239);
-      g.fillStyle = '#aed1d8'; g.font = `400 12px ${FONT}`; g.fillText(sub, 20, 260);
-      g.direction = 'rtl'; g.textAlign = 'right'; g.fillStyle = '#d0eeed'; g.font = `500 19px ${AR}`; g.fillText(arabic, 492, 260); g.direction = 'ltr';
-      g.fillStyle = 'rgba(255,255,255,.14)'; g.fillRect(20, 275, 472, 1.5);
-      g.fillStyle = '#55d2cc'; g.fillRect(20, 275, 472 * ((time / 36 + k * 0.07) % 1), 1.5);
       g.restore();
     });
     tex.needsUpdate = true; dirty = false;

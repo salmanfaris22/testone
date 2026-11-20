@@ -1,9 +1,8 @@
 // Helpers for the opening film's construction sequence (used only by intro.js):
 // a reveal map that says when each patch of ground gets built (roads from the gate inward, then the paving flows out from them),
 // material copies that reveal the hardscape by that map, material copies that build an area from the ground up with a glowing
-// cut line, and a tower crane.
+// cut line.
 import * as THREE from 'three';
-import { Builder, C } from './kit.js';
 import { ROADS, RB_W, RB_E, DROP } from './layout.js';
 
 const SQRT2 = Math.SQRT2;
@@ -76,7 +75,9 @@ export function revealMap(world, { gateX, roadDur = 2.8, flowSpeed = 64, flowDel
   // distance along the roads from the gate (shortest paths over the road cells)
   const d = new Float32Array(N).fill(INF), co = cell, cd = cell * SQRT2;
   const inIsland = (x, z) => !!island && Math.hypot(x - island.x, z - island.z) < island.r;
-  const built = (x, z) => x < gateX + 2 || (pre && pre(x, z)) || inIsland(x, z);           // road there before the paving starts: it spreads from here
+  // road there before the paving starts: it spreads from here, in one run along every road (the roads round the island built
+  // first wait for it too: no road is half there and half not)
+  const built = (x, z) => x < gateX + 2 || (pre && pre(x, z));
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const k = j * W + i; if (mask[k] && built(x0 + i * cell, z0 + j * cell)) d[k] = 0; }
   roadDistances(d, mask, W, H, co, cd);
   let dMax = 1; for (let k = 0; k < N; k++) if (d[k] < INF && d[k] > dMax) dMax = d[k];
@@ -91,15 +92,15 @@ export function revealMap(world, { gateX, roadDur = 2.8, flowSpeed = 64, flowDel
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const k = j * W + i; if (i > 0) relax(k, k - 1, fo); if (j > 0) { relax(k, k - W, fo); if (i > 0) relax(k, k - W - 1, fdg); if (i < W - 1) relax(k, k - W + 1, fdg); } }
   for (let j = H - 1; j >= 0; j--) for (let i = W - 1; i >= 0; i--) { const k = j * W + i; if (i < W - 1) relax(k, k + 1, fo); if (j < H - 1) { relax(k, k + W, fo); if (i < W - 1) relax(k, k + W + 1, fdg); if (i > 0) relax(k, k + W - 1, fdg); } }
 
-  const rv = new Float32Array(N), half = new Uint16Array(N);
+  const rv = new Float32Array(N), half = new Uint16Array(N * 2);      // (red: when; green: 1 on a road, which the island leaves to the road's own run)
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
     const k = j * W + i, x = x0 + i * cell, z = z0 + j * cell;
     let v = d[k] < INF ? d[k] / roadSpeed : f[k];
     if (pre && mask[k] && pre(x, z)) v = -4;                         // the way in that the film drives: its road built from the first frame, no blueprint over it
     if (x < gateX - 2) v = -10;                                      // outside the gate: the public road is already there
-    rv[k] = Math.min(60, v); half[k] = THREE.DataUtils.toHalfFloat(rv[k]);
+    rv[k] = Math.min(60, v); half[k * 2] = THREE.DataUtils.toHalfFloat(rv[k]); half[k * 2 + 1] = THREE.DataUtils.toHalfFloat(mask[k] ? 1 : 0);
   }
-  const tex = new THREE.DataTexture(half, W, H, THREE.RedFormat, THREE.HalfFloatType);
+  const tex = new THREE.DataTexture(half, W, H, THREE.RGFormat, THREE.HalfFloatType);
   tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping; tex.generateMipmaps = false; tex.needsUpdate = true;
   /** bilinear sample in world metres; 0 outside the map */
   const sample = (x, z) => {
@@ -132,18 +133,20 @@ export function revealMap(world, { gateX, roadDur = 2.8, flowSpeed = 64, flowDel
 }
 
 /* ───── hardscape: appears where the map says, low things first, with a warm glow on the front ───── */
-const GROUND_FRAG_DECL = '#include <common>\nvarying vec3 vRvW;\nuniform sampler2D uRvMap; uniform vec4 uRvBox; uniform vec4 uRvPre; uniform float uRvP, uRvRise;';
+const GROUND_FRAG_DECL = '#include <common>\nvarying vec3 vRvW;\nuniform sampler2D uRvMap; uniform vec4 uRvBox; uniform vec4 uRvPre; uniform float uRvP, uRvPR, uRvRise;';
 const RV_AT = `vec2 rvUV = ( vRvW.xz - uRvBox.xy ) * uRvBox.zw;
-  float rvAt = ( rvUV.x < 0.0 || rvUV.y < 0.0 || rvUV.x > 1.0 || rvUV.y > 1.0 ) ? -10.0 : texture2D( uRvMap, rvUV ).r;
-  float rvAge = uRvP - rvAt;
+  bool rvOut = rvUV.x < 0.0 || rvUV.y < 0.0 || rvUV.x > 1.0 || rvUV.y > 1.0;
+  vec2 rvT = rvOut ? vec2( -10.0, 0.0 ) : texture2D( uRvMap, rvUV ).rg;
+  float rvAt = rvT.x, rvRoad = rvT.y;
+  float rvAge = ( rvRoad > 0.5 ? uRvPR : uRvP ) - rvAt;          // (the roads run on a clock of their own: uRvPR)
   // the island built first (centre x, z, radius, and w: 1 once it has finished spreading): built long ago, or, while it spreads,
   // just built at its edge (so its edge glows and rises like every other paving front)
   float rvIs = distance( vRvW.xz, uRvPre.xy );
-  if ( rvIs < uRvPre.z ) { rvAge = uRvPre.w < 0.999 ? ( uRvPre.z - rvIs ) / 10.0 : 9.0; rvAt = max( rvAt, -4.0 ); }`;
+  if ( rvIs < uRvPre.z && rvRoad < 0.5 ) { rvAge = uRvPre.w < 0.999 ? ( uRvPre.z - rvIs ) / 10.0 : 9.0; rvAt = max( rvAt, -4.0 ); }`;
 export function groundMat(src, G) {
   const m = src.clone();
   m.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, { uRvMap: G.map, uRvBox: G.box, uRvP: G.p, uRvRise: G.rise, uRvPre: G.pre });
+    Object.assign(sh.uniforms, { uRvMap: G.map, uRvBox: G.box, uRvP: G.p, uRvPR: G.pr, uRvRise: G.rise, uRvPre: G.pre });
     withWorldPos(sh);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', GROUND_FRAG_DECL)
       .replace('void main() {', `void main() {
@@ -157,7 +160,7 @@ export function groundMat(src, G) {
   return m;
 }
 /** the same test for a shader of our own (the blueprint paper fades where the ground is built) */
-export const RV_GLSL = { decl: 'uniform sampler2D uRvMap; uniform vec4 uRvBox; uniform vec4 uRvPre; uniform float uRvP;', at: RV_AT };
+export const RV_GLSL = { decl: 'uniform sampler2D uRvMap; uniform vec4 uRvBox; uniform vec4 uRvPre; uniform float uRvP, uRvPR;', at: RV_AT };
 
 /* ───── buildings: rise from the ground with a glowing cut line, solid where the cut opens a wall ───── */
 const RISE_FRAG_DECL = '#include <common>\nvarying vec3 vRvW;\nuniform float uRiseH, uRiseG;';
@@ -190,58 +193,4 @@ export function riseDepth(R) {
   };
   m.customProgramCacheKey = () => 'introRiseDepth';
   return m;
-}
-
-/* ───── a tower crane: the mast stands still, the top (jib, counter-jib, cab, hook) slews ───── */
-export function makeCrane(mats, { H = 38, jib = 46, cjib = 14 } = {}) {
-  const Y = C.yellow, dark = 0x3b4248, light = 0xf2f2ef, conc = 0xbdb9b0;
-  const mb = new Builder(), s = 1.05;
-  mb.use('concrete').box(conc, 6.4, 1.1, 6.4, 0, 0, 0);
-  mb.use('satin');
-  const corner = [[-s, -s], [s, -s], [s, s], [-s, s]];
-  // chunky enough to read from the air: at 500 m a mast 2.1 m across is only a few pixels wide
-  for (const [x, z] of corner) mb.rod(Y, 0.2, [x, 1.1, z], [x, H, z], 6);
-  for (let y = 1.1, k = 0; y < H - 0.2; y += 2.5, k++) {
-    const y2 = Math.min(H, y + 2.5);
-    for (let c = 0; c < 4; c++) {
-      const a = corner[c], b = corner[(c + 1) % 4];
-      mb.rod(Y, 0.1, [a[0], y2, a[1]], [b[0], y2, b[1]], 4);
-      if (k % 2) mb.rod(Y, 0.09, [a[0], y, a[1]], [b[0], y2, b[1]], 4); else mb.rod(Y, 0.09, [b[0], y, b[1]], [a[0], y2, a[1]], 4);
-    }
-  }
-  const mast = mb.build(mats, { cast: true }); mast.name = 'crane-mast';
-
-  const tb = new Builder(), yb = H + 1.0, yt = H + 2.9;
-  tb.use('satin').cyl(dark, 1.5, 0.9, 0, H, 0, 16);                                   // slewing ring
-  tb.use('matte').box(light, 2.3, 2.2, 2.2, 1.9, H - 1.1, 1.8); tb.use('window').box(null, 2.32, 0.9, 1.6, 1.9, H - 0.1, 1.8);   // cab
-  tb.use('satin');
-  // jib: a triangular truss out along +x
-  for (const z of [-0.75, 0.75]) tb.rod(Y, 0.17, [1.2, yb, z], [jib, yb, z], 6);
-  tb.rod(Y, 0.17, [1.2, yt, 0], [jib, yb + 0.6, 0], 6);
-  for (let x = 1.2, k = 0; x < jib - 0.5; x += 2.6, k++) {
-    const x2 = Math.min(jib, x + 2.6), top = (u) => yt + ((yb + 0.6 - yt) * (u - 1.2)) / (jib - 1.2);
-    for (const z of [-0.75, 0.75]) tb.rod(Y, 0.08, [k % 2 ? x : x2, yb, z], [k % 2 ? x2 : x, top(k % 2 ? x2 : x), 0], 4);
-    tb.rod(Y, 0.07, [x2, yb, -0.75], [x2, yb, 0.75], 4);
-  }
-  // counter-jib along -x with its ballast
-  for (const z of [-0.8, 0.8]) tb.rod(Y, 0.16, [-1.2, yb, z], [-cjib, yb, z], 6);
-  for (let x = -1.2; x > -cjib; x -= 2.4) tb.rod(Y, 0.08, [x, yb, -0.8], [x - 2.4, yb, 0.8], 4);
-  tb.use('concrete'); for (let k = 0; k < 3; k++) tb.box(conc, 1.1, 2.6, 2.2, -cjib + 1.2 + k * 1.2, yb - 2.2, 0);
-  tb.use('matte').box(dark, 2.4, 1.2, 1.4, -cjib + 5.6, yb + 0.1, 0);                  // hoist winch
-  // tower head and the pendant ties
-  tb.use('satin'); for (const [x, z] of corner) tb.rod(Y, 0.14, [x, yb, z], [0, H + 9.5, 0], 6);
-  tb.rod(0x9aa3a9, 0.03, [0, H + 9.5, 0], [jib * 0.66, yt - 0.5, 0], 4); tb.rod(0x9aa3a9, 0.03, [0, H + 9.5, 0], [-cjib + 0.6, yb + 0.2, 0], 4);
-  tb.use('glow').ball(C.red, 0.28, 0, H + 9.8, 0, 8, 6); tb.ball(C.red, 0.22, jib, yb + 0.9, 0, 8, 6);
-  const top = tb.build(mats, { cast: true }); top.name = 'crane-top';
-
-  // trolley and hook block hang from the jib and run in and out
-  const hb = new Builder(), drop = 15;
-  hb.use('satin').box(dark, 1.6, 0.6, 1.8, 0, yb - 0.6, 0);
-  hb.rod(0x30363b, 0.035, [-0.25, yb - 0.6, 0], [-0.25, yb - drop, 0], 4); hb.rod(0x30363b, 0.035, [0.25, yb - 0.6, 0], [0.25, yb - drop, 0], 4);
-  hb.use('matte').box(Y, 0.9, 1.1, 0.7, 0, yb - drop - 1.1, 0); hb.use('satin').torus(dark, 0.32, 0.08, 0, yb - drop - 1.5, 0, 6, 16);
-  const hook = hb.build(mats, { cast: true }); hook.name = 'crane-hook';
-  top.add(hook);
-
-  const root = new THREE.Group(); root.name = 'crane'; root.add(mast, top);
-  return { root, top, hook, H, jib };
 }

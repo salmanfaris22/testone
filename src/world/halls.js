@@ -25,9 +25,10 @@ let AISLES = [];
 const yellowLine = (b, x0, z0, x1, z1) => { b.use('matte').wall(0xf2cf4a, x0, z0, x1, z1, 0.14, F + 0.004, F + 0.012); AISLES.push([x0, z0, x1, z1]); };
 /** staff at their posts (each turns to the nearest piece of kit and works on it), plus someone walking every marked aisle */
 function staff(ctx, R, list) {
-  for (const [x, z, k, y] of list) {
+  for (const [x, z, k, y, o] of list) {           // o: anything to set on the person (a seated one: { ry, mode: 'desk', type })
     let best = null, bd = 64; for (const it of ctx.items) { const q = it.box, cx = (q[0] + q[3]) / 2, cz = (q[2] + q[5]) / 2, d = (cx - x) ** 2 + (cz - z) ** 2; if (d < bd && d > 0.3) { bd = d; best = [cx, cz]; } }
-    ctx.person(x, z, best ? Math.atan2(best[0] - x, best[1] - z) : R() * TAU, wearFor(k, R), y, { kind: k, mode: k === 'office' ? 'talk' : 'work' });
+    const ry = best ? Math.atan2(best[0] - x, best[1] - z) : R() * TAU;
+    ctx.person(x, z, o && o.ry !== undefined ? o.ry : ry, wearFor(k, R), y, { kind: k, mode: k === 'office' ? 'talk' : 'work', ...o });
   }
   AISLES.forEach(([x0, z0, x1, z1], i) => {
     const len = Math.hypot(x1 - x0, z1 - z0); if (len < 12) return;
@@ -224,11 +225,12 @@ export function buildHalls(world) {
           desc: 'Each morning a few larvae from every tank are checked under the microscope: gut full, swim bladder inflated, no deformities. What is seen here decides the day\'s feeding.',
           specs: [['Daily', 'Every tank'], ['Photo record', 'Kept']] });
         const cd = E.controlDesk(b, 86, 20.5, { ry: Math.PI }); E.panel(b, 91.3, 17, { ry: -Math.PI / 2 }); E.panel(b, 91.3, 19.4, { ry: -Math.PI / 2 });
+        const op = E.controlSeat(86, 20.5, Math.PI, 0.8);      // the operator: she sits at the console watching the screens
         ctx.item({ code: 'RAS', group: 'Recirculation', name: 'RAS control room', kind: 'All 26 systems', box: [81, 0, 14.4, 91.8, 2.2, 23], label: true, prio: 1, control: true,
           desc: 'One console for the centre\'s 26 recirculating systems. Temperature, salinity, oxygen and day length are tracked for every tank, and any drift pages the duty team. Open its screen to see every system, tank and machine at once.',
           specs: [['26', 'Systems'], ['24/7', 'Monitoring'], ['SMS + app', 'Alarms']], live: [{ k: 'Systems online', u: 'of 26', v: 26, d: 0, lo: 0, hi: 26, p: 0 }, { k: 'Active alarms', u: '', v: 0, d: 0, lo: 0, hi: 5, p: 0 }, ...wq(26.2, 39.0, 6.7, 8.1).slice(0, 2)] });
         yellowLine(b, 91.6, -27, 91.6, 13); yellowLine(b, 47, 11.4, 91.6, 11.4); yellowLine(b, 49.2, -27, 91.6, -27.4);
-        staff(ctx, R, [[56.5, -10.5, 'coat'], [70, 4, 'coat'], [84, -3, 'coat'], [73.5, 20.6, 'coat'], [86, 19, 'coat'], [99, 2.5, 'overall'], [55, 19.5, 'coat'], [63, -17.6, 'coat'], [80.4, 30, 'office'], [98, 42.8, 'coat'], [102, 36.6, 'coat']]);
+        staff(ctx, R, [[56.5, -10.5, 'coat'], [70, 4, 'coat'], [84, -3, 'coat'], [75.1, 21.55, 'coat', undefined, { ry: 0 }], [op[0], op[1], 'coat', F + 0.02, { ry: op[2], mode: 'desk', type: 'lab_f' }], [99, 2.5, 'overall'], [55, 19.5, 'coat'], [63, -17.6, 'coat'], [80.4, 30, 'office'], [98, 42.8, 'coat'], [102, 36.6, 'coat']]);
       },
     });
   }

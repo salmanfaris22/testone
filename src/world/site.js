@@ -6,7 +6,7 @@ import { plantTrees, streetLights, car, bus, glowPointsMat } from './props.js';
 import { createFlags } from './flags.js';
 import { createBoards } from './boards.js';
 import { buildEntrance, lagoons, inPolygon } from './entrance.js';
-import { createPeople, createTraffic, wearFor } from './people.js';
+import { createPeople, createTraffic, wearFor, WEAR } from './people.js';
 import { hall } from './shell.js';
 import { fromFrame, resample } from './land.js';
 import { spaced } from './oval.js';
@@ -30,7 +30,7 @@ export function buildSite(world) {
   // palms on the plaza round the podium of the oval hall, leaving the steps and the foot of the ramp open, and a pair at the steps
   { const tS = ovalT(podium, OVAL.door), rS = ovalRate(podium, tS), out = (t, o) => { const p = podium(t), q = ovalN(podium, t); return pf(p[0] + q[0] * o, p[1] + q[1] * o); };
     for (const t of spaced(podium, 26 * DEG, 228 * DEG, 9.5)) { const m = (t - tS) * rS; if (m > -31 && m < 11.5) continue; const [x, z] = out(t, 4.2); palm(x, z, 1.05); }
-    for (const s of [-1, 1]) { const [x, z] = out(tS + (s * 9.8) / rS, 3.4); palm(x, z, 1.15); } }
+    for (const s of [-1]) { const [x, z] = out(tS + (s * 9.8) / rS, 3.4); palm(x, z, 1.15); } }      // (the other of the pair is where the flag stands)
   // the palm courtyard between the laboratories and the offices (as drawn on the client's plan)
   for (const [x, z] of [[62, -21.2], [67, -20.6], [72, -21.4]]) { const w = pf(x, z); palms.push({ x: w[0], z: w[1], ry: R() * TAU, s: 1.15, y: 0.4 }); }
   for (const [x, z] of [[47.5, -25], [54, -25.2], [61, -25.2], [68.5, -25.2], [76, -25.2], [83, -25], [84.6, -20.5], [79, -18], [73, -17.2], [64, -16.4], [57, -15.6], [51.6, -17.4]]) { const w = pf(x, z); trees.push({ x: w[0], z: w[1], ry: R() * TAU, s: 0.62, y: 0.3 }); }
@@ -94,8 +94,8 @@ export function buildSite(world) {
   const g = b.build(mats, { cast: true }); g.name = 'site'; scene.add(g);
 
   /* ───── the UAE flag on a tall mast by the drop-off, streaming in the breeze (on the road in, one flies from every street light) ───── */
-  // on the plaza to the left of the steps of the oval hall, facing the drop-off
-  const flagsDrop = createFlags(mats, [(() => { const t = ovalT(podium, OVAL.door) + 19 / ovalRate(podium, ovalT(podium, OVAL.door)), p = podium(t), q = ovalN(podium, t), w = pf(p[0] + q[0] * 7.5, p[1] + q[1] * 7.5); return { x: w[0], z: w[1], h: 13, s: 1.5 }; })()]);
+  // on the plaza at the left of the steps of the oval hall, where the last palm by the steps was, facing the drop-off
+  const flagsDrop = createFlags(mats, [(() => { const t = ovalT(podium, OVAL.door) + 9.8 / ovalRate(podium, ovalT(podium, OVAL.door)), p = podium(t), q = ovalN(podium, t), w = pf(p[0] + q[0] * 3.4, p[1] + q[1] * 3.4); return { x: w[0], z: w[1], h: 13, s: 1.5 }; })()]);
   flagsDrop.group.name = 'flags-drop'; scene.add(flagsDrop.group); world.updaters.push(flagsDrop.update);
 
   /* ───── a big LED screen at every area: on the facade that faces the road, or on a pylon where there is room ───── */
@@ -118,12 +118,15 @@ export function buildSite(world) {
   const ppl = [], who = (x, z, k, o = {}) => ppl.push({ x, z, ry: R() * TAU, hex: wearFor(k, R), kind: k, ...o });
   const along = (pts, k, n, o = {}) => { for (let i = 0; i < n; i++) ppl.push({ x: pts[0][0], z: pts[0][1], hex: wearFor(k, R), kind: k, path: pts, off: (i + R() * 0.5) / n, speed: 1.05 + R() * 0.35, ...o }); };
   // visitors arriving, a school group by the coach, staff crossing between buildings, a stroll along the beach promenade
+  const n01 = ppl.length;
   who(DROP.x - 4, DROP.z - 6, 'visitor', { mode: 'talk' }); who(DROP.x - 2.6, DROP.z - 7.2, 'visitor', { s: 0.72 }); who(DROP.x - 5.4, DROP.z - 7.6, 'visitor', { s: 0.72 }); who(DROP.x - 3.4, DROP.z - 8.6, 'kandura', { mode: 'talk' }); who(DROP.x - 6.6, DROP.z - 5.4, 'visitor', { s: 0.74 });
   // from the drop-off to the foot of the steps; across the entrance court to the doors; a stroll round the podium walk
   { const tS = ovalT(podium, OVAL.door), sp = podium(tS), sq = ovalN(podium, tS), tD = ovalT(facade, OVAL.door), dp = facade(tD), dq = ovalN(facade, tD);
     along([[DROP.x + DROP.r * 0.55, DROP.z - DROP.r * 0.62], pf(sp[0] + sq[0] * 3.2, sp[1] + sq[1] * 3.2)], 'visitor', 3, { pause: 3 });
     along([pf(sp[0] - sq[0] * 1.5, sp[1] - sq[1] * 1.5), pf(dp[0] + dq[0] * 2.4, dp[1] + dq[1] * 2.4)], 'visitor', 2, { y: OVAL.yp + 0.02, pause: 4 });
     along(spaced(podium, 40 * DEG, 215 * DEG, 3).map((t) => { const p = podium(t), q = ovalN(podium, t); return pf(p[0] - q[0] * 1.8, p[1] - q[1] * 1.8); }), 'kandura', 3, { y: OVAL.yp + 0.02, speed: 0.9 }); }
+  // (no women in black walking round 01's front: the drop-off, the steps and the entrance court)
+  for (let i = ppl.length - 1; i >= n01; i--) if (ppl[i].hex === WEAR.abaya) ppl.splice(i, 1);
   along([coast(-20, -APRON.back - 6), coast(400, -APRON.back - 6)], 'visitor', 5, { speed: 1.0 }); along([coast(380, -APRON.back - 8), coast(0, -APRON.back - 8)], 'office', 3);
   along([[-212, 37], [138, 37]], 'coat', 3); along([[140, 26.6], [-170, 26.6]], 'overall', 3); along([[-84, 5.4], [-84, 44]], 'coat', 2); along([[62, 23], [62, 44]], 'hivis', 2);
   along([[-128, -82], [-80, -82]], 'office', 2); along([[110, 86], [150, 86], [150, 100], [110, 100]], 'overall', 2, { loop: true });

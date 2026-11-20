@@ -314,7 +314,7 @@ export function buildPark(world) {
       // (each child dressed differently: a boy in red and khaki, a girl, a boy in white and navy)
       { const G = [-0.6, 7.4], kids = [[-1.6, 5.4, 0.72, 'child_m_red'], [-0.3, 5.7, 0.74, 'child_f'], [1.0, 5.5, 0.7, 'child_m_white']];
         for (const [x, z, sc, type] of kids) who(x, z, 'visitor', sc, { ry: Math.atan2(G[0] - x, G[1] - z), mode: 'watch', type });
-        who(G[0], G[1], 'coat', undefined, { ry: Math.atan2(-0.3 - G[0], 5.5 - G[1]), mode: 'present' }); } who(5.8, -3.2, 'emirati'); who(6.5, -2.4, 'abaya');
+        who(G[0], G[1], 'coat', undefined, { ry: Math.atan2(-0.3 - G[0], 5.5 - G[1]), mode: 'present', type: 'coat_f' }); } who(5.8, -3.2, 'emirati');   // (no lady in black by the welcome desk)
       /* amphitheatre */
       for (let k = 0; k < 5; k++) { const r0 = 17.2 + k * 1.6; b.use('matte').sector(k % 2 ? C.carpet : shade(C.carpet, 0.92), r0, RO - 0.3, 12 * DEG, 88 * DEG, F, F + 0.26 * (k + 1));
         for (let d = 15; d <= 85; d += 2.5 - k * 0.2) { const [x, z] = pol(r0 + 0.75, d); b.box(0xf2efe9, 0.5, 0.42, 0.5, x, F + 0.26 * (k + 1), z, -(d * DEG)); } }
@@ -334,7 +334,7 @@ export function buildPark(world) {
           desc: 'Visitors come in under the canopy, through the glazed lobby, to a white desk on a timber base. The name of the building is set in gold letters on the wall behind, in Arabic and English.',
           specs: [['South-west', 'Entrance'], ['Canopy', 'Covered arrival'], ['Step-free', 'Access']] });
         // the Emirati host welcomes visitors at the desk
-        who(...pol(18.6, 133), 'office'); who(...pol(21.2, 124), 'emirati', 1, { cast: 'host', mode: 'present', ry: -(124 * DEG) + Math.PI / 2 }); who(...pol(23.0, 121.5), 'abaya', 1, { mode: 'idle', ry: -(121.5 * DEG) - Math.PI / 2 }); }
+        who(...pol(18.6, 133), 'office', undefined, { type: 'office_m' }); who(...pol(21.2, 124), 'emirati', 1, { cast: 'host', mode: 'present', ry: -(124 * DEG) + Math.PI / 2 }); R(); }      // (no lady in black at the reception either: R() keeps everyone else's draw as it was)
       b.use('matte'); for (let k = 0; k < 9; k++) { const [x, z] = pol(16.4 + k * 0.9, 94.5); b.box(C.clayCool, 2.2, 0.16 * (k + 1), 0.9, x, F, z, -(94.5 * DEG)); }
       /* glass-walled academic rooms on the west side */
       [[146, 161, 'Academic room 1'], [161, 177, 'Academic room 2'], [177, 202, 'Academic room 3'], [202, 232, 'Workshop room']].forEach(([a0, a1, name], k) => {

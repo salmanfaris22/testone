@@ -80,7 +80,8 @@ export function createLabels(world, root) {
     },
     tip(it) {
       tipAt = it || null;
-      if (!it) { tip.classList.remove('is-on'); return; }
+      // (a thing that already shows its tag gets no second label over it)
+      if (!it || tags.some((t) => t.it === it && t.el._on && !t.occ)) { tipAt = null; tip.classList.remove('is-on'); return; }
       tip.innerHTML = `<b>${it.name}</b><em>${it.kind || ''}</em>`; tip.classList.add('is-on');
     },
     update() {

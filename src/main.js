@@ -148,7 +148,7 @@ async function boot() {
     species = createSpecies(world, { onGoto: (id) => app.enter(id), onAsk: (name) => { for (const c of form.querySelectorAll('[name=sp]')) c.checked = c.value === name; form.topic.value = 'Fry order'; syncForm(); scrollTo($('#contact').getBoundingClientRect().top + scrollY); } });
     // the language switch in the model's own controls too
     { const lp = document.createElement('button'); lp.type = 'button'; lp.className = 'pill pill-lang'; lp.dataset.lang = ''; const ctl = $('#app-ctrl'); if (ctl) { ctl.appendChild(lp); langButtons(); } }
-    if (introMod) { const { createIntro } = await introMod; intro = createIntro(world, { hero }); window.__intro = intro; }
+    if (introMod) { const { createIntro } = await introMod; intro = createIntro(world, { hero }); window.__intro = intro; introVoice = loadVoice(); }
     // otherwise open a little high and wide, then settle into the hero view as the loader lifts
     else if (reduced) { world.rig.jump(hero()); heroLens(); world.rig.lambda = 4.2; }
     else { const h = hero(); world.rig.jump({ ...h, dist: h.dist * 1.45, pol: h.pol - 0.12, az: h.az + 0.22 }); heroLens(); world.rig.lambda = 1.5; setTimeout(() => { if (!app.S.exploring) world.rig.lambda = 4.2; }, 3200); }
@@ -169,11 +169,47 @@ async function boot() {
     console.error(err); body.classList.add('no-gl'); fallbackSteps(); done();
   }
 }
+/* the film's voice (Roger, ElevenLabs, Jeffry 20 Nov): the welcome, spoken with the first caption. It is fetched under the loader
+   (the first sound a page loads wakes the browser's audio service, which can stop the page for half a second: better there than
+   in the film). A browser that will not play sound before the visitor touches the page (every phone) gets a Sound button
+   beside Skip intro, and any tap on the film plays it from where the film is */
+const VOICE_AT = 0.5;                       // film seconds: with the 'Marhaba. Welcome…' caption
+let introVoice = null;
+function loadVoice() {
+  try { const a = new Audio(); a.preload = 'auto'; a.src = './audio/intro-voice.mp3'; a.load(); return a; } catch (e) { return null; }
+}
+function introSound(el) {
+  const btn = el.querySelector('.intro-sound'), a = introVoice;
+  let on = false, busy = false, fading = 0;
+  const play = (tap) => {
+    if (!a || on || busy || !intro.playing) return; busy = true;      // (a tap on the button is a pointerup and a click: play once)
+    const off = Math.max(0, intro.time - VOICE_AT), len = a.duration || 0;
+    try { a.currentTime = off < len - 0.5 ? off : 0; } catch (e) { /* not seekable yet: from the start */ }
+    a.volume = 1;
+    const p = a.play();
+    const ok = () => { on = true; busy = false; btn.hidden = true; }, no = () => { busy = false; if (!tap) btn.hidden = false; };
+    if (p && p.then) p.then(ok, no); else ok();
+  };
+  const onTap = (e) => { if (!btn.hidden && !e.target.closest('.intro-skip')) play(true); };
+  btn.addEventListener('click', () => play(true));
+  addEventListener('pointerup', onTap); addEventListener('touchend', onTap, { passive: true });
+  return {
+    start: () => play(false),
+    /** the film is over or skipped: the voice fades out over 0.7 s */
+    stop() {
+      removeEventListener('pointerup', onTap); removeEventListener('touchend', onTap); btn.hidden = true;
+      if (!a || a.paused || fading) return; const v0 = a.volume, t0 = performance.now();
+      const step = () => { const k = Math.min(1, (performance.now() - t0) / 700); try { a.volume = v0 * (1 - k); } catch (e) { /* iOS: volume is fixed */ } if (k < 1) fading = requestAnimationFrame(step); else a.pause(); };
+      fading = requestAnimationFrame(step);
+    },
+  };
+}
 /** plays the opening film with its captions; a scroll, a key or the button skips to the end */
 function runIntro(lock, countItems) {
   const el = $('#intro'), cap = el.querySelector('.intro-cap'), chips = [...el.querySelectorAll('.intro-phases li')];
   el.hidden = false; let capT = null;
-  intro.onCaption = (small, big) => { cap.classList.add('is-out'); clearTimeout(capT); if (!small) return; capT = setTimeout(() => { cap.querySelector('small').textContent = small; cap.querySelector('b').textContent = big; cap.classList.remove('is-out'); }, 430); };
+  const voice = introSound(el);
+  intro.onCaption = (small, big, i) => { if (i === 0) voice.start(); cap.classList.add('is-out'); clearTimeout(capT); if (!small) return; capT = setTimeout(() => { cap.querySelector('small').textContent = small; cap.querySelector('b').textContent = big; cap.classList.remove('is-out'); }, 430); };
   const callout = el.querySelector('.intro-callout');
   intro.onCall = (it) => {
     app.labels.clearTags();
@@ -188,6 +224,7 @@ function runIntro(lock, countItems) {
   el.querySelector('.intro-skip').addEventListener('click', skip, { once: true });
   addEventListener('wheel', skip, { passive: true }); addEventListener('touchmove', skip, { passive: true }); addEventListener('keydown', onKey);
   intro.play().then(() => {
+    voice.stop();
     removeEventListener('wheel', skip); removeEventListener('touchmove', skip); removeEventListener('keydown', onKey);
     cap.classList.add('is-out'); chips.forEach((c) => { c.classList.remove('is-on'); c.classList.add('is-done'); }); setTimeout(() => { el.hidden = true; }, 700);
     body.classList.remove('intro'); if (!app.S.exploring) { lock(false); story.setActive(true); } lastY = -1;

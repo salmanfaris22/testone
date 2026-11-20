@@ -75,24 +75,48 @@ function ringTex(px) {
   }, { repeat: false });
 }
 
-/** the ring round cage `c` (its centre x, z) on water level `Y`, turned so its top faces up the screen from `az`; items into ctx */
+const FLY = 9, BOB = 0.45, SWAY = 0.022;      // metres the ring hovers over the water, how far it bobs; its sway (radians)
+const backOut = (t) => { const s = 1.4; t -= 1; return t * t * ((s + 1) * t + s) + 1; };
+
+/** the ring round cage `c` (its centre x, z) on water level `Y`, turned so its top faces up the screen from `az`; items into ctx.
+ *  It flies (Jeffry, 20 Nov): as area 12 opens it lifts off the water and hovers FLY m over the cage, bobbing and swaying
+ *  slowly, its shadow on the water below */
 export function buildCycleRing(world, c, Y, az, ctx) {
   const tex = ringTex(world.engine && world.engine.tier === 'low' ? 1024 : 2048);
+  const geo = new THREE.PlaneGeometry(HALF * 2, HALF * 2).rotateX(-Math.PI / 2);
   const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false, opacity: 0 });
-  const disc = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2, HALF * 2).rotateX(-Math.PI / 2), mat);
-  disc.position.set(c.x, Y + 0.25, c.z); disc.rotation.y = az; disc.renderOrder = 5; disc.name = 'cycle-ring'; disc.visible = false;
-  ctx.extra.push(disc);
+  const disc = new THREE.Mesh(geo, mat); disc.rotation.y = az; disc.renderOrder = 5;
+  const fly = new THREE.Group(); fly.add(disc); fly.position.set(c.x, Y + 0.25, c.z); fly.name = 'cycle-ring'; fly.visible = false;
+  // the shadow: the same picture in black on the water, thrown away from the sun by the height it flies at
+  const smat = new THREE.MeshBasicMaterial({ map: tex, color: 0x000000, transparent: true, depthWrite: false, toneMapped: false, opacity: 0 });
+  const shadow = new THREE.Mesh(geo, smat); shadow.rotation.y = az; shadow.renderOrder = 4; shadow.scale.setScalar(1.03); shadow.visible = false;
+  const sd = (world.env && world.env.sunDir) || new THREE.Vector3(0.42, 0.74, 0.52).normalize(), sx = -sd.x / Math.max(0.2, sd.y), sz = -sd.z / Math.max(0.2, sd.y);
+  ctx.extra.push(fly, shadow);
   // where each badge is in the world (the picture's top, canvas y = 0, faces -z before the turn)
   const ca = Math.cos(az), sa = Math.sin(az), place = (deg) => { const a = (deg * Math.PI) / 180, lx = Math.cos(a) * RING, lz = Math.sin(a) * RING; return [c.x + lx * ca + lz * sa, c.z - lx * sa + lz * ca]; };
   PHASE_BADGES.forEach((b, i) => {
     const ph = CYCLE.find((p) => p.id === b.id) || {}, [x, z] = place(b.a);
-    ctx.item({ code: `PH-${i + 1}`, group: 'From egg to sea', name: b.name, kind: `Phase ${i + 1} of 5 · ${ph.time || ''}`.replace(/ · $/, ''), box: [x - BADGE, Y, z - BADGE, x + BADGE, Y + 0.6, z + BADGE], prio: 3 - i * 0.1,
+    ctx.item({ code: `PH-${i + 1}`, group: 'From egg to sea', name: b.name, kind: `Phase ${i + 1} of 5 · ${ph.time || ''}`.replace(/ · $/, ''), box: [x - BADGE, Y + FLY - 1, z - BADGE, x + BADGE, Y + FLY + 1.2, z + BADGE], prio: 3 - i * 0.1,
       desc: ph.text || '', link: ph.area, look: P(c.x, Y, c.z, az, 0.62, 128), specs: [[`${i + 1} of 5`, 'Phase'], [ph.time || '', 'When'], [ph.area && areaById[ph.area] ? `${areaById[ph.area].n}` : '', ph.area && areaById[ph.area] ? areaById[ph.area].short : '']].filter((r) => r[0]) });
   });
-  let k = 0;
-  world.updaters.push((dt) => {
-    const want = world.cycleOn ? 1 : 0; if (k === want) return;
-    k = want > k ? Math.min(1, k + dt * 2.5) : Math.max(0, k - dt * 3); mat.opacity = k; disc.visible = k > 0.01;
+  // in: it fades in on the water and rises over 1.6 s with a little overshoot; out: it sinks back as it fades
+  const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let k = 0, up = 0;
+  world.updaters.push((dt, t = 0) => {
+    const want = world.cycleOn ? 1 : 0;
+    if (k !== want) k = want > k ? Math.min(1, k + dt * 2.5) : Math.max(0, k - dt * 3);
+    up = want ? Math.min(1, up + dt / 1.6) : Math.max(0, up - dt * 2);
+    const on = k > 0.01; fly.visible = shadow.visible = on; if (!on) return;
+    const lift = FLY * (want ? backOut(up) : up * up), hover = still ? 0 : Math.min(1, up * 1.5);
+    const y = lift + hover * BOB * Math.sin(t * 1.3);
+    fly.position.y = Y + 0.25 + y;
+    fly.rotation.x = hover * SWAY * Math.sin(t * 0.9 + 1.1); fly.rotation.z = hover * SWAY * Math.sin(t * 0.7);
+    mat.opacity = k;
+    const night = world.env ? world.env.night || 0 : 0;
+    smat.opacity = k * 0.2 * (1 - 0.7 * night) * clampShadow(y);
+    shadow.position.set(c.x + sx * y, Y + 0.2, c.z + sz * y);
   });
-  return disc;
+  return fly;
 }
+/** the shadow is crisp and darker just over the water, softer and paler as the ring climbs */
+const clampShadow = (y) => 1 - 0.35 * Math.min(1, Math.max(0, y / FLY));

@@ -93,7 +93,11 @@ export function createIntro(world, { hero }) {
   // it the first seconds of the film were a grey wall)
   const carCam = (t) => { const k = smooth(win(t, 0, T.board)); return [GX - 15.5 + 2.2 * k, 1.15 + 0.2 * k, Z0 - Math.min(8.4, 6.2 * narrow())]; };
   // 2, the name board: the camera turns from the car to the plaque and slides along it, reading it
-  const boardCam = (t) => { const k = smooth(win(t, T.board + 0.3, T.over - T.board - 0.3)), n = narrow(); return onWall(-1.9 + 4.3 * k, (3.5 + 2.0 * k) * n, 1.6 + 0.32 * k); };
+  // (a narrow screen stands further off the wall, but never out in the lane: the car waits at the gate right behind the camera,
+  // and on a phone the step-back put the camera inside it, Jeffry 20 Nov. It stays CAR_CLEAR off the lane's centre line)
+  const CAR_CLEAR = 5.5;
+  const offWall = (s, d) => (NRM[1] > 0.2 ? Math.min(d, Math.max(2.5, (LANE - CAR_CLEAR - PC.z - RUN[1] * s) / NRM[1])) : d);
+  const boardCam = (t) => { const k = smooth(win(t, T.board + 0.3, T.over - T.board - 0.3)), n = narrow(), s = -1.9 + 4.3 * k; return onWall(s, offWall(s, (3.5 + 2.0 * k) * n), 1.6 + 0.32 * k); };
   const boardLook = (t) => { const k = smooth(win(t, T.board + 0.3, T.over - T.board - 0.3)); return onWall((-1.9 + 4.3 * k) * 0.3, 0, 1.78); };
   // 3, over the gate: the camera lifts off the end of the wall, turning to the car waiting at the gate, rises back over the
   // opening gate and comes down low on the road inside it, looking back out at the car

@@ -381,13 +381,15 @@ body.no-gl .species { background: linear-gradient(180deg, #0e6e7e, #0b2b3c); } b
 .intro-phases li { font-family: var(--fc); font-weight: 600; font-size: 13px; letter-spacing: 0.05em; padding: 7px 13px; border-radius: 999px; color: rgba(255, 255, 255, 0.8); background: rgba(6, 40, 60, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: background-color 0.45s, color 0.45s, transform 0.45s var(--ease); }
 .intro-phases li.is-on { background: var(--signal-grad); color: var(--on-signal); transform: translateY(-2px); }
 .intro-phases li.is-done { background: rgba(251, 250, 246, 0.9); color: var(--ink); }
-.intro-skip { position: absolute; right: var(--pad); bottom: clamp(30px, 6vh, 58px); pointer-events: auto; }
+.intro-btns { position: absolute; right: var(--pad); bottom: clamp(30px, 6vh, 58px); display: flex; gap: 8px; pointer-events: auto; }
+.intro-sound[hidden] { display: none; }
+.intro-sound svg { flex: none; }
 .hero-copy, .hero-facts, .scroll-cue, .top { transition: opacity 0.9s var(--ease), transform 0.9s var(--ease); }
 body.intro .hero-copy, body.intro .hero-facts, body.intro .scroll-cue { opacity: 0; transform: translateY(16px); pointer-events: none; }
 body.intro .top { opacity: 0; pointer-events: none; }
 body.intro .hero::before { opacity: 0; }
 .hero::before { transition: opacity 1.2s var(--ease); }
-@media (max-width: 720px) { .intro-cap { bottom: 104px; } .intro-cap b { font-size: 28px; } .intro-phases li { font-size: 12px; padding: 6px 10px; } .intro-skip { bottom: 26px; } .intro-phases { bottom: 30px; } }
+@media (max-width: 720px) { .intro-cap { bottom: 104px; } .intro-cap b { font-size: 28px; } .intro-phases li { font-size: 12px; padding: 6px 10px; } .intro-btns { bottom: 26px; } .intro-phases { bottom: 30px; } }
 @media (max-width: 420px) { .intro-phases { display: none; } }
 
 /* ───── the company's film: a dark band, the heading, then the video itself; it plays in place ───── */
@@ -477,7 +479,8 @@ body.intro .hero::before { opacity: 0; }
   .intro-cap { left: var(--pad); right: var(--pad); bottom: calc(90px + env(safe-area-inset-bottom)); max-width: none; }
   .intro-cap small { font-size: 11px; line-height: 1.45; letter-spacing: .06em; margin-bottom: 9px; }
   .intro-cap b { font-size: clamp(25px, 6.8vw, 36px); line-height: 1.13; text-wrap: pretty; max-width: 23ch; }
-  .intro-skip { top: calc(18px + env(safe-area-inset-top)); bottom: auto; right: var(--pad); min-height: 44px; font-size: 13px; }
+  .intro-btns { top: calc(18px + env(safe-area-inset-top)); bottom: auto; right: var(--pad); }
+  .intro-btns .btn { min-height: 44px; font-size: 13px; }
   .intro-phases { display: flex; left: var(--pad); bottom: calc(26px + env(safe-area-inset-bottom)); gap: 8px; }
   .intro-phases li { font-size: 12px; padding: 6px 12px; }
   .intro-callout:not([hidden]) { position: absolute; display: grid; gap: 4px; left: var(--pad); right: var(--pad); top: calc(82px + env(safe-area-inset-top)); width: fit-content; max-width: calc(100% - 2 * var(--pad)); padding: 11px 15px; color: var(--on-signal); background: rgba(6,40,60,.88); border-left: 3px solid var(--signal); border-radius: 4px 12px 12px 4px; box-shadow: 0 10px 26px -10px rgba(4,30,46,.5); }
@@ -529,7 +532,7 @@ body.intro .hero::before { opacity: 0; }
   .intro-cap b { font-size: 26px; }
   .intro-cap small { font-size: 11px; margin-bottom: 6px; }
   .intro-callout:not([hidden]) { top: 24px; right: 150px; }
-  .intro-skip { top: 20px; bottom: auto; }
+  .intro-btns { top: 20px; bottom: auto; }
   .intro-phases { bottom: 20px; }
 }
 

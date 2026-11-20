@@ -35,7 +35,7 @@ body.night .dock-ph { color: var(--signal); border-color: var(--line-ink); }
 .dock button span { max-width: 0; overflow: hidden; opacity: 0; transition: max-width 0.35s var(--ease), opacity 0.25s, margin 0.3s; }
 .dock button:hover { background: rgba(11, 43, 60, 0.08); color: var(--ink); }
 .dock button.is-on { background: var(--ink); color: #fff; padding: 0 14px 0 4px; }
-.dock button.is-on b { background: var(--signal-grad); color: var(--on-signal); }
+.dock button.is-on b { background: var(--num-bg); color: var(--on-signal); }
 .dock button.is-on span { max-width: 14rem; opacity: 1; margin-left: 8px; }
 body.night .dock { background: rgba(14, 44, 60, 0.86); box-shadow: 0 14px 34px -16px #000, 0 0 0 1px rgba(234, 243, 244, 0.12); }
 body.night .dock button { color: var(--on-ink-2); } body.night .dock button:hover { color: #fff; background: rgba(255, 255, 255, 0.1); } body.night .dock button.is-on { background: var(--paper); color: var(--ink); }
@@ -126,12 +126,12 @@ body.has-panel .panel { transform: none; }
 
 /* projected labels */
 .pin { position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 40px; height: 40px; margin: -46px 0 0 -20px; pointer-events: auto; cursor: pointer; will-change: transform; }
-.pin b { position: relative; z-index: 1; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50% 50% 50% 4px; transform: rotate(-45deg); background: var(--signal-grad); color: var(--on-signal); box-shadow: 0 8px 18px -8px rgba(0, 32, 54, 0.75), inset 0 0 0 2px rgba(255, 255, 255, 0.5); transition: background-color 0.2s, transform 0.25s var(--ease); }
+.pin b { position: relative; z-index: 1; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50% 50% 50% 4px; transform: rotate(-45deg); background: var(--num-bg); color: var(--on-signal); box-shadow: 0 8px 18px -8px rgba(0, 32, 54, 0.75), inset 0 0 0 2px rgba(255, 255, 255, 0.5); transition: background-color 0.2s, transform 0.25s var(--ease); }
 .pin b i { transform: rotate(45deg); font-style: normal; font-family: var(--fc); font-weight: 600; font-size: 14.5px; }
 .pin span { position: absolute; left: 50%; bottom: calc(100% + 2px); transform: translate(-50%, 6px); white-space: nowrap; background: rgba(251, 250, 246, 0.95); color: var(--ink); box-shadow: 0 8px 18px -10px rgba(4, 30, 46, 0.6); font-size: 13.5px; font-weight: 500; padding: 5px 11px; border-radius: 999px; opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; }
-.pin:hover b, .pin.is-on b { background: #fff; color: var(--signal-d); transform: rotate(-45deg) scale(1.12); }
+.pin:hover b, .pin.is-on b { background: #fff; color: var(--on-signal); transform: rotate(-45deg) scale(1.12); }
 .pin:hover span, .pin.is-on span { opacity: 1; transform: translate(-50%, 0); }
-.pin::after { content: ''; position: absolute; left: 50%; top: 50%; width: 34px; height: 34px; margin: -17px; border-radius: 50%; border: 1.5px solid var(--signal); opacity: 0; animation: ping 3.2s var(--ease) infinite; animation-delay: calc(var(--i, 0) * 0.3s); }
+.pin::after { content: ''; position: absolute; left: 50%; top: 50%; width: 34px; height: 34px; margin: -17px; border-radius: 50%; border: 1.5px solid var(--num-bg); opacity: 0; animation: ping 3.2s var(--ease) infinite; animation-delay: calc(var(--i, 0) * 0.3s); }
 @keyframes ping { 0% { transform: scale(0.8); opacity: 0.7; } 60%, 100% { transform: scale(1.9); opacity: 0; } }
 .tag { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 8px; pointer-events: auto; cursor: pointer; will-change: transform; }
 .tag i { width: 11px; height: 11px; border-radius: 50%; background: var(--signal-grad); box-shadow: 0 0 0 4px rgba(227, 160, 70, 0.28); flex: none; transition: transform 0.2s; }

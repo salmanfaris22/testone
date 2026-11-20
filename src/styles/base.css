@@ -65,7 +65,7 @@ h3 { font-weight: 500; font-size: 21px; line-height: 1.25; letter-spacing: -0.00
 .btn:active { transform: scale(0.98); }
 .btn.btn-lg { min-height: 52px; padding: 0 26px; font-size: 16px; }
 .btn.btn-solid { background: var(--signal-grad); color: var(--on-signal); }
-.btn.btn-solid:hover { background: #86d3f3; }
+.btn.btn-solid:hover { background: var(--signal-grad-h); }
 .btn.btn-ghost { background: rgba(255, 255, 255, 0.14); color: #fff; border: 1px solid rgba(255, 255, 255, 0.42); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .btn.btn-ghost:hover { background: rgba(255, 255, 255, 0.24); }
 .btn.btn-line { border: 1px solid var(--line-ink); color: var(--on-ink); }

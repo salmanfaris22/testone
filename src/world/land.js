@@ -164,7 +164,18 @@ export function createLand(scene, mats) {
     roads[rb === RB_W ? 'rbW' : 'rbE'] = arcPts(rb.r, 0, TAU, rb.x, rb.z, 9 * DEG);
   }
   // drop-off loop at the foot of the Innovation Park
-  b.use('paving').disc(C.brick, DROP.r + 3, DROP.x, 0.047, DROP.z, 44); b.use('asphalt').disc(C.asphalt, DROP.r, DROP.x, 0.077, DROP.z, 44); b.use('matte').prism(C.grass, arcPts(4.6, 0, TAU, DROP.x, DROP.z, 12 * DEG), 0, 0.4);
+  b.use('paving').disc(C.brick, DROP.r + 3, DROP.x, 0.047, DROP.z, 44); b.use('matte').disc(0xd8d2c6, DROP.r + 0.35, DROP.x, 0.062, DROP.z, 44);      // (its kerb, as round the roundabouts)
+  b.use('asphalt').disc(C.asphalt, DROP.r, DROP.x, 0.077, DROP.z, 44); b.use('matte').prism(C.grass, arcPts(4.6, 0, TAU, DROP.x, DROP.z, 12 * DEG), 0, 0.4);
+  // where the drive meets the loop: the drive ended square just short of it and comes in off its centre, so slivers of the loop's
+  // paving showed in its mouth (Jeffry, 20 Nov: "the road cut"). Its asphalt, kerb and walk run on into the loop instead.
+  { const S = all.find((r) => r.name === 'drive'), D = [DROP.x, DROP.z];
+    if (S) {
+      const p = S.p, near = (i) => Math.hypot(p[i][0] - D[0], p[i][1] - D[1]), end = near(0) < near(p.length - 1) ? 0 : p.length - 1, dir = end ? -1 : 1;
+      const e = p[end], f = p[end + dir], dl = Math.hypot(e[0] - f[0], e[1] - f[1]) || 1, d = [(e[0] - f[0]) / dl, (e[1] - f[1]) / dl];
+      const along = Math.max(4, (D[0] - e[0]) * d[0] + (D[1] - e[1]) * d[1]), ins = [e[0] + d[0] * along, e[1] + d[1] * along];      // on to level with the loop's middle
+      if (S.walk) { b.use('paving').ribbon(C.brick, [f, e, ins], S.w + S.walk * 2, 0.045); b.use('matte').ribbon(0xd8d2c6, [f, e, ins], S.w + 0.7, 0.06); }
+      b.use('asphalt').ribbon(C.asphalt, [f, e, ins], S.w, 0.075);
+    } }
 
   // parking court between the office wing and the north road
   b.use('asphalt').poly(0x3d4249, PARKING, 0.07);
